@@ -17,7 +17,9 @@ def health(db: DB):
 
 @router.get("/meta/categories")
 def categories(db: DB):
-    return [{"slug": c.slug, "name": c.name, "icon": c.icon} for c in db.scalars(select(Category).order_by(Category.sort))]
+    return [
+        {"slug": c.slug, "name": c.name, "icon": c.icon} for c in db.scalars(select(Category).order_by(Category.sort))
+    ]
 
 
 @router.get("/meta/ambiances")
@@ -31,8 +33,14 @@ def cities(db: DB):
     for c in db.scalars(select(City).order_by(City.id)):
         g = cast(City.center, Geometry)
         lat, lng = db.execute(select(func.ST_Y(g), func.ST_X(g)).where(City.id == c.id)).one()
-        out.append({"slug": c.slug, "name": c.name, "center": {"lat": lat, "lng": lng},
-                    "districts": [{"slug": d.slug, "name": d.name} for d in c.districts]})
+        out.append(
+            {
+                "slug": c.slug,
+                "name": c.name,
+                "center": {"lat": lat, "lng": lng},
+                "districts": [{"slug": d.slug, "name": d.name} for d in c.districts],
+            }
+        )
     return out
 
 

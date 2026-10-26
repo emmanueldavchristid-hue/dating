@@ -1,4 +1,5 @@
 """Schémas d'entrée/sortie conformes à docs/API.md."""
+
 from datetime import date as Date
 from datetime import datetime, time
 from typing import Literal
@@ -136,6 +137,7 @@ class HomeOut(BaseModel):
 
 # ---------- Utilisateur ----------
 
+
 class Preferences(BaseModel):
     categories: list[str] = []
     ambiances: list[str] = []
@@ -190,6 +192,7 @@ class ConsentIn(BaseModel):
 
 
 # ---------- Contenus ----------
+
 
 class ReportIn(BaseModel):
     kind: Literal["closed", "wrong_hours", "wrong_location", "wrong_price", "other"]
@@ -328,6 +331,7 @@ class CheckoutIn(BaseModel):
 
 
 # ---------- Admin ----------
+
 
 class AdminPlaceIn(BaseModel):
     name: str = Field(min_length=1, max_length=160)

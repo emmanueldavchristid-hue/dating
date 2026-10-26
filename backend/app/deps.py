@@ -39,6 +39,7 @@ def require_role(*roles: str):
         if user.role not in roles:
             raise forbidden("Droits insuffisants")
         return user
+
     return dependency
 
 

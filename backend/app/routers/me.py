@@ -90,21 +90,34 @@ def consent(body: ConsentIn, db: DB, user: CurrentUser):
 @router.get("/export")
 def export(db: DB, user: CurrentUser):
     """Export des données personnelles (droit d'accès / portabilité)."""
-    favs = db.scalars(select(Place.slug).join(Favorite, Favorite.place_id == Place.id).where(Favorite.user_id == user.id)).all()
+    favs = db.scalars(
+        select(Place.slug).join(Favorite, Favorite.place_id == Place.id).where(Favorite.user_id == user.id)
+    ).all()
     return {
         "exported_at": datetime.now(UTC).isoformat(),
         "account": user_out(user).model_dump(),
         "created_at": user.created_at.isoformat(),
         "favorites": list(favs),
-        "collections": [{"name": c.name, "description": c.description} for c in db.scalars(select(Collection).where(Collection.user_id == user.id))],
-        "reviews": [{"place_id": str(r.place_id), "rating": r.rating, "text": r.text, "created_at": r.created_at.isoformat()}
-                    for r in db.scalars(select(Review).where(Review.user_id == user.id))],
-        "reports": [{"place_id": str(r.place_id), "kind": r.kind, "message": r.message, "status": r.status}
-                    for r in db.scalars(select(Report).where(Report.user_id == user.id))],
-        "itineraries": [{"title": i.title, "date": i.day.isoformat() if i.day else None, "steps": len(i.steps)}
-                        for i in db.scalars(select(Itinerary).where(Itinerary.user_id == user.id))],
-        "search_history": [{"query": s.query, "filters": s.filters, "created_at": s.created_at.isoformat()}
-                           for s in db.scalars(select(SearchHistory).where(SearchHistory.user_id == user.id))],
+        "collections": [
+            {"name": c.name, "description": c.description}
+            for c in db.scalars(select(Collection).where(Collection.user_id == user.id))
+        ],
+        "reviews": [
+            {"place_id": str(r.place_id), "rating": r.rating, "text": r.text, "created_at": r.created_at.isoformat()}
+            for r in db.scalars(select(Review).where(Review.user_id == user.id))
+        ],
+        "reports": [
+            {"place_id": str(r.place_id), "kind": r.kind, "message": r.message, "status": r.status}
+            for r in db.scalars(select(Report).where(Report.user_id == user.id))
+        ],
+        "itineraries": [
+            {"title": i.title, "date": i.day.isoformat() if i.day else None, "steps": len(i.steps)}
+            for i in db.scalars(select(Itinerary).where(Itinerary.user_id == user.id))
+        ],
+        "search_history": [
+            {"query": s.query, "filters": s.filters, "created_at": s.created_at.isoformat()}
+            for s in db.scalars(select(SearchHistory).where(SearchHistory.user_id == user.id))
+        ],
     }
 
 
@@ -120,18 +133,30 @@ def delete_account(db: DB, user: CurrentUser):
 
 @router.get("/subscription", response_model=SubscriptionOut)
 def subscription(db: DB, user: CurrentUser):
-    sub = db.scalar(select(Subscription).where(Subscription.user_id == user.id, Subscription.status == "active")
-                    .order_by(Subscription.created_at.desc()))
-    return SubscriptionOut(plan=user.plan_code, status=sub.status if sub else ("active" if user.plan_code != "free" else "none"),
-                           current_period_end=sub.current_period_end if sub else None)
+    sub = db.scalar(
+        select(Subscription)
+        .where(Subscription.user_id == user.id, Subscription.status == "active")
+        .order_by(Subscription.created_at.desc())
+    )
+    return SubscriptionOut(
+        plan=user.plan_code,
+        status=sub.status if sub else ("active" if user.plan_code != "free" else "none"),
+        current_period_end=sub.current_period_end if sub else None,
+    )
 
 
 # ---------- Favoris ----------
 
+
 @router.get("/favorites", response_model=list[PlaceCard])
 def favorites(db: DB, user: CurrentUser):
-    places = db.scalars(select(Place).join(Favorite, Favorite.place_id == Place.id)
-                        .where(Favorite.user_id == user.id).order_by(Favorite.created_at.desc()).limit(200)).all()
+    places = db.scalars(
+        select(Place)
+        .join(Favorite, Favorite.place_id == Place.id)
+        .where(Favorite.user_id == user.id)
+        .order_by(Favorite.created_at.desc())
+        .limit(200)
+    ).all()
     return cards_for_places(db, list(places), user)
 
 
@@ -153,6 +178,7 @@ def remove_favorite(place_id: str, db: DB, user: CurrentUser):
 
 # ---------- Collections ----------
 
+
 def _collection(db, user, cid: str) -> Collection:
     c = db.get(Collection, _uuid(cid, "Collection"))
     if not c or c.user_id != user.id:
@@ -165,7 +191,9 @@ def collections(db: DB, user: CurrentUser):
     rows = db.execute(
         select(Collection, func.count(CollectionItem.place_id))
         .outerjoin(CollectionItem, CollectionItem.collection_id == Collection.id)
-        .where(Collection.user_id == user.id).group_by(Collection.id).order_by(Collection.created_at.desc())
+        .where(Collection.user_id == user.id)
+        .group_by(Collection.id)
+        .order_by(Collection.created_at.desc())
     ).all()
     return [CollectionSummary(id=str(c.id), name=c.name, description=c.description, count=n) for c, n in rows]
 
@@ -183,9 +211,15 @@ def create_collection(body: CollectionIn, db: DB, user: CurrentUser):
 @router.get("/collections/{cid}", response_model=CollectionDetail)
 def get_collection(cid: str, db: DB, user: CurrentUser):
     c = _collection(db, user, cid)
-    places = db.scalars(select(Place).join(CollectionItem, CollectionItem.place_id == Place.id)
-                        .where(CollectionItem.collection_id == c.id).order_by(CollectionItem.created_at)).all()
-    return CollectionDetail(id=str(c.id), name=c.name, description=c.description, items=cards_for_places(db, list(places), user))
+    places = db.scalars(
+        select(Place)
+        .join(CollectionItem, CollectionItem.place_id == Place.id)
+        .where(CollectionItem.collection_id == c.id)
+        .order_by(CollectionItem.created_at)
+    ).all()
+    return CollectionDetail(
+        id=str(c.id), name=c.name, description=c.description, items=cards_for_places(db, list(places), user)
+    )
 
 
 @router.delete("/collections/{cid}", status_code=204)
@@ -207,6 +241,10 @@ def add_item(cid: str, body: CollectionItemIn, db: DB, user: CurrentUser):
 @router.delete("/collections/{cid}/items/{place_id}", status_code=204)
 def remove_item(cid: str, place_id: str, db: DB, user: CurrentUser):
     c = _collection(db, user, cid)
-    db.execute(delete(CollectionItem).where(CollectionItem.collection_id == c.id, CollectionItem.place_id == _uuid(place_id, "Lieu")))
+    db.execute(
+        delete(CollectionItem).where(
+            CollectionItem.collection_id == c.id, CollectionItem.place_id == _uuid(place_id, "Lieu")
+        )
+    )
     db.commit()
     return Response(status_code=204)

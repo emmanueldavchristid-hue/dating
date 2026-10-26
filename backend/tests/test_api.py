@@ -1,4 +1,5 @@
 """Tests d'intégration de l'API (base réelle)."""
+
 API = "/api/v1"
 
 
@@ -9,6 +10,7 @@ def search(client, headers=None, **params):
 
 
 # ---------- Méta & recherche ----------
+
 
 def test_health_and_meta(client):
     assert client.get(f"{API}/health").json() == {"status": "ok", "db": "ok"}
@@ -94,6 +96,7 @@ def test_place_detail(client):
 
 # ---------- Premium : contrôle côté serveur ----------
 
+
 def test_gems_locked_for_free_and_open_for_insider(client, free_h, insider_h):
     locked = client.get(f"{API}/places/gems", headers=free_h).json()
     assert locked and all(g["locked"] and g["location"] is None and g["name"] == "Pépite Insider" for g in locked)
@@ -109,12 +112,20 @@ def test_gems_locked_for_free_and_open_for_insider(client, free_h, insider_h):
 
 # ---------- Auth & compte ----------
 
+
 def test_register_login_errors(client, new_user):
     _, email = new_user
-    r = client.post(f"{API}/auth/register", json={"email": email.upper(), "password": "motdepasse-solide", "display_name": "X"})
+    r = client.post(
+        f"{API}/auth/register", json={"email": email.upper(), "password": "motdepasse-solide", "display_name": "X"}
+    )
     assert r.status_code == 409
     assert client.post(f"{API}/auth/login", json={"email": email, "password": "mauvais"}).status_code == 401
-    assert client.post(f"{API}/auth/register", json={"email": "x@y.fr", "password": "court", "display_name": "X"}).status_code == 422
+    assert (
+        client.post(
+            f"{API}/auth/register", json={"email": "x@y.fr", "password": "court", "display_name": "X"}
+        ).status_code
+        == 422
+    )
     assert client.get(f"{API}/me").json()["code"] == "not_authenticated"
     assert client.get(f"{API}/me", headers={"Authorization": "Bearer faux"}).status_code == 401
 
@@ -126,7 +137,9 @@ def test_auth_rate_limit(client):
 
 def test_preferences_and_consent(client, new_user):
     h, _ = new_user
-    u = client.patch(f"{API}/me/preferences", headers=h, json={"categories": ["plage"], "budget_max_fcfa": 15000}).json()
+    u = client.patch(
+        f"{API}/me/preferences", headers=h, json={"categories": ["plage"], "budget_max_fcfa": 15000}
+    ).json()
     assert u["preferences"]["categories"] == ["plage"] and u["preferences"]["budget_max_fcfa"] == 15000
     assert client.patch(f"{API}/me/preferences", headers=h, json={"categories": ["inconnue"]}).status_code == 400
     assert client.post(f"{API}/me/consent", headers=h, json={"location": True}).json()["location_consent"] is True
@@ -140,7 +153,10 @@ def test_favorites_and_collections(client, new_user):
     assert [f["id"] for f in client.get(f"{API}/me/favorites", headers=h).json()] == [place["id"]]
     assert client.get(f"{API}/places/{place['slug']}", headers=h).json()["is_favorite"] is True
     c = client.post(f"{API}/me/collections", headers=h, json={"name": "Week-end"}).json()
-    assert client.post(f"{API}/me/collections/{c['id']}/items", headers=h, json={"place_id": place["id"]}).status_code == 204
+    assert (
+        client.post(f"{API}/me/collections/{c['id']}/items", headers=h, json={"place_id": place["id"]}).status_code
+        == 204
+    )
     assert client.get(f"{API}/me/collections", headers=h).json()[0]["count"] == 1
     assert client.get(f"{API}/me/collections/{c['id']}", headers=h).json()["items"][0]["id"] == place["id"]
     assert client.delete(f"{API}/me/collections/{c['id']}/items/{place['id']}", headers=h).status_code == 204
@@ -166,11 +182,18 @@ def test_report_and_admin_resolution(client, new_user, admin_h):
     h, _ = new_user
     place = search(client, city="abidjan")["items"][1]
     assert client.post(f"{API}/places/{place['id']}/reports", json={"kind": "closed"}).status_code == 401
-    rep = client.post(f"{API}/places/{place['id']}/reports", headers=h, json={"kind": "wrong_hours", "message": "Fermé le lundi"})
+    rep = client.post(
+        f"{API}/places/{place['id']}/reports", headers=h, json={"kind": "wrong_hours", "message": "Fermé le lundi"}
+    )
     assert rep.status_code == 201
     open_reports = client.get(f"{API}/admin/reports", headers=admin_h).json()["items"]
     assert any(r["id"] == rep.json()["id"] for r in open_reports)
-    assert client.patch(f"{API}/admin/reports/{rep.json()['id']}", headers=admin_h, json={"status": "resolved"}).json()["status"] == "resolved"
+    assert (
+        client.patch(f"{API}/admin/reports/{rep.json()['id']}", headers=admin_h, json={"status": "resolved"}).json()[
+            "status"
+        ]
+        == "resolved"
+    )
 
 
 def test_export_and_delete_account(client, new_user):
@@ -183,18 +206,31 @@ def test_export_and_delete_account(client, new_user):
 
 # ---------- Itinéraires, concierge, abonnement ----------
 
+
 def test_itinerary_suggest_respects_plan(client, free_h, insider_h):
     s = client.post(f"{API}/itineraries/suggest", headers=free_h, json={"city": "abidjan", "steps": 2}).json()
     assert len(s["steps"]) == 2 and s["steps"][0]["leg_km"] is None and s["steps"][1]["leg_km"] is not None
     assert any("vol d'oiseau" in n for n in s["notes"])
-    assert client.post(f"{API}/itineraries/suggest", headers=free_h, json={"city": "abidjan", "steps": 4}).json()["code"] == "premium_required"
-    assert len(client.post(f"{API}/itineraries/suggest", headers=insider_h, json={"city": "abidjan", "steps": 4}).json()["steps"]) == 4
+    assert (
+        client.post(f"{API}/itineraries/suggest", headers=free_h, json={"city": "abidjan", "steps": 4}).json()["code"]
+        == "premium_required"
+    )
+    assert (
+        len(
+            client.post(f"{API}/itineraries/suggest", headers=insider_h, json={"city": "abidjan", "steps": 4}).json()[
+                "steps"
+            ]
+        )
+        == 4
+    )
 
 
 def test_itinerary_crud(client, new_user):
     h, _ = new_user
     ids = [i["id"] for i in search(client, city="abidjan", page_size=2)["items"]]
-    it = client.post(f"{API}/me/itineraries", headers=h, json={"title": "Samedi", "steps": [{"place_id": i} for i in ids]})
+    it = client.post(
+        f"{API}/me/itineraries", headers=h, json={"title": "Samedi", "steps": [{"place_id": i} for i in ids]}
+    )
     assert it.status_code == 201 and len(it.json()["steps"]) == 2
     assert client.get(f"{API}/me/itineraries", headers=h).json()[0]["step_count"] == 2
     assert client.delete(f"{API}/me/itineraries/{it.json()['id']}", headers=h).status_code == 204
@@ -214,7 +250,9 @@ def test_concierge_rules_mode_and_quota(client, new_user):
 
 
 def test_concierge_never_invents_when_nothing_matches(client, insider_h):
-    r = client.post(f"{API}/concierge", headers=insider_h, json={"message": "un club en famille calme", "city": "assinie"}).json()
+    r = client.post(
+        f"{API}/concierge", headers=insider_h, json={"message": "un club en famille calme", "city": "assinie"}
+    ).json()
     for p in r["places"]:
         assert p["city"] == "Assinie"
 
@@ -229,24 +267,41 @@ def test_billing_is_honest(client, free_h):
 
 # ---------- Administration ----------
 
+
 def test_admin_routes_are_protected(client, free_h):
     assert client.get(f"{API}/admin/stats").status_code == 401
     assert client.get(f"{API}/admin/stats", headers=free_h).json()["code"] == "forbidden"
-    curator = client.post(f"{API}/auth/login", json={"email": "curateur@sortie.demo", "password": "Demo-2026!"}).json()["access_token"]
+    curator = client.post(f"{API}/auth/login", json={"email": "curateur@sortie.demo", "password": "Demo-2026!"}).json()[
+        "access_token"
+    ]
     ch = {"Authorization": f"Bearer {curator}"}
     assert client.get(f"{API}/admin/curation", headers=ch).status_code == 200
     assert client.get(f"{API}/admin/users", headers=ch).status_code == 403
 
 
 def test_admin_place_lifecycle_and_audit(client, admin_h):
-    body = {"name": "Nouveau Spot Test", "city": "abidjan", "district": "cocody", "lat": 5.35, "lng": -3.99,
-            "categories": ["bar"], "ambiances": ["festif"], "budget_min_fcfa": 3000, "budget_max_fcfa": 9000}
+    body = {
+        "name": "Nouveau Spot Test",
+        "city": "abidjan",
+        "district": "cocody",
+        "lat": 5.35,
+        "lng": -3.99,
+        "categories": ["bar"],
+        "ambiances": ["festif"],
+        "budget_min_fcfa": 3000,
+        "budget_max_fcfa": 9000,
+    }
     p = client.post(f"{API}/admin/places", headers=admin_h, json=body)
     assert p.status_code == 201 and p.json()["is_demo"] is False
     assert client.post(f"{API}/admin/places", headers=admin_h, json=body).status_code == 409
     bad = client.patch(f"{API}/admin/places/{p.json()['id']}", headers=admin_h, json={"budget_min_fcfa": 99999})
     assert bad.status_code == 400
-    assert client.patch(f"{API}/admin/places/{p.json()['id']}", headers=admin_h, json={"tier": "premium", "mark_verified": True}).json()["tier"] == "premium"
+    assert (
+        client.patch(
+            f"{API}/admin/places/{p.json()['id']}", headers=admin_h, json={"tier": "premium", "mark_verified": True}
+        ).json()["tier"]
+        == "premium"
+    )
     actions = [a["action"] for a in client.get(f"{API}/admin/audit", headers=admin_h).json()["items"]]
     assert "place.created" in actions and "place.updated" in actions
 
@@ -254,7 +309,9 @@ def test_admin_place_lifecycle_and_audit(client, admin_h):
 def test_admin_plan_grant_and_curation(client, admin_h, new_user):
     h, email = new_user
     uid = client.get(f"{API}/me", headers=h).json()["id"]
-    assert client.patch(f"{API}/admin/users/{uid}", headers=admin_h, json={"plan": "insider"}).json()["plan"] == "insider"
+    assert (
+        client.patch(f"{API}/admin/users/{uid}", headers=admin_h, json={"plan": "insider"}).json()["plan"] == "insider"
+    )
     assert not client.get(f"{API}/places/gems", headers=h).json()[0]["locked"]
     items = client.get(f"{API}/admin/curation", headers=admin_h).json()["items"]
     assert items
@@ -265,6 +322,7 @@ def test_admin_plan_grant_and_curation(client, admin_h, new_user):
 def test_tasks_flag_reported_places(client, new_user):
     from app.db import SessionLocal
     from app.tasks import flag_for_review, purge_history
+
     h, _ = new_user
     pid = search(client, city="abidjan")["items"][3]["id"]
     for kind in ("closed", "wrong_price"):

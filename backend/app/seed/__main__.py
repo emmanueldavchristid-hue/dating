@@ -5,6 +5,7 @@
 
 Tous les lieux de démo sont marqués is_demo=True, source « demo », sans date de vérification :
 noms, avis et horaires sont INVENTÉS et ne décrivent aucun établissement réel."""
+
 import random
 import sys
 from datetime import UTC, datetime, time, timedelta
@@ -33,6 +34,7 @@ from app.models import (
 from app.security import hash_password
 from app.services.places import refresh_rating, set_taxonomy, slugify
 
+# fmt: off
 CATEGORIES = [
     ("restaurant", "Restaurants", "utensils"), ("maquis", "Maquis", "flame"), ("lounge", "Lounges", "sofa"),
     ("rooftop", "Rooftops", "building"), ("plage", "Plages", "waves"), ("nature", "Nature & parcs", "leaf"),
@@ -124,25 +126,51 @@ REVIEW_TEXTS = {
     2: ["Service lent et plats tièdes ce soir-là.", "Déçu par rapport aux photos."],
 }
 DEMO_PASSWORD = "Demo-2026!"
+# fmt: on
 
 
 def seed_reference(db) -> None:
-    db.execute(insert(Category).values([{"slug": s, "name": n, "icon": i, "sort": k} for k, (s, n, i) in enumerate(CATEGORIES)])
-               .on_conflict_do_update(index_elements=["slug"], set_={"name": insert(Category).excluded.name, "icon": insert(Category).excluded.icon, "sort": insert(Category).excluded.sort}))
+    db.execute(
+        insert(Category)
+        .values([{"slug": s, "name": n, "icon": i, "sort": k} for k, (s, n, i) in enumerate(CATEGORIES)])
+        .on_conflict_do_update(
+            index_elements=["slug"],
+            set_={
+                "name": insert(Category).excluded.name,
+                "icon": insert(Category).excluded.icon,
+                "sort": insert(Category).excluded.sort,
+            },
+        )
+    )
     db.execute(insert(Ambiance).values([{"slug": s, "name": n} for s, n in AMBIANCES]).on_conflict_do_nothing())
     for code, name, price, conc, steps, gems, features, sort in PLANS:
-        db.merge(Plan(code=code, name=name, price_fcfa=price, concierge_per_day=conc, itinerary_max_steps=steps,
-                      can_see_gems=gems, features=features, sort=sort))
+        db.merge(
+            Plan(
+                code=code,
+                name=name,
+                price_fcfa=price,
+                concierge_per_day=conc,
+                itinerary_max_steps=steps,
+                can_see_gems=gems,
+                features=features,
+                sort=sort,
+            )
+        )
     for slug, (name, (lat, lng), districts) in CITIES.items():
-        city = db.scalar(select(City).where(City.slug == slug)) or City(slug=slug, name=name, center=f"SRID=4326;POINT({lng} {lat})")
+        city = db.scalar(select(City).where(City.slug == slug)) or City(
+            slug=slug, name=name, center=f"SRID=4326;POINT({lng} {lat})"
+        )
         db.add(city)
         db.flush()
         for dslug, (dname, dlat, dlng) in districts.items():
             if not db.scalar(select(District).where(District.city_id == city.id, District.slug == dslug)):
                 db.add(District(city_id=city.id, slug=dslug, name=dname, center=f"SRID=4326;POINT({dlng} {dlat})"))
-    for kind, name, lic, attr in [("demo", "Démonstration", None, "Données fictives de démonstration"),
-                                  ("osm", "OpenStreetMap", "ODbL", "© OpenStreetMap contributors"),
-                                  ("curated", "Curation interne", None, None), ("partner", "Partenaires", None, None)]:
+    for kind, name, lic, attr in [
+        ("demo", "Démonstration", None, "Données fictives de démonstration"),
+        ("osm", "OpenStreetMap", "ODbL", "© OpenStreetMap contributors"),
+        ("curated", "Curation interne", None, None),
+        ("partner", "Partenaires", None, None),
+    ]:
         if not db.scalar(select(DataSource).where(DataSource.name == name)):
             db.add(DataSource(kind=kind, name=name, license=lic, attribution=attr))
     db.commit()
@@ -160,16 +188,32 @@ def seed_demo(db) -> None:
     db.execute(delete(User).where(User.email.like("%@sortie.demo")))
     db.commit()
     src = db.scalar(select(DataSource).where(DataSource.kind == "demo"))
-    plans_users = [("admin@sortie.demo", "Admin Démo", "admin", "insider"), ("insider@sortie.demo", "Awa (Insider)", "user", "insider"),
-                   ("user@sortie.demo", "Koffi (Découverte)", "user", "free"), ("curateur@sortie.demo", "Curateur Démo", "curator", "free")]
+    plans_users = [
+        ("admin@sortie.demo", "Admin Démo", "admin", "insider"),
+        ("insider@sortie.demo", "Awa (Insider)", "user", "insider"),
+        ("user@sortie.demo", "Koffi (Découverte)", "user", "free"),
+        ("curateur@sortie.demo", "Curateur Démo", "curator", "free"),
+    ]
     pw = hash_password(DEMO_PASSWORD)
     for email, name, role, plan in plans_users:
         u = User(email=email, password_hash=pw, display_name=name, role=role, plan_code=plan)
-        u.preferences = UserPreferences(categories=["rooftop", "plage"], ambiances=["calme"], home_city="abidjan") if email.startswith("user") else UserPreferences()
+        u.preferences = (
+            UserPreferences(categories=["rooftop", "plage"], ambiances=["calme"], home_city="abidjan")
+            if email.startswith("user")
+            else UserPreferences()
+        )
         db.add(u)
     reviewers = []
-    for i, first in enumerate(["Aya", "Serge", "Mariam", "Yao", "Fatou", "Didier", "Nadia", "Ibrahim", "Clarisse", "Moussa", "Inès", "Hervé"]):
-        u = User(email=f"avis{i}@sortie.demo", password_hash=pw, display_name=f"{first} (démo)", is_active=False, plan_code="free")
+    for i, first in enumerate(
+        ["Aya", "Serge", "Mariam", "Yao", "Fatou", "Didier", "Nadia", "Ibrahim", "Clarisse", "Moussa", "Inès", "Hervé"]
+    ):
+        u = User(
+            email=f"avis{i}@sortie.demo",
+            password_hash=pw,
+            display_name=f"{first} (démo)",
+            is_active=False,
+            plan_code="free",
+        )
         db.add(u)
         reviewers.append(u)
     db.flush()
@@ -177,8 +221,12 @@ def seed_demo(db) -> None:
     districts = {(d.city_id, d.slug): d for d in db.scalars(select(District))}
     from geoalchemy2 import Geometry
     from sqlalchemy import cast, func
+
     g = cast(District.center, Geometry)
-    centers = {(r[0], r[1]): (r[2], r[3]) for r in db.execute(select(District.city_id, District.slug, func.ST_Y(g), func.ST_X(g)))}
+    centers = {
+        (r[0], r[1]): (r[2], r[3])
+        for r in db.execute(select(District.city_id, District.slug, func.ST_Y(g), func.ST_X(g)))
+    }
     now = datetime.now(UTC)
     for idx, (name, cats, ambs, loc, lvl, bmin, bmax, tier, hours, amen, short, pop) in enumerate(P):
         cslug, dslug = loc.split("/")
@@ -187,37 +235,78 @@ def seed_demo(db) -> None:
         lat, lng = centers[(city.id, dslug)]
         lat, lng = lat + rnd.uniform(-0.006, 0.006), lng + rnd.uniform(-0.006, 0.006)
         place = Place(
-            slug=slugify(name), name=name, short_description=short,
+            slug=slugify(name),
+            name=name,
+            short_description=short,
             description=f"{short} Fiche de démonstration : ce lieu est fictif et sert uniquement à illustrer l'application.",
-            city_id=city.id, district_id=district.id, address=f"{district.name}, {city.name} (adresse fictive)",
-            location=f"SRID=4326;POINT({lng} {lat})", price_level=lvl, budget_min_fcfa=bmin, budget_max_fcfa=bmax,
-            tier=tier, status="published", is_demo=True, source_id=src.id, verified_at=None, confidence=0.3,
-            popularity=pop * 3, cover_gradient=GRADIENTS[cats[0]],
-            has_parking=True if "P" in amen else None, card_payment=True if "C" in amen else None,
-            mobile_money=True if "M" in amen else None, outdoor=True if "O" in amen else None,
-            wifi=True if "W" in amen else None, wheelchair=True if idx % 5 == 0 else None,
+            city_id=city.id,
+            district_id=district.id,
+            address=f"{district.name}, {city.name} (adresse fictive)",
+            location=f"SRID=4326;POINT({lng} {lat})",
+            price_level=lvl,
+            budget_min_fcfa=bmin,
+            budget_max_fcfa=bmax,
+            tier=tier,
+            status="published",
+            is_demo=True,
+            source_id=src.id,
+            verified_at=None,
+            confidence=0.3,
+            popularity=pop * 3,
+            cover_gradient=GRADIENTS[cats[0]],
+            has_parking=True if "P" in amen else None,
+            card_payment=True if "C" in amen else None,
+            mobile_money=True if "M" in amen else None,
+            outdoor=True if "O" in amen else None,
+            wifi=True if "W" in amen else None,
+            wheelchair=True if idx % 5 == 0 else None,
             created_at=now - timedelta(days=rnd.randint(1, 400)),
         )
         set_taxonomy(db, place, cats, ambs)
         place.hours = [OpeningHours(weekday=d, opens=_t(a), closes=_t(b)) for d, a, b in HOURS[hours]]
-        place.media = [Media(gradient=GRADIENTS[c], alt=f"{name} — visuel d'ambiance ({c})", position=k, credit=None)
-                       for k, c in enumerate(cats)]
+        place.media = [
+            Media(gradient=GRADIENTS[c], alt=f"{name} — visuel d'ambiance ({c})", position=k, credit=None)
+            for k, c in enumerate(cats)
+        ]
         db.add(place)
         db.flush()
-        n_reviews = min(len(reviewers), max(0, int(pop / 7) + rnd.randint(-2, 2))) if tier == "free" else rnd.randint(1, 3)
+        n_reviews = (
+            min(len(reviewers), max(0, int(pop / 7) + rnd.randint(-2, 2))) if tier == "free" else rnd.randint(1, 3)
+        )
         base = rnd.choice([3.6, 4.0, 4.2, 4.5, 4.7])
         for u in rnd.sample(reviewers, n_reviews):
             rating = max(2, min(5, round(rnd.gauss(base, 0.7))))
-            db.add(Review(place_id=place.id, user_id=u.id, rating=rating, text=rnd.choice(REVIEW_TEXTS[rating]), is_demo=True,
-                          created_at=now - timedelta(days=rnd.randint(1, 300))))
+            db.add(
+                Review(
+                    place_id=place.id,
+                    user_id=u.id,
+                    rating=rating,
+                    text=rnd.choice(REVIEW_TEXTS[rating]),
+                    is_demo=True,
+                    created_at=now - timedelta(days=rnd.randint(1, 300)),
+                )
+            )
         db.flush()
         refresh_rating(db, place)
         if place.rating_count >= 5:
             place.reviews_summary = "Résumé de démonstration : les avis (fictifs) saluent surtout le cadre et l'accueil ; quelques remarques sur l'attente aux heures de pointe."
         if "evenement" in cats or "culture" in cats:
-            db.add(Event(place_id=place.id, title="Soirée découverte (démo)", starts_at=now + timedelta(days=rnd.randint(2, 20), hours=19), price_fcfa=bmin or None))
+            db.add(
+                Event(
+                    place_id=place.id,
+                    title="Soirée découverte (démo)",
+                    starts_at=now + timedelta(days=rnd.randint(2, 20), hours=19),
+                    price_fcfa=bmin or None,
+                )
+            )
         if tier == "free" and 5 <= pop <= 20:
-            db.add(CurationItem(place_id=place.id, reason="gem_candidate", detail="Peu fréquenté mais bien noté : candidat pépite à vérifier sur place."))
+            db.add(
+                CurationItem(
+                    place_id=place.id,
+                    reason="gem_candidate",
+                    detail="Peu fréquenté mais bien noté : candidat pépite à vérifier sur place.",
+                )
+            )
     db.commit()
     print(f"Démo : {len(P)} lieux fictifs, {len(plans_users)} comptes (mot de passe : {DEMO_PASSWORD})")
 

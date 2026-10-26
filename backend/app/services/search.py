@@ -8,6 +8,7 @@ Le score (0–100) est calculé en SQL pour paginer sur de gros volumes :
   10 % adéquation au budget
   10 % popularité
 """
+
 import math
 import uuid
 from dataclasses import dataclass, field
@@ -98,7 +99,9 @@ def _open_now_clause(now: datetime):
     )
 
 
-def run_search(db: Session, p: SearchParams, user: User | None, prefs: dict | None = None) -> tuple[list[dict], int, Origin]:
+def run_search(
+    db: Session, p: SearchParams, user: User | None, prefs: dict | None = None
+) -> tuple[list[dict], int, Origin]:
     origin, city, district = resolve_origin(db, p)
     now = local_now(get_settings().timezone)
     point = func.ST_SetSRID(func.ST_MakePoint(origin.lng, origin.lat), 4326).cast(Geography)
@@ -109,23 +112,34 @@ def run_search(db: Session, p: SearchParams, user: User | None, prefs: dict | No
     pref_budget = p.budget_max or (prefs or {}).get("budget_max_fcfa")
 
     prox = 1.0 / (1.0 + dist_m / 3000.0)
-    bayes = (PRIOR_WEIGHT * PRIOR_MEAN + func.coalesce(Place.rating_avg, 0) * Place.rating_count) / (PRIOR_WEIGHT + Place.rating_count)
+    bayes = (PRIOR_WEIGHT * PRIOR_MEAN + func.coalesce(Place.rating_avg, 0) * Place.rating_count) / (
+        PRIOR_WEIGHT + Place.rating_count
+    )
     quality = bayes / 5.0
     arr = lambda xs: cast(literal(xs or ["__none__"]), ARRAY(String))  # noqa: E731
     pref = (
-        case((Place.category_slugs.op("&&")(arr(pref_cats)), 0.6), else_=0.0)
-        + case((Place.ambiance_slugs.op("&&")(arr(pref_ambs)), 0.4), else_=0.0)
-    ) if (pref_cats or pref_ambs) else literal(0.5)
+        (
+            case((Place.category_slugs.op("&&")(arr(pref_cats)), 0.6), else_=0.0)
+            + case((Place.ambiance_slugs.op("&&")(arr(pref_ambs)), 0.4), else_=0.0)
+        )
+        if (pref_cats or pref_ambs)
+        else literal(0.5)
+    )
     age_days = func.extract("epoch", func.now() - Place.verified_at) / 86400.0
     fresh = func.coalesce(func.greatest(0.0, 1.0 - age_days / 365.0), 0.3)
     budget_fit = (
         case((Place.budget_min_fcfa.is_(None), 0.5), (Place.budget_min_fcfa <= pref_budget, 1.0), else_=0.0)
-        if pref_budget else literal(0.5)
+        if pref_budget
+        else literal(0.5)
     )
     pop = func.least(1.0, func.ln(1 + Place.popularity + Place.rating_count) / math.log(500))
     score = 100 * (
-        WEIGHTS["prox"] * prox + WEIGHTS["quality"] * quality + WEIGHTS["pref"] * pref
-        + WEIGHTS["fresh"] * fresh + WEIGHTS["budget"] * budget_fit + WEIGHTS["pop"] * pop
+        WEIGHTS["prox"] * prox
+        + WEIGHTS["quality"] * quality
+        + WEIGHTS["pref"] * pref
+        + WEIGHTS["fresh"] * fresh
+        + WEIGHTS["budget"] * budget_fit
+        + WEIGHTS["pop"] * pop
     )
 
     conds = [Place.status == "published", Place.tier.in_(p.tiers)]
@@ -167,8 +181,17 @@ def run_search(db: Session, p: SearchParams, user: User | None, prefs: dict | No
     }.get(p.sort, [(score + (text_rank * 40 if text_rank is not None else 0)).desc()])
 
     stmt = (
-        select(Place, dist_m.label("dist_m"), score.label("score"), prox.label("c_prox"), quality.label("c_quality"),
-               pref.label("c_pref"), fresh.label("c_fresh"), budget_fit.label("c_budget"), func.count().over().label("total"))
+        select(
+            Place,
+            dist_m.label("dist_m"),
+            score.label("score"),
+            prox.label("c_prox"),
+            quality.label("c_quality"),
+            pref.label("c_pref"),
+            fresh.label("c_fresh"),
+            budget_fit.label("c_budget"),
+            func.count().over().label("total"),
+        )
         .where(*conds)
         .order_by(*order, Place.id)
         .offset((p.page - 1) * p.page_size)
@@ -179,9 +202,20 @@ def run_search(db: Session, p: SearchParams, user: User | None, prefs: dict | No
     if not rows and p.page > 1:
         total = db.scalar(select(func.count()).select_from(Place).where(*conds)) or 0
     results = [
-        {"place": r.Place, "dist_m": r.dist_m, "score": r.score,
-         "components": {"prox": r.c_prox, "quality": r.c_quality, "pref": r.c_pref, "fresh": r.c_fresh, "budget": r.c_budget},
-         "prefs_used": bool(pref_cats or pref_ambs), "budget_used": bool(pref_budget)}
+        {
+            "place": r.Place,
+            "dist_m": r.dist_m,
+            "score": r.score,
+            "components": {
+                "prox": r.c_prox,
+                "quality": r.c_quality,
+                "pref": r.c_pref,
+                "fresh": r.c_fresh,
+                "budget": r.c_budget,
+            },
+            "prefs_used": bool(pref_cats or pref_ambs),
+            "budget_used": bool(pref_budget),
+        }
         for r in rows
     ]
     return results, total, origin
@@ -221,7 +255,9 @@ def place_location(db: Session, places: list[Place]) -> dict[uuid.UUID, tuple[fl
     return {r[0]: (r[1], r[2]) for r in rows}
 
 
-def to_cards(db: Session, items: list[dict], user: User | None, origin: Origin | None, with_travel: bool = True) -> list[PlaceCard]:
+def to_cards(
+    db: Session, items: list[dict], user: User | None, origin: Origin | None, with_travel: bool = True
+) -> list[PlaceCard]:
     places = [i["place"] for i in items]
     slots = load_slots(db, [p.id for p in places])
     locs = place_location(db, places)
@@ -237,17 +273,34 @@ def to_cards(db: Session, items: list[dict], user: User | None, origin: Origin |
         locked = place.tier == "premium" and not entitled
         lat, lng = locs[place.id]
         card = PlaceCard(
-            id=str(place.id), slug=place.slug, name=place.name, short_description=place.short_description,
-            city=place.city.name, district=place.district.name if place.district else None,
-            categories=place.category_slugs or [], ambiances=place.ambiance_slugs or [],
-            price_level=place.price_level, budget_min_fcfa=place.budget_min_fcfa, budget_max_fcfa=place.budget_max_fcfa,
-            rating_avg=round(place.rating_avg, 1) if place.rating_avg is not None else None, rating_count=place.rating_count,
-            cover=Cover(url=public_url(place.cover_key), gradient=place.cover_gradient or ["#1E3A4C", "#0E0F13"], alt=f"Ambiance de {place.name}"),
+            id=str(place.id),
+            slug=place.slug,
+            name=place.name,
+            short_description=place.short_description,
+            city=place.city.name,
+            district=place.district.name if place.district else None,
+            categories=place.category_slugs or [],
+            ambiances=place.ambiance_slugs or [],
+            price_level=place.price_level,
+            budget_min_fcfa=place.budget_min_fcfa,
+            budget_max_fcfa=place.budget_max_fcfa,
+            rating_avg=round(place.rating_avg, 1) if place.rating_avg is not None else None,
+            rating_count=place.rating_count,
+            cover=Cover(
+                url=public_url(place.cover_key),
+                gradient=place.cover_gradient or ["#1E3A4C", "#0E0F13"],
+                alt=f"Ambiance de {place.name}",
+            ),
             location=LatLng(lat=lat, lng=lng),
             distance_km=round(item["dist_m"] / 1000, 1) if item.get("dist_m") is not None else None,
             travel=TravelOut(mode=tr.mode, minutes=tr.minutes, source=tr.source) if tr else None,
-            open_status=st, closes_at=closes, tier=place.tier, locked=False, is_demo=place.is_demo,
-            verified_at=place.verified_at, confidence=place.confidence,
+            open_status=st,
+            closes_at=closes,
+            tier=place.tier,
+            locked=False,
+            is_demo=place.is_demo,
+            verified_at=place.verified_at,
+            confidence=place.confidence,
             score=round(item["score"], 1) if item.get("score") is not None else None,
             reasons=explain(item, origin, st) if origin is not None and item.get("components") else [],
         )
@@ -257,16 +310,29 @@ def to_cards(db: Session, items: list[dict], user: User | None, origin: Origin |
 
 def lock_card(card: PlaceCard) -> PlaceCard:
     """Version réduite d'une pépite pour un plan qui n'y a pas droit : ni nom, ni position exacte."""
-    return card.model_copy(update={
-        "name": "Pépite Insider", "short_description": "Un lieu rare sélectionné par nos curateurs. Réservé aux membres Insider.",
-        "location": None, "travel": None, "distance_km": None, "locked": True, "reasons": [],
-        "cover": Cover(url=None, gradient=["#2B2416", "#0E0F13"], alt="Pépite verrouillée"),
-    })
+    return card.model_copy(
+        update={
+            "name": "Pépite Insider",
+            "short_description": "Un lieu rare sélectionné par nos curateurs. Réservé aux membres Insider.",
+            "location": None,
+            "travel": None,
+            "distance_km": None,
+            "locked": True,
+            "reasons": [],
+            "cover": Cover(url=None, gradient=["#2B2416", "#0E0F13"], alt="Pépite verrouillée"),
+        }
+    )
 
 
-def cards_for_places(db: Session, places: list[Place], user: User | None, origin: Origin | None = None) -> list[PlaceCard]:
+def cards_for_places(
+    db: Session, places: list[Place], user: User | None, origin: Origin | None = None
+) -> list[PlaceCard]:
     dists: dict[uuid.UUID, float] = {}
     if origin is not None and places:
         point = func.ST_SetSRID(func.ST_MakePoint(origin.lng, origin.lat), 4326).cast(Geography)
-        dists = dict(db.execute(select(Place.id, func.ST_Distance(Place.location, point)).where(Place.id.in_([p.id for p in places]))).all())
+        dists = dict(
+            db.execute(
+                select(Place.id, func.ST_Distance(Place.location, point)).where(Place.id.in_([p.id for p in places]))
+            ).all()
+        )
     return to_cards(db, [{"place": p, "dist_m": dists.get(p.id)} for p in places], user, origin, with_travel=False)

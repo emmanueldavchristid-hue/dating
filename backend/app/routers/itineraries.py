@@ -7,7 +7,16 @@ from sqlalchemy import select
 from app.deps import DB, CurrentUser
 from app.errors import ApiError, not_found, premium_required
 from app.models import Itinerary, ItineraryStep, Place
-from app.schemas import ItineraryIn, ItineraryOut, ItineraryStepOut, ItinerarySummary, PlaceCard, SuggestIn, SuggestOut, SuggestStep
+from app.schemas import (
+    ItineraryIn,
+    ItineraryOut,
+    ItineraryStepOut,
+    ItinerarySummary,
+    PlaceCard,
+    SuggestIn,
+    SuggestOut,
+    SuggestStep,
+)
 from app.services.entitlements import can_see_premium, max_itinerary_steps
 from app.services.search import SearchParams, cards_for_places, run_search, to_cards
 
@@ -30,10 +39,12 @@ def plan_steps(cards: list[PlaceCard], n: int) -> list[PlaceCard]:
     pool = cards[1:]
     while len(chosen) < n and pool:
         prev = chosen[-1]
-        def value(c: PlaceCard) -> float:
+
+        def value(c: PlaceCard, prev: PlaceCard = prev) -> float:
             leg = haversine_km(prev, c) or 0
             same = bool(set(c.categories) & set(prev.categories))
             return (c.score or 0) - 6 * leg - (15 if same else 0)
+
         best = max(pool, key=value)
         chosen.append(best)
         pool.remove(best)
@@ -43,12 +54,23 @@ def plan_steps(cards: list[PlaceCard], n: int) -> list[PlaceCard]:
 @router.post("/itineraries/suggest", response_model=SuggestOut)
 def suggest(body: SuggestIn, db: DB, user: CurrentUser):
     if body.steps > max_itinerary_steps(db, user):
-        raise premium_required(f"Ton offre permet {max_itinerary_steps(db, user)} étapes. Passe premium pour des soirées plus longues.")
+        raise premium_required(
+            f"Ton offre permet {max_itinerary_steps(db, user)} étapes. Passe premium pour des soirées plus longues."
+        )
     if (body.lat is None) != (body.lng is None):
         raise ApiError(400, "invalid_location", "lat et lng doivent être fournis ensemble")
     tiers = ("free", "premium") if can_see_premium(user) else ("free",)
-    p = SearchParams(lat=body.lat, lng=body.lng, city=body.city, categories=body.categories, ambiances=body.ambiances,
-                     budget_max=body.budget_max_fcfa, tiers=tiers, page_size=30, max_distance_km=25 if body.lat is not None else None)
+    p = SearchParams(
+        lat=body.lat,
+        lng=body.lng,
+        city=body.city,
+        categories=body.categories,
+        ambiances=body.ambiances,
+        budget_max=body.budget_max_fcfa,
+        tiers=tiers,
+        page_size=30,
+        max_distance_km=25 if body.lat is not None else None,
+    )
     items, _, origin = run_search(db, p, user)
     cards = to_cards(db, items, user, origin, with_travel=False)
     steps = plan_steps(cards, body.steps)
@@ -83,7 +105,9 @@ def _get(db, user, iid: str) -> Itinerary:
 
 @router.get("/me/itineraries", response_model=list[ItinerarySummary])
 def list_itineraries(db: DB, user: CurrentUser):
-    its = db.scalars(select(Itinerary).where(Itinerary.user_id == user.id).order_by(Itinerary.created_at.desc()).limit(100))
+    its = db.scalars(
+        select(Itinerary).where(Itinerary.user_id == user.id).order_by(Itinerary.created_at.desc()).limit(100)
+    )
     return [ItinerarySummary(id=str(i.id), title=i.title, date=i.day, step_count=len(i.steps)) for i in its]
 
 
@@ -104,7 +128,10 @@ def create_itinerary(body: ItineraryIn, db: DB, user: CurrentUser):
     if any(p.tier == "premium" for p in places.values()) and not can_see_premium(user):
         raise premium_required()
     it = Itinerary(user_id=user.id, title=body.title.strip(), day=body.date)
-    it.steps = [ItineraryStep(position=i, place_id=uuid.UUID(s.place_id), start_time=s.start_time, note=s.note) for i, s in enumerate(body.steps)]
+    it.steps = [
+        ItineraryStep(position=i, place_id=uuid.UUID(s.place_id), start_time=s.start_time, note=s.note)
+        for i, s in enumerate(body.steps)
+    ]
     db.add(it)
     db.commit()
     return get_itinerary(str(it.id), db, user)
@@ -114,9 +141,16 @@ def create_itinerary(body: ItineraryIn, db: DB, user: CurrentUser):
 def get_itinerary(iid: str, db: DB, user: CurrentUser):
     it = _get(db, user, iid)
     cards = cards_for_places(db, [s.place for s in it.steps], user)
-    steps = [ItineraryStepOut(position=s.position, place=c, start_time=s.start_time.strftime("%H:%M") if s.start_time else None,
-                              note=s.note, leg_km=None if i == 0 else haversine_km(cards[i - 1], c))
-             for i, (s, c) in enumerate(zip(it.steps, cards, strict=True))]
+    steps = [
+        ItineraryStepOut(
+            position=s.position,
+            place=c,
+            start_time=s.start_time.strftime("%H:%M") if s.start_time else None,
+            note=s.note,
+            leg_km=None if i == 0 else haversine_km(cards[i - 1], c),
+        )
+        for i, (s, c) in enumerate(zip(it.steps, cards, strict=True))
+    ]
     return ItineraryOut(id=str(it.id), title=it.title, date=it.day, steps=steps)
 
 

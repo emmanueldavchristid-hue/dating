@@ -1,4 +1,5 @@
 """Compréhension de requêtes en langage naturel, sans LLM (déterministe et testable)."""
+
 import re
 import unicodedata
 
@@ -19,7 +20,17 @@ CATEGORY_WORDS = {
 }
 AMBIANCE_WORDS = {
     "calme": ["calme", "tranquille", "pose", "chill", "detente", "se detendre", "paisible"],
-    "romantique": ["romantique", "en amoureux", "date", "couple", "a deux", "ma copine", "mon copain", "ma femme", "mon mari"],
+    "romantique": [
+        "romantique",
+        "en amoureux",
+        "date",
+        "couple",
+        "a deux",
+        "ma copine",
+        "mon copain",
+        "ma femme",
+        "mon mari",
+    ],
     "festif": ["festif", "fete", "ambiance", "danser", "faire la fete", "bouger"],
     "entre-amis": ["entre amis", "entre potes", "avec des amis", "les gars", "groupe", "anniversaire"],
     "famille": ["famille", "enfants", "enfant", "kids", "parents"],
@@ -51,7 +62,7 @@ def parse_budget(text: str) -> int | None:
     elif suffix == "000":
         value *= 1000
     # « 2 personnes » ou « 30 min » ne sont pas des budgets
-    tail = text[m.end(): m.end() + 12]
+    tail = text[m.end() : m.end() + 12]
     if any(t in tail for t in (" min", " h ", " heure", " pers", " km")) or value < 500:
         return None
     return value
@@ -69,5 +80,11 @@ def parse(message: str, districts: dict[str, str] | None = None) -> Parsed:
         if _has(t, normalize(name).strip()):
             district = slug
             break
-    return Parsed(categories=cats, ambiances=ambs, budget_max_fcfa=budget,
-                  open_now=any(_has(t, w) for w in NOW_WORDS), q=None, district=district)
+    return Parsed(
+        categories=cats,
+        ambiances=ambs,
+        budget_max_fcfa=budget,
+        open_now=any(_has(t, w) for w in NOW_WORDS),
+        q=None,
+        district=district,
+    )

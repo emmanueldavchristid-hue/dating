@@ -19,7 +19,9 @@ def register(body: RegisterIn, db: DB):
     email = body.email.lower()
     if db.scalar(select(User).where(func.lower(User.email) == email)):
         raise ApiError(409, "conflict", "Un compte existe déjà avec cet e-mail")
-    user = User(email=email, password_hash=hash_password(body.password), display_name=body.display_name, plan_code="free")
+    user = User(
+        email=email, password_hash=hash_password(body.password), display_name=body.display_name, plan_code="free"
+    )
     user.preferences = UserPreferences()
     db.add(user)
     db.commit()

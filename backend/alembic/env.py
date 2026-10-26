@@ -1,7 +1,7 @@
-from alembic import context
 from geoalchemy2 import alembic_helpers
 from sqlalchemy import engine_from_config, pool
 
+from alembic import context
 from app import models  # noqa: F401  (enregistre les tables)
 from app.config import get_settings
 from app.db import Base
@@ -12,7 +12,9 @@ target_metadata = Base.metadata
 
 
 def run_migrations_online() -> None:
-    connectable = engine_from_config(config.get_section(config.config_ini_section), prefix="sqlalchemy.", poolclass=pool.NullPool)
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section), prefix="sqlalchemy.", poolclass=pool.NullPool
+    )
     with connectable.connect() as connection:
         context.configure(
             connection=connection,

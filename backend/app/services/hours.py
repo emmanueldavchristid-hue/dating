@@ -1,4 +1,5 @@
 """Statut ouvert/fermé calculé uniquement à partir d'horaires enregistrés. Sans horaires : 'unknown'."""
+
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 
@@ -35,6 +36,7 @@ def open_status(slots: list[Slot], now: datetime, closed_today: bool = False) ->
 
 def local_now(tz: str) -> datetime:
     from zoneinfo import ZoneInfo
+
     return datetime.now(ZoneInfo(tz))
 
 

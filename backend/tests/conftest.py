@@ -1,4 +1,5 @@
 """Tests d'intégration sur une vraie base PostgreSQL/PostGIS (TEST_DATABASE_URL), migrée puis peuplée avec la démo."""
+
 import os
 import subprocess
 import sys
@@ -67,7 +68,10 @@ def admin_h(client):
 @pytest.fixture
 def new_user(client):
     import uuid
+
     email = f"t{uuid.uuid4().hex[:10]}@example.com"
-    r = client.post("/api/v1/auth/register", json={"email": email, "password": "motdepasse-solide", "display_name": "Testeur"})
+    r = client.post(
+        "/api/v1/auth/register", json={"email": email, "password": "motdepasse-solide", "display_name": "Testeur"}
+    )
     assert r.status_code == 201, r.text
     return {"Authorization": f"Bearer {r.json()['access_token']}"}, email

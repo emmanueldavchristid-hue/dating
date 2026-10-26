@@ -1,4 +1,5 @@
 """Tests unitaires purs (sans base)."""
+
 from datetime import datetime, time
 
 import httpx
@@ -45,7 +46,9 @@ def test_budget_parsing():
 
 
 def test_intent_extraction():
-    p = parse("Un endroit calme au bord de l'eau pour un dîner romantique, 25 000 F max, à Cocody", {"Cocody": "cocody"})
+    p = parse(
+        "Un endroit calme au bord de l'eau pour un dîner romantique, 25 000 F max, à Cocody", {"Cocody": "cocody"}
+    )
     assert "restaurant" in p.categories
     assert {"calme", "romantique", "plein-air"} <= set(p.ambiances)
     assert p.budget_max_fcfa == 25000
@@ -59,7 +62,9 @@ def test_no_routing_returns_nothing():
 
 
 def test_osrm_adapter_parses_and_degrades():
-    ok = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"durations": [[0, 600, None]]})))
+    ok = httpx.Client(
+        transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"durations": [[0, 600, None]]}))
+    )
     res = OsrmRouting("http://osrm", ok).durations((5.3, -4.0), [(5.31, -4.01), (5.32, -4.02)])
     assert res[0].minutes == 10 and res[0].source == "osrm" and res[1] is None
     ko = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(500)))
@@ -67,9 +72,23 @@ def test_osrm_adapter_parses_and_degrades():
 
 
 def test_llm_extract_only_allowed_values_and_fails_safely():
-    body = {"content": [{"type": "tool_use", "name": "set_filters",
-                         "input": {"categories": ["plage", "inventee"], "ambiances": ["calme"], "open_now": True, "budget_max_fcfa": 9000}}]}
-    llm = AnthropicProvider("k", "m", httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json=body))))
+    body = {
+        "content": [
+            {
+                "type": "tool_use",
+                "name": "set_filters",
+                "input": {
+                    "categories": ["plage", "inventee"],
+                    "ambiances": ["calme"],
+                    "open_now": True,
+                    "budget_max_fcfa": 9000,
+                },
+            }
+        ]
+    }
+    llm = AnthropicProvider(
+        "k", "m", httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json=body)))
+    )
     p = llm.extract("...", ["plage", "bar"], ["calme"])
     assert p.categories == ["plage"] and p.budget_max_fcfa == 9000 and p.open_now
     down = AnthropicProvider("k", "m", httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(503))))

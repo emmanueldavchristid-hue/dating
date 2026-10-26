@@ -1,4 +1,5 @@
 """Modèle relationnel. Voir docs/DATABASE.md pour les choix (index, volumétrie, partitionnement)."""
+
 import uuid
 from datetime import date, datetime, time
 
@@ -40,6 +41,7 @@ def created() -> Mapped[datetime]:
 
 
 # ---------- Référentiels géographiques et taxonomie ----------
+
 
 class City(Base):
     __tablename__ = "cities"
@@ -88,6 +90,7 @@ class Tag(Base):
 
 class DataSource(Base):
     """Provenance des données : démo, OSM, partenaire, curation, utilisateur."""
+
     __tablename__ = "data_sources"
     __table_args__ = (CheckConstraint("kind in ('demo','osm','partner','curated','user')"),)
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -109,19 +112,22 @@ class Partner(Base):
 # ---------- Lieux ----------
 
 place_categories = Table(
-    "place_categories", Base.metadata,
+    "place_categories",
+    Base.metadata,
     Column("place_id", UUID(as_uuid=True), ForeignKey("places.id", ondelete="CASCADE"), primary_key=True),
     Column("category_id", Integer, ForeignKey("categories.id", ondelete="CASCADE"), primary_key=True),
     Index("ix_place_categories_category", "category_id"),
 )
 place_ambiances = Table(
-    "place_ambiances", Base.metadata,
+    "place_ambiances",
+    Base.metadata,
     Column("place_id", UUID(as_uuid=True), ForeignKey("places.id", ondelete="CASCADE"), primary_key=True),
     Column("ambiance_id", Integer, ForeignKey("ambiances.id", ondelete="CASCADE"), primary_key=True),
     Index("ix_place_ambiances_ambiance", "ambiance_id"),
 )
 place_tags = Table(
-    "place_tags", Base.metadata,
+    "place_tags",
+    Base.metadata,
     Column("place_id", UUID(as_uuid=True), ForeignKey("places.id", ondelete="CASCADE"), primary_key=True),
     Column("tag_id", Integer, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
 )
@@ -131,7 +137,10 @@ class Place(Base):
     __tablename__ = "places"
     __table_args__ = (
         CheckConstraint("price_level between 1 and 4", name="ck_places_price_level"),
-        CheckConstraint("budget_min_fcfa is null or budget_max_fcfa is null or budget_min_fcfa <= budget_max_fcfa", name="ck_places_budget"),
+        CheckConstraint(
+            "budget_min_fcfa is null or budget_max_fcfa is null or budget_min_fcfa <= budget_max_fcfa",
+            name="ck_places_budget",
+        ),
         CheckConstraint("confidence between 0 and 1", name="ck_places_confidence"),
         CheckConstraint("tier in ('free','premium')", name="ck_places_tier"),
         CheckConstraint("status in ('draft','published','closed','archived')", name="ck_places_status"),
@@ -182,11 +191,16 @@ class Place(Base):
     reviews_summary: Mapped[str | None] = mapped_column(Text)
     search_vector = mapped_column(
         TSVECTOR,
-        Computed("to_tsvector('simple', f_unaccent(coalesce(name,'') || ' ' || coalesce(short_description,'') || ' ' || coalesce(description,'')))", persisted=True),
+        Computed(
+            "to_tsvector('simple', f_unaccent(coalesce(name,'') || ' ' || coalesce(short_description,'') || ' ' || coalesce(description,'')))",
+            persisted=True,
+        ),
     )
     embedding = mapped_column(Vector(384), nullable=True)  # préparé pour la recherche sémantique
     created_at: Mapped[datetime] = created()
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     city: Mapped[City] = relationship()
     district: Mapped[District | None] = relationship()
@@ -199,8 +213,12 @@ class Place(Base):
 
 class OpeningHours(Base):
     """Créneau hebdomadaire. closes <= opens signifie une fermeture après minuit."""
+
     __tablename__ = "opening_hours"
-    __table_args__ = (CheckConstraint("weekday between 0 and 6"), Index("ix_opening_hours_place_day", "place_id", "weekday"))
+    __table_args__ = (
+        CheckConstraint("weekday between 0 and 6"),
+        Index("ix_opening_hours_place_day", "place_id", "weekday"),
+    )
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     place_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"))
     weekday: Mapped[int] = mapped_column(SmallInteger)  # 0 = lundi
@@ -222,6 +240,7 @@ class OpeningException(Base):
 
 class Media(Base):
     """Métadonnées des médias. Les fichiers vivent dans un stockage objet (S3), jamais en base."""
+
     __tablename__ = "media"
     __table_args__ = (Index("ix_media_place", "place_id", "position"),)
     id: Mapped[uuid.UUID] = uid()
@@ -250,6 +269,7 @@ class Event(Base):
 
 
 # ---------- Utilisateurs, droits, abonnements ----------
+
 
 class Plan(Base):
     __tablename__ = "plans"
@@ -280,7 +300,9 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = created()
     plan: Mapped[Plan] = relationship(lazy="joined")
-    preferences: Mapped["UserPreferences | None"] = relationship(uselist=False, cascade="all, delete-orphan", lazy="joined")
+    preferences: Mapped["UserPreferences | None"] = relationship(
+        uselist=False, cascade="all, delete-orphan", lazy="joined"
+    )
 
 
 class UserPreferences(Base):
@@ -323,6 +345,7 @@ class Payment(Base):
 
 
 # ---------- Contenus utilisateurs ----------
+
 
 class Review(Base):
     __tablename__ = "reviews"
@@ -413,8 +436,12 @@ class ItineraryStep(Base):
 
 class SearchHistory(Base):
     """Historique minimal : zone approximative (≈1 km), purgé après N jours. Candidat au partitionnement mensuel."""
+
     __tablename__ = "search_history"
-    __table_args__ = (Index("ix_search_history_created", "created_at"), Index("ix_search_history_user", "user_id", "created_at"))
+    __table_args__ = (
+        Index("ix_search_history_created", "created_at"),
+        Index("ix_search_history_user", "user_id", "created_at"),
+    )
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     query: Mapped[str | None] = mapped_column(String(200))
@@ -433,6 +460,7 @@ class ConciergeUsage(Base):
 
 
 # ---------- Curation, audit ----------
+
 
 class CurationItem(Base):
     __tablename__ = "curation_items"

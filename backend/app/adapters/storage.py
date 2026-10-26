@@ -1,4 +1,5 @@
 """Stockage objet (S3 compatible). La base ne contient que des clés ; l'URL publique est dérivée ici."""
+
 from app.config import get_settings
 
 

@@ -1,4 +1,5 @@
 """Droits d'accès côté serveur (jamais seulement dans l'interface)."""
+
 from datetime import date
 
 from sqlalchemy import select
@@ -34,7 +35,10 @@ def max_itinerary_steps(db: Session, user: User | None) -> int:
 def consume_concierge(db: Session, user: User, today: date) -> tuple[int, int]:
     """Incrémente atomiquement l'usage du jour ; lève quota_exceeded si la limite est atteinte."""
     limit = user.plan.concierge_per_day
-    used = db.scalar(select(ConciergeUsage.count).where(ConciergeUsage.user_id == user.id, ConciergeUsage.day == today)) or 0
+    used = (
+        db.scalar(select(ConciergeUsage.count).where(ConciergeUsage.user_id == user.id, ConciergeUsage.day == today))
+        or 0
+    )
     if used >= limit:
         raise ApiError(429, "quota_exceeded", f"Quota du concierge atteint ({limit} demandes par jour avec ton offre)")
     stmt = insert(ConciergeUsage).values(user_id=user.id, day=today, count=1)

@@ -1,6 +1,7 @@
 """Fournisseurs d'itinéraires interchangeables. Par défaut : aucun → aucun temps de trajet n'est affiché.
 
 On ne convertit JAMAIS une distance à vol d'oiseau en durée."""
+
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -19,7 +20,9 @@ class Travel:
 class RoutingProvider(Protocol):
     name: str
 
-    def durations(self, origin: tuple[float, float], dests: list[tuple[float, float]], mode: str = "driving") -> list[Travel | None]: ...
+    def durations(
+        self, origin: tuple[float, float], dests: list[tuple[float, float]], mode: str = "driving"
+    ) -> list[Travel | None]: ...
 
 
 class NoRouting:
@@ -31,6 +34,7 @@ class NoRouting:
 
 class OsrmRouting:
     """OSRM (service /table). Respecter les conditions d'usage du serveur utilisé ; préférer une instance auto-hébergée."""
+
     name = "osrm"
 
     def __init__(self, base_url: str, client: httpx.Client | None = None) -> None:
@@ -43,7 +47,9 @@ class OsrmRouting:
         profile = "driving" if mode == "driving" else "foot"
         coords = ";".join(f"{lng},{lat}" for lat, lng in [origin, *dests])
         try:
-            r = self.client.get(f"{self.base_url}/table/v1/{profile}/{coords}", params={"sources": "0", "annotations": "duration"})
+            r = self.client.get(
+                f"{self.base_url}/table/v1/{profile}/{coords}", params={"sources": "0", "annotations": "duration"}
+            )
             r.raise_for_status()
             row = r.json()["durations"][0][1:]
         except (httpx.HTTPError, KeyError, IndexError, ValueError):

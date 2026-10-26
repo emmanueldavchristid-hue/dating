@@ -34,20 +34,40 @@ def _id(v: str) -> uuid.UUID:
 def stats(db: DB, _: StaffUser):
     count = lambda m, *w: db.scalar(select(func.count()).select_from(m).where(*w))  # noqa: E731
     return {
-        "places": count(Place), "places_published": count(Place, Place.status == "published"),
-        "gems": count(Place, Place.tier == "premium"), "demo_places": count(Place, Place.is_demo.is_(True)),
-        "users": count(User), "premium_users": count(User, User.plan_code != "free"),
-        "open_reports": count(Report, Report.status == "open"), "pending_curation": count(CurationItem, CurationItem.status == "pending"),
+        "places": count(Place),
+        "places_published": count(Place, Place.status == "published"),
+        "gems": count(Place, Place.tier == "premium"),
+        "demo_places": count(Place, Place.is_demo.is_(True)),
+        "users": count(User),
+        "premium_users": count(User, User.plan_code != "free"),
+        "open_reports": count(Report, Report.status == "open"),
+        "pending_curation": count(CurationItem, CurationItem.status == "pending"),
     }
 
 
 def _place_row(db):
     def fmt(p: Place):
-        return {"id": str(p.id), "slug": p.slug, "name": p.name, "city": p.city.name, "district": p.district.name if p.district else None,
-                "categories": p.category_slugs, "ambiances": p.ambiance_slugs, "tier": p.tier, "status": p.status,
-                "is_demo": p.is_demo, "rating_avg": p.rating_avg, "rating_count": p.rating_count,
-                "budget_min_fcfa": p.budget_min_fcfa, "budget_max_fcfa": p.budget_max_fcfa, "price_level": p.price_level,
-                "short_description": p.short_description, "verified_at": p.verified_at, "confidence": p.confidence}
+        return {
+            "id": str(p.id),
+            "slug": p.slug,
+            "name": p.name,
+            "city": p.city.name,
+            "district": p.district.name if p.district else None,
+            "categories": p.category_slugs,
+            "ambiances": p.ambiance_slugs,
+            "tier": p.tier,
+            "status": p.status,
+            "is_demo": p.is_demo,
+            "rating_avg": p.rating_avg,
+            "rating_count": p.rating_count,
+            "budget_min_fcfa": p.budget_min_fcfa,
+            "budget_max_fcfa": p.budget_max_fcfa,
+            "price_level": p.price_level,
+            "short_description": p.short_description,
+            "verified_at": p.verified_at,
+            "confidence": p.confidence,
+        }
+
     return fmt
 
 
@@ -64,18 +84,39 @@ def create_place(body: AdminPlaceIn, db: DB, admin: AdminUser):
     city = db.scalar(select(City).where(City.slug == body.city))
     if not city:
         raise ApiError(400, "unknown_city", "Ville inconnue")
-    district = db.scalar(select(District).where(District.city_id == city.id, District.slug == body.district)) if body.district else None
+    district = (
+        db.scalar(select(District).where(District.city_id == city.id, District.slug == body.district))
+        if body.district
+        else None
+    )
     slug = body.slug or slugify(body.name)
     if db.scalar(select(Place).where(Place.slug == slug)):
         raise ApiError(409, "conflict", "Ce slug existe déjà")
-    if body.budget_min_fcfa is not None and body.budget_max_fcfa is not None and body.budget_min_fcfa > body.budget_max_fcfa:
+    if (
+        body.budget_min_fcfa is not None
+        and body.budget_max_fcfa is not None
+        and body.budget_min_fcfa > body.budget_max_fcfa
+    ):
         raise ApiError(400, "invalid_budget", "Budget minimum supérieur au maximum")
     place = Place(
-        slug=slug, name=body.name, short_description=body.short_description, description=body.description,
-        city_id=city.id, district_id=district.id if district else None, location=f"SRID=4326;POINT({body.lng} {body.lat})",
-        price_level=body.price_level, budget_min_fcfa=body.budget_min_fcfa, budget_max_fcfa=body.budget_max_fcfa,
-        tier=body.tier, status=body.status, address=body.address, phone=body.phone, website=body.website,
-        is_demo=False, confidence=0.6, verified_at=datetime.now(UTC),
+        slug=slug,
+        name=body.name,
+        short_description=body.short_description,
+        description=body.description,
+        city_id=city.id,
+        district_id=district.id if district else None,
+        location=f"SRID=4326;POINT({body.lng} {body.lat})",
+        price_level=body.price_level,
+        budget_min_fcfa=body.budget_min_fcfa,
+        budget_max_fcfa=body.budget_max_fcfa,
+        tier=body.tier,
+        status=body.status,
+        address=body.address,
+        phone=body.phone,
+        website=body.website,
+        is_demo=False,
+        confidence=0.6,
+        verified_at=datetime.now(UTC),
     )
     set_taxonomy(db, place, body.categories, body.ambiances)
     db.add(place)
@@ -101,7 +142,11 @@ def update_place(pid: str, body: AdminPlacePatch, db: DB, admin: AdminUser):
         place.verified_at, place.confidence = datetime.now(UTC), max(place.confidence, 0.8)
     for k, v in data.items():
         setattr(place, k, v)
-    if place.budget_min_fcfa is not None and place.budget_max_fcfa is not None and place.budget_min_fcfa > place.budget_max_fcfa:
+    if (
+        place.budget_min_fcfa is not None
+        and place.budget_max_fcfa is not None
+        and place.budget_min_fcfa > place.budget_max_fcfa
+    ):
         raise ApiError(400, "invalid_budget", "Budget minimum supérieur au maximum")
     audit(db, admin, "place.updated", "place", pid, fields=sorted(body.model_dump(exclude_unset=True)))
     db.commit()
@@ -113,7 +158,9 @@ def users(db: DB, _: AdminUser, q: str | None = Query(None, max_length=120), pag
     stmt = select(User).order_by(User.created_at.desc())
     if q:
         stmt = stmt.where(or_(User.email.ilike(f"%{q}%"), User.display_name.ilike(f"%{q}%")))
-    return _page(stmt, db, page, lambda u: {**user_out(u).model_dump(), "created_at": u.created_at, "is_active": u.is_active})
+    return _page(
+        stmt, db, page, lambda u: {**user_out(u).model_dump(), "created_at": u.created_at, "is_active": u.is_active}
+    )
 
 
 @router.patch("/users/{uid}")
@@ -134,10 +181,23 @@ def update_user(uid: str, body: AdminUserPatch, db: DB, admin: AdminUser):
 
 
 @router.get("/reports")
-def reports(db: DB, _: AdminUser, status: str = Query("open", pattern="^(open|resolved|rejected)$"), page: int = Query(1, ge=1)):
+def reports(
+    db: DB, _: AdminUser, status: str = Query("open", pattern="^(open|resolved|rejected)$"), page: int = Query(1, ge=1)
+):
     stmt = select(Report).where(Report.status == status).order_by(Report.created_at.desc())
-    return _page(stmt, db, page, lambda r: {"id": str(r.id), "place": {"id": str(r.place.id), "slug": r.place.slug, "name": r.place.name},
-                                            "kind": r.kind, "message": r.message, "status": r.status, "created_at": r.created_at})
+    return _page(
+        stmt,
+        db,
+        page,
+        lambda r: {
+            "id": str(r.id),
+            "place": {"id": str(r.place.id), "slug": r.place.slug, "name": r.place.name},
+            "kind": r.kind,
+            "message": r.message,
+            "status": r.status,
+            "created_at": r.created_at,
+        },
+    )
 
 
 @router.patch("/reports/{rid}")
@@ -155,9 +215,18 @@ def update_report(rid: str, body: StatusPatch, db: DB, admin: AdminUser):
 @router.get("/curation")
 def curation(db: DB, user: StaffUser, page: int = Query(1, ge=1)):
     stmt = select(CurationItem).where(CurationItem.status == "pending").order_by(CurationItem.created_at)
+
     def fmt(c: CurationItem):
         card = cards_for_places(db, [c.place], user)[0]
-        return {"id": str(c.id), "reason": c.reason, "detail": c.detail, "status": c.status, "created_at": c.created_at, "place": card.model_dump()}
+        return {
+            "id": str(c.id),
+            "reason": c.reason,
+            "detail": c.detail,
+            "status": c.status,
+            "created_at": c.created_at,
+            "place": card.model_dump(),
+        }
+
     return _page(stmt, db, page, fmt)
 
 
@@ -179,5 +248,17 @@ def decide(cid: str, body: CurationDecision, db: DB, user: StaffUser):
 @router.get("/audit")
 def audit_log(db: DB, _: AdminUser, page: int = Query(1, ge=1)):
     stmt = select(AuditLog).order_by(AuditLog.created_at.desc())
-    return _page(stmt, db, page, lambda a: {"id": a.id, "actor_id": str(a.actor_id) if a.actor_id else None, "action": a.action,
-                                            "entity_type": a.entity_type, "entity_id": a.entity_id, "data": a.data, "created_at": a.created_at})
+    return _page(
+        stmt,
+        db,
+        page,
+        lambda a: {
+            "id": a.id,
+            "actor_id": str(a.actor_id) if a.actor_id else None,
+            "action": a.action,
+            "entity_type": a.entity_type,
+            "entity_id": a.entity_id,
+            "data": a.data,
+            "created_at": a.created_at,
+        },
+    )

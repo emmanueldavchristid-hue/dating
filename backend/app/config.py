@@ -1,4 +1,5 @@
 """Configuration centralisée, lue depuis l'environnement (.env)."""
+
 from functools import lru_cache
 
 from pydantic import Field

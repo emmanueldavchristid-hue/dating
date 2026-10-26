@@ -2,6 +2,7 @@
 
 Suffisant pour une instance unique. En multi-instance, remplacer le stockage par Redis
 (même interface `hit`)."""
+
 import time
 from collections import defaultdict, deque
 from threading import Lock
@@ -45,4 +46,5 @@ def limit(scope: str, per_minute: int | None = None):
         n = per_minute or get_settings().rate_limit_per_minute
         if not limiter.hit(f"{scope}:{client_ip(request)}", n):
             raise ApiError(429, "rate_limited", "Trop de requêtes, réessaie dans un instant")
+
     return dependency

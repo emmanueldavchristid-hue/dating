@@ -1,4 +1,5 @@
 """Mots de passe (Argon2id) et jetons JWT (HS256)."""
+
 import uuid
 from datetime import UTC, datetime, timedelta
 

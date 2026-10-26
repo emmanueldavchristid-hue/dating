@@ -49,17 +49,20 @@ def _tiers(user: User | None) -> tuple[str, ...]:
 
 @router.get("/places/search", response_model=SearchResult, dependencies=[Depends(limit("search"))])
 def search(
-    db: DB, user: OptionalUser,
+    db: DB,
+    user: OptionalUser,
     lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
     lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
     city: Annotated[str | None, Query(max_length=64)] = None,
     district: Annotated[str | None, Query(max_length=64)] = None,
     q: Annotated[str | None, Query(max_length=120)] = None,
-    categories: str | None = None, ambiances: str | None = None,
+    categories: str | None = None,
+    ambiances: str | None = None,
     budget_max: Annotated[int | None, Query(ge=0, le=10_000_000)] = None,
     open_now: bool = False,
     max_distance_km: Annotated[float | None, Query(gt=0, le=500)] = None,
-    parking: bool = False, wheelchair: bool = False,
+    parking: bool = False,
+    wheelchair: bool = False,
     min_rating: Annotated[float | None, Query(ge=0, le=5)] = None,
     sort: Literal["relevance", "distance", "popularity", "newest"] = "relevance",
     page: Annotated[int, Query(ge=1, le=500)] = 1,
@@ -67,22 +70,60 @@ def search(
 ):
     if (lat is None) != (lng is None):
         raise ApiError(400, "invalid_location", "lat et lng doivent être fournis ensemble")
-    p = SearchParams(lat=lat, lng=lng, city=city, district=district, q=q, categories=_csv(categories),
-                     ambiances=_csv(ambiances), budget_max=budget_max, open_now=open_now,
-                     max_distance_km=max_distance_km, parking=parking, wheelchair=wheelchair,
-                     min_rating=min_rating, sort=sort, page=page, page_size=page_size, tiers=_tiers(user))
+    p = SearchParams(
+        lat=lat,
+        lng=lng,
+        city=city,
+        district=district,
+        q=q,
+        categories=_csv(categories),
+        ambiances=_csv(ambiances),
+        budget_max=budget_max,
+        open_now=open_now,
+        max_distance_km=max_distance_km,
+        parking=parking,
+        wheelchair=wheelchair,
+        min_rating=min_rating,
+        sort=sort,
+        page=page,
+        page_size=page_size,
+        tiers=_tiers(user),
+    )
     items, total, origin = run_search(db, p, user, _prefs(user))
     _record_search(db, user, p, origin, total)
-    return SearchResult(items=to_cards(db, items, user, origin), total=total, page=page, page_size=page_size,
-                        origin={"lat": origin.lat, "lng": origin.lng, "source": origin.source})
+    return SearchResult(
+        items=to_cards(db, items, user, origin),
+        total=total,
+        page=page,
+        page_size=page_size,
+        origin={"lat": origin.lat, "lng": origin.lng, "source": origin.source},
+    )
 
 
 def _record_search(db: Session, user: User | None, p: SearchParams, origin: Origin, total: int) -> None:
     """Historique minimal : position arrondie (~1 km), purgé automatiquement (voir app/tasks.py)."""
-    filters = {k: v for k, v in {"categories": p.categories, "ambiances": p.ambiances, "budget_max": p.budget_max,
-                                  "open_now": p.open_now, "city": p.city, "sort": p.sort}.items() if v}
-    db.add(SearchHistory(user_id=user.id if user else None, query=(p.q or None), filters=filters,
-                         approx_lat=round(origin.lat, 2), approx_lng=round(origin.lng, 2), result_count=total))
+    filters = {
+        k: v
+        for k, v in {
+            "categories": p.categories,
+            "ambiances": p.ambiances,
+            "budget_max": p.budget_max,
+            "open_now": p.open_now,
+            "city": p.city,
+            "sort": p.sort,
+        }.items()
+        if v
+    }
+    db.add(
+        SearchHistory(
+            user_id=user.id if user else None,
+            query=(p.q or None),
+            filters=filters,
+            approx_lat=round(origin.lat, 2),
+            approx_lng=round(origin.lng, 2),
+            result_count=total,
+        )
+    )
     db.commit()
 
 
@@ -126,33 +167,74 @@ def _get_place(db: Session, id_or_slug: str) -> Place:
 
 
 @router.get("/places/{id_or_slug}", response_model=PlaceDetail)
-def detail(id_or_slug: str, db: DB, user: OptionalUser,
-           lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
-           lng: Annotated[float | None, Query(ge=-180, le=180)] = None):
+def detail(
+    id_or_slug: str,
+    db: DB,
+    user: OptionalUser,
+    lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
+    lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
+):
     place = _get_place(db, id_or_slug)
     if place.tier == "premium":
         require_premium(user)
     origin = Origin(lat, lng, "gps") if lat is not None and lng is not None else None
     card = cards_for_places(db, [place], user, origin)[0]
     if origin is not None:  # temps de trajet seulement si un fournisseur est configuré
-        card = to_cards(db, [{"place": place, "dist_m": card.distance_km * 1000 if card.distance_km is not None else None}], user, origin)[0]
-    reviews = list(db.scalars(select(Review).where(Review.place_id == place.id, Review.status == "published")
-                              .order_by(Review.created_at.desc()).limit(20)))
+        card = to_cards(
+            db,
+            [{"place": place, "dist_m": card.distance_km * 1000 if card.distance_km is not None else None}],
+            user,
+            origin,
+        )[0]
+    reviews = list(
+        db.scalars(
+            select(Review)
+            .where(Review.place_id == place.id, Review.status == "published")
+            .order_by(Review.created_at.desc())
+            .limit(20)
+        )
+    )
     events = list(db.scalars(select(Event).where(Event.place_id == place.id).order_by(Event.starts_at).limit(10)))
     is_fav = bool(user and db.get(Favorite, (user.id, place.id)))
     place.popularity += 1
     db.commit()
     src = place.source
     return PlaceDetail(
-        **card.model_dump(), description=place.description, address=place.address, phone=place.phone, website=place.website,
-        hours=[HoursOut(weekday=h.weekday, open=h.opens.strftime("%H:%M"), close=h.closes.strftime("%H:%M")) for h in place.hours],
-        amenities=Amenities(parking=place.has_parking, wheelchair=place.wheelchair, wifi=place.wifi,
-                            card_payment=place.card_payment, mobile_money=place.mobile_money, outdoor=place.outdoor),
-        photos=[PhotoOut(url=public_url(m.storage_key), gradient=m.gradient or place.cover_gradient, alt=m.alt, credit=m.credit)
-                for m in place.media if m.moderation_status == "approved"],
+        **card.model_dump(),
+        description=place.description,
+        address=place.address,
+        phone=place.phone,
+        website=place.website,
+        hours=[
+            HoursOut(weekday=h.weekday, open=h.opens.strftime("%H:%M"), close=h.closes.strftime("%H:%M"))
+            for h in place.hours
+        ],
+        amenities=Amenities(
+            parking=place.has_parking,
+            wheelchair=place.wheelchair,
+            wifi=place.wifi,
+            card_payment=place.card_payment,
+            mobile_money=place.mobile_money,
+            outdoor=place.outdoor,
+        ),
+        photos=[
+            PhotoOut(
+                url=public_url(m.storage_key), gradient=m.gradient or place.cover_gradient, alt=m.alt, credit=m.credit
+            )
+            for m in place.media
+            if m.moderation_status == "approved"
+        ],
         reviews_summary=place.reviews_summary,
-        reviews=[ReviewOut(id=str(r.id), author=(r.user.display_name if r.user else "Ancien membre"), rating=r.rating,
-                           text=r.text, created_at=r.created_at) for r in reviews],
+        reviews=[
+            ReviewOut(
+                id=str(r.id),
+                author=(r.user.display_name if r.user else "Ancien membre"),
+                rating=r.rating,
+                text=r.text,
+                created_at=r.created_at,
+            )
+            for r in reviews
+        ],
         source=SourceOut(kind=src.kind if src else "curated", attribution=src.attribution if src else None),
         events=[EventOut(id=str(e.id), title=e.title, starts_at=e.starts_at, price_fcfa=e.price_fcfa) for e in events],
         is_favorite=is_fav,

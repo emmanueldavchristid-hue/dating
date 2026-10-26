@@ -1,4 +1,5 @@
 """Opérations d'écriture sur les lieux : taxonomie dénormalisée, agrégats de notes."""
+
 import re
 import unicodedata
 

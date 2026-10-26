@@ -1,6 +1,7 @@
 """Paiements : interface prête pour un agrégateur Mobile Money (Orange Money, Wave, MTN MoMo).
 
 Aucun fournisseur n'est branché : aucune transaction n'est simulée."""
+
 from typing import Protocol
 
 from app.config import get_settings
