@@ -10,6 +10,7 @@
 .main {
   flex: 1;
   min-width: 0;
+  overflow-x: clip;
 }
 
 /* Barre du haut (mobile) */
@@ -228,4 +229,6 @@
 }
 .bareMain {
   flex: 1;
+  min-width: 0;
+  overflow-x: clip;
 }

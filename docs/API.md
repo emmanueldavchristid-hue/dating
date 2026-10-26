@@ -19,7 +19,7 @@ type Role = "user" | "curator" | "admin";
 
 interface PlaceCard {
   id: string; slug: string; name: string; short_description: string;
-  city: string; district: string | null;
+  city: string; district: string | null;   // noms affichables (pas des slugs)
   categories: string[];            // slugs
   ambiances: string[];             // slugs
   price_level: number | null;      // 1..4
@@ -59,7 +59,7 @@ interface User {
 ## Méta (public)
 - `GET /health` → `{status:"ok", db:"ok"}`
 - `GET /meta/categories` → `{slug,name,icon}[]` · `GET /meta/ambiances` → `{slug,name}[]`
-- `GET /meta/cities` → `{slug,name,center:{lat,lng},districts:string[]}[]`
+- `GET /meta/cities` → `{slug,name,center:{lat,lng},districts:{slug,name}[]}[]`
 - `GET /meta/capabilities` → `{map:"osm"|"none", routing:"none"|"osrm", ai:"rules"|"anthropic", payments:"none"|string, demo_data:boolean}`
 
 ## Lieux (public, auth optionnelle — l'auth débloque le premium)
@@ -68,7 +68,7 @@ interface User {
   `sort=relevance|distance|popularity|newest`, `page` (1..), `page_size` (1..50, défaut 20)
   → `{items: PlaceCard[], total, page, page_size, origin:{lat,lng,source:"gps"|"city"}}`
 - `GET /places/{id_or_slug}?lat&lng` → `PlaceDetail` ; 403 `premium_required` si pépite non débloquée.
-- `GET /places/gems?city` → `PlaceCard[]` (verrouillées pour plan free : nom générique, pas de position).
+- `GET /places/gems?city` → `PlaceCard[]` (verrouillées sans l'offre Insider : nom générique, pas de position).
 - `GET /recommendations/home?lat&lng&city` → `{sections:{key,title,subtitle,items:PlaceCard[]}[]}`
 - `POST /places/{id}/reports` (auth) `{kind:"closed"|"wrong_hours"|"wrong_location"|"wrong_price"|"other", message}` → 201
 - `POST /places/{id}/reviews` (auth) `{rating:1..5, text}` → 201
@@ -89,7 +89,7 @@ interface User {
 - `POST /itineraries/suggest` (auth) `{lat?,lng?,city?,categories?,ambiances?,budget_max_fcfa?,steps:2..5}`
   → `{steps:{place:PlaceCard, leg_km:number|null}[], total_budget_min_fcfa, total_budget_max_fcfa, notes:string[]}`
   (plan free : 2 étapes max ; au-delà 403 `premium_required`)
-- `GET /me/itineraries` · `POST /me/itineraries` `{title, date?, steps:{place_id,start_time?,note?}[]}`
+- `GET /me/itineraries` → `{id,title,date,step_count}[]` · `POST /me/itineraries` `{title, date?, steps:{place_id,start_time?,note?}[]}`
 - `GET /me/itineraries/{id}` → `{id,title,date,steps:{position,place:PlaceCard,start_time,note,leg_km}[]}` · `DELETE`
 
 ## Concierge (auth)
@@ -107,4 +107,9 @@ interface User {
 - `GET /admin/reports?status=open|resolved|rejected` · `PATCH /admin/reports/{id}` `{status}`
 - `GET /admin/curation` · `PATCH /admin/curation/{id}` `{decision:"approved"|"rejected", note?}`
 - `GET /admin/audit?page`
-Listes paginées admin : `{items, total, page, page_size}`.
+Listes paginées admin : `{items, total, page, page_size}`. Éléments :
+- lieux : `{id,slug,name,city,district,categories,ambiances,tier,status,is_demo,rating_avg,rating_count,budget_min_fcfa,budget_max_fcfa,price_level,short_description,verified_at,confidence}`
+- signalements : `{id, place:{id,slug,name}, kind, message, status, created_at}`
+- curation : `{id, reason:"gem_candidate"|"stale"|"contradictory"|"user_reports", detail, status, created_at, place: PlaceCard}`
+- audit : `{id, actor_id, action, entity_type, entity_id, data, created_at}`
+- stats : `{places, places_published, gems, demo_places, users, premium_users, open_reports, pending_curation}`

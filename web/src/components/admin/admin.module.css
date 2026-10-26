@@ -1,0 +1,129 @@
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+.searchBox {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+  max-width: 420px;
+}
+.searchBox svg {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.searchBox :global(.input) {
+  padding-left: 42px;
+  min-height: 44px;
+}
+.cellMain {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+.wrapCell {
+  min-width: 160px;
+  max-width: 320px;
+}
+.smallSelect {
+  min-height: 36px;
+  padding: 6px 34px 6px 10px;
+  font-size: var(--fs-sm);
+  width: auto;
+  min-width: 130px;
+}
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--surface-3);
+  color: var(--accent-soft);
+  word-break: break-word;
+}
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+@media (min-width: 900px) {
+  .cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.reportCard,
+.curCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+}
+.curCard {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 14px;
+}
+.curThumb {
+  width: 72px;
+  flex: none;
+  border-radius: 14px;
+}
+.curBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.reportHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.reportPlace {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-lg);
+}
+.reportMsg {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}

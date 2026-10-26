@@ -218,6 +218,7 @@ export interface ItinerarySummary {
   title: string;
   date: string | null;
   steps?: ItineraryStep[];
+  step_count?: number;
   steps_count?: number;
   count?: number;
 }
@@ -274,6 +275,7 @@ export interface AdminPlace {
   budget_min_fcfa: number | null;
   budget_max_fcfa: number | null;
   tier: Tier;
+  status?: string;
   description?: string;
   short_description?: string;
   is_demo?: boolean;
@@ -281,7 +283,7 @@ export interface AdminPlace {
 }
 export interface AdminPlaceInput {
   name: string;
-  slug: string;
+  slug?: string;
   city: string;
   district: string | null;
   lat: number;
@@ -293,6 +295,7 @@ export interface AdminPlaceInput {
   tier: Tier;
   description: string;
   short_description?: string;
+  status?: "draft" | "published" | "closed" | "archived";
 }
 export interface AdminUser {
   id: string;
@@ -306,7 +309,9 @@ export interface AdminUser {
 export type ReportStatus = "open" | "resolved" | "rejected";
 export interface AdminReport {
   id: string;
-  place_id: string;
+  /** Backend : objet {id,slug,name} ; contrat : non précisé. */
+  place?: { id: string; slug: string; name: string } | null;
+  place_id?: string;
   place_name?: string;
   kind: ReportKind;
   message: string;
@@ -316,23 +321,22 @@ export interface AdminReport {
 }
 export interface CurationItem {
   id: string;
-  place_id?: string;
-  place_name?: string;
-  name?: string;
+  reason?: string | null;
+  detail?: string | null;
   status?: string;
   note?: string | null;
   created_at?: string;
+  place?: PlaceCard | null;
+  place_name?: string;
   [key: string]: unknown;
 }
 export interface AuditEntry {
-  id: string;
+  id: string | number;
   action: string;
-  actor?: string | null;
-  actor_email?: string | null;
-  target?: string | null;
-  target_type?: string | null;
-  target_id?: string | null;
+  actor_id?: string | null;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  data?: unknown;
   created_at: string;
-  details?: unknown;
   [key: string]: unknown;
 }

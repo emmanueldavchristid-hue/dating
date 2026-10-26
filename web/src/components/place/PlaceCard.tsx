@@ -48,7 +48,7 @@ export function PlaceCard({ place, showReasons = true, compact = false, action }
             <h3 className={styles.name}>{place.name}</h3>
             <p className={styles.desc}>{place.short_description || "Une adresse confidentielle sélectionnée par nos curateurs."}</p>
             <p className={styles.unlock}>
-              <IconLock size={14} /> Débloquer avec Plus ou Insider
+              <IconLock size={14} /> Débloquer avec une offre premium
             </p>
           </div>
         </Link>

@@ -17,7 +17,9 @@ export function formatFcfa(n: number): string {
 /** Fourchette de budget ; null si inconnue (ne jamais inventer). */
 export function formatBudgetRange(min: number | null, max: number | null): string | null {
   if (min != null && max != null) {
+    if (max === 0) return "Gratuit";
     if (min === max) return formatFcfa(min);
+    if (min === 0) return `Gratuit – ${formatFcfa(max)}`;
     return `${groupThousands(min)} – ${formatFcfa(max)}`;
   }
   if (min != null) return `Dès ${formatFcfa(min)}`;
@@ -116,4 +118,14 @@ export function directionsUrl(lat: number, lng: number, provider: "osm" | "googl
     return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
   }
   return `https://www.openstreetmap.org/directions?to=${lat}%2C${lng}#map=16/${lat}/${lng}`;
+}
+
+/** Distance orthodromique (km) — même calcul « à vol d'oiseau » que le serveur. */
+export function haversineKm(a: { lat: number; lng: number } | null, b: { lat: number; lng: number } | null): number | null {
+  if (!a || !b) return null;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * 6371 * Math.asin(Math.sqrt(h)) * 10) / 10;
 }

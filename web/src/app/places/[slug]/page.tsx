@@ -48,7 +48,6 @@ import {
   formatDate,
   formatFcfa,
   formatRating,
-  priceLevelLabel,
 } from "@/lib/format";
 import type { Amenities, PlaceDetail } from "@/lib/types";
 import styles from "./place.module.css";
@@ -161,7 +160,6 @@ export default function PlacePage() {
   if (!place) return <DetailSkeleton />;
 
   const budget = formatBudgetRange(place.budget_min_fcfa, place.budget_max_fcfa);
-  const level = priceLevelLabel(place.price_level);
   const knownAmenities = AMENITIES.filter((a) => place.amenities?.[a.key] != null);
   const conf = confidenceLabel(place.confidence);
   const mainCat = place.categories[0];
@@ -236,7 +234,6 @@ export default function PlacePage() {
               {budget ? (
                 <span className={styles.factValue}>
                   {budget}
-                  {level ? <span className="subtle"> · {level}</span> : null}
                 </span>
               ) : (
                 <span className={styles.factMuted}>Non renseigné</span>

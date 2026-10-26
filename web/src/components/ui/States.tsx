@@ -50,7 +50,7 @@ export function LoginPrompt({ title = "Connectez-vous pour continuer", children 
   );
 }
 
-export function PremiumGate({ title = "Réservé aux membres Plus et Insider", children }: { title?: string; children?: ReactNode }) {
+export function PremiumGate({ title = "Réservé aux membres premium", children }: { title?: string; children?: ReactNode }) {
   return (
     <EmptyState
       icon={<IconCrown />}
