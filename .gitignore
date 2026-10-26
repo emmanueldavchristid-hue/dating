@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+# Node
+node_modules/
+.next/
+out/
+coverage/
+# Env & secrets
+.env
+.env.*
+!.env.example
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+# Local data
+*.sqlite
+*.dump
+media/
