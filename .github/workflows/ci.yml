@@ -20,8 +20,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Installer pgvector dans le conteneur PostGIS
         run: |
-          CID=$(docker ps -q --filter "ancestor=postgis/postgis:16-3.4")
-          docker exec "$CID" bash -c "apt-get update -qq && apt-get install -y -qq postgresql-16-pgvector"
+          docker exec ${{ job.services.postgres.id }} bash -c "apt-get update -qq && apt-get install -y -qq postgresql-16-pgvector"
       - uses: actions/setup-python@v5
         with: { python-version: "3.13", cache: pip, cache-dependency-path: backend/requirements-dev.txt }
       - run: pip install -r requirements-dev.txt
