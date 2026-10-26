@@ -8,6 +8,7 @@ ignore = ["B008", "E501"]  # longueur gérée par `ruff format`
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.ruff.lint.per-file-ignores]
