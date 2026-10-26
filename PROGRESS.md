@@ -28,7 +28,7 @@ Dernière mise à jour : 26 octobre 2026 · Branche `mvp`
 - **IA** : le concierge tourne en mode règles. L'adaptateur Anthropic est codé et testé avec des réponses simulées, mais pas avec une vraie clé.
 - **Paiement** : aucun agrégateur intégré ; le passage à une offre payante renvoie « bientôt disponible ». Un administrateur peut attribuer une offre manuellement (tracé dans l'audit).
 - **Carte** : tuiles OSM non chargeables depuis l'environnement de développement ; le mode dégradé a été vérifié, le rendu réel des tuiles non.
-- **Docker Compose et CI GitHub** : écrits mais pas exécutés ici (pas de démon Docker). À confirmer au premier run de la CI.
+- **Docker Compose** : écrit mais pas exécuté (pas de démon Docker disponible). La CI GitHub, elle, est verte.
 - **Recherche sémantique (pgvector)** : colonne et extension prêtes, aucun fournisseur d'embeddings.
 - **Alertes de découverte, collections éditoriales exclusives** : modèle de données prêt, pas d'interface.
 
@@ -40,11 +40,12 @@ Dernière mise à jour : 26 octobre 2026 · Branche `mvp`
 | `cd backend && ruff check app tests alembic` | OK |
 | `cd web && npm test` | 61 réussis (client API, formatages, filtres ⇄ URL, règles d'honnêteté des cartes) |
 | `cd web && npm run lint && npm run build` | OK, 0 avertissement, 16 routes |
+| CI GitHub Actions (backend + web) | ✅ verte sur `mvp` |
 | `node web/e2e/smoke.mjs` (build de production + API réelle) | 34/34 vérifications, téléphone 390×844 et bureau 1440×900, 4 profils |
 
 ## Prochaines tâches, par priorité
 
-1. **Lancer la CI** sur GitHub et corriger si besoin (Docker Compose, job backend avec pgvector).
+1. **Valider Docker Compose** sur une machine avec Docker (`docker compose up --build`).
 2. **Données réelles** : importer OSM pour Abidjan (`python -m app.importers.osm --city abidjan --fetch`), puis organiser la curation terrain des premiers lieux publiés et de leurs photos sous licence.
 3. **Itinéraires réels** : héberger un OSRM (extrait Côte d'Ivoire de Geofabrik) et définir `ROUTING_PROVIDER=osrm`.
 4. **Paiement** : choisir un agrégateur Mobile Money (vérifier disponibilité, frais, KYC), implémenter `PaymentProvider` et le webhook vers `payments` / `subscriptions`.
