@@ -1,0 +1,113 @@
+/* Design system — « concierge » sombre premium. Source unique des valeurs. */
+:root {
+  color-scheme: dark;
+
+  /* Couleurs */
+  --bg: #0e0f13;
+  --bg-elevated: #121318;
+  --surface-1: #15171d;
+  --surface-2: #181a21;
+  --surface-3: #1b1d25;
+  --surface-hover: #20232c;
+  --border: #262933;
+  --border-strong: #2a2d37;
+  --border-hover: #3a3e4a;
+
+  --text: #f4f1ea;
+  --text-muted: #a3a6b2; /* 7.8:1 sur --bg, 6.9:1 sur --surface-3 */
+  --text-subtle: #8b8e9a; /* 5.6:1 sur --bg : réservé aux méta-infos */
+
+  --accent: #ff8a3d;
+  --accent-hover: #ff9a55;
+  --accent-press: #f07a2c;
+  --on-accent: #1a0f05;
+  --accent-soft: #ffb07a;
+  --accent-tint: rgba(255, 138, 61, 0.12);
+  --accent-tint-strong: rgba(255, 138, 61, 0.2);
+
+  --gold: #e9c46a;
+  --gold-bg: #2b2416;
+  --gold-border: #4a3d20;
+
+  --success: #7fd9a8;
+  --success-tint: rgba(127, 217, 168, 0.12);
+  --info: #4c74ff;
+  --info-soft: #8ea6ff;
+  --info-tint: rgba(76, 116, 255, 0.14);
+  --danger: #ff6b6b;
+  --danger-tint: rgba(255, 107, 107, 0.12);
+  --warning: #f4b860;
+
+  /* Typographie */
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-md: 0.9375rem;
+  --fs-lg: 1.0625rem;
+  --fs-xl: 1.25rem;
+  --fs-2xl: 1.5rem;
+  --fs-3xl: clamp(1.75rem, 1.3rem + 2vw, 2.5rem);
+  --fs-4xl: clamp(2.1rem, 1.4rem + 3vw, 3.4rem);
+
+  /* Espacements — échelle 8px (avec demi-pas 4px) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 40px;
+  --s-8: 48px;
+  --s-9: 64px;
+
+  /* Rayons */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-pill: 999px;
+
+  /* Élévation */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px -8px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+  --shadow-accent: 0 10px 30px -10px rgba(255, 138, 61, 0.55);
+
+  /* Mouvement */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --t-fast: 150ms;
+  --t-med: 220ms;
+
+  /* Mise en page */
+  --sidebar-w: 248px;
+  --tabbar-h: 68px;
+  --content-max: 1240px;
+  --gutter: 16px;
+
+  --z-sticky: 20;
+  --z-nav: 40;
+  --z-sheet: 60;
+  --z-toast: 80;
+
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+}
+
+@media (min-width: 640px) {
+  :root {
+    --gutter: 24px;
+  }
+}
+@media (min-width: 1024px) {
+  :root {
+    --gutter: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 0ms;
+    --t-med: 0ms;
+  }
+}
