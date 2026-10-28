@@ -23,3 +23,6 @@ coverage/
 media/
 *.tsbuildinfo
 next-env.d.ts
+.expo/
+dist/
+web-build/

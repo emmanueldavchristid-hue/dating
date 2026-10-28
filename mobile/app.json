@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "Sortie",
+    "slug": "sortie",
+    "scheme": "sortie",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0E0F13",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.sortie.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Ta position sert uniquement à trier les lieux par distance (à vol d'oiseau). Elle n'est jamais partagée."
+      }
+    },
+    "android": {
+      "package": "com.sortie.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0E0F13",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        { "image": "./assets/splash-icon.png", "imageWidth": 160, "resizeMode": "contain", "backgroundColor": "#0E0F13" }
+      ],
+      [
+        "expo-location",
+        { "locationWhenInUsePermission": "Ta position sert uniquement à trier les lieux par distance (à vol d'oiseau). Elle n'est jamais partagée." }
+      ]
+    ],
+    "experiments": { "typedRoutes": false, "tsconfigPaths": true }
+  }
+}
