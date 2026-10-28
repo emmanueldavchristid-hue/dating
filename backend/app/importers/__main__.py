@@ -33,7 +33,9 @@ def main() -> None:
             g = cast(City.center, Geometry)
             lat, lng = db.execute(select(func.ST_Y(g), func.ST_X(g)).where(City.id == city.id)).one()
             radius = args.radius_km if slug == "abidjan" else min(args.radius_km, 12)
-            created, updated = osm.import_places(db, city, osm.parse_elements(osm.fetch_overpass(lat, lng, radius)), publish=args.publish)
+            created, updated = osm.import_places(
+                db, city, osm.parse_elements(osm.fetch_overpass(lat, lng, radius)), publish=args.publish
+            )
             print(f"OSM {city.name} : {created} créés, {updated} mis à jour")
         with httpx.Client(timeout=30, headers=wikimedia.UA) as client:
             print(f"Photos libres : {wikimedia.enrich(db, client, limit=5000)}")

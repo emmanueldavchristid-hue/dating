@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     jwt_secret: str = Field(default="dev-only-change-me-please-32-bytes-min")
     jwt_ttl_minutes: int = 60 * 24 * 7
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:3000,http://localhost:8081"
 
     timezone: str = "Africa/Abidjan"
     default_city: str = "abidjan"

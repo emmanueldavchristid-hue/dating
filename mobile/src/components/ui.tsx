@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { forwardRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -49,11 +49,11 @@ export function PressableScale({ style, scaleTo = 0.98, haptic, onPressIn, onPre
       {...rest}
       disabled={disabled}
       onPressIn={(e) => {
-        s.value = withTiming(scaleTo, { duration: 90 });
+        s.set(withTiming(scaleTo, { duration: 90 }));
         onPressIn?.(e);
       }}
       onPressOut={(e) => {
-        s.value = withSpring(1, { damping: 16, stiffness: 260 });
+        s.set(withSpring(1, { damping: 16, stiffness: 260 }));
         onPressOut?.(e);
       }}
       onPress={(e) => {
@@ -277,10 +277,14 @@ const PILL_TONES = {
 // ---------------------------------------------------------------------------
 // Champs
 
-export const Field = forwardRef<
-  TextInput,
-  TextInputProps & { label: string; error?: string | null; hint?: string; icon?: IconName }
->(function Field({ label, error, hint, icon, style, ...rest }, ref) {
+export function Field({
+  label,
+  error,
+  hint,
+  icon,
+  style,
+  ...rest
+}: TextInputProps & { label: string; error?: string | null; hint?: string; icon?: IconName }) {
   return (
     <View style={{ gap: 6 }}>
       <Txt variant="label" color={colors.textMuted}>
@@ -289,7 +293,6 @@ export const Field = forwardRef<
       <View style={[styles.field, error ? { borderColor: colors.danger } : null]}>
         {icon ? <Icon name={icon} size={18} color={colors.textSubtle} /> : null}
         <TextInput
-          ref={ref}
           placeholderTextColor={colors.textSubtle}
           selectionColor={colors.accent}
           accessibilityLabel={label}
@@ -309,7 +312,7 @@ export const Field = forwardRef<
       ) : null}
     </View>
   );
-});
+}
 
 // ---------------------------------------------------------------------------
 // Blocs

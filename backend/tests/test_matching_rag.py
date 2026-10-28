@@ -174,3 +174,25 @@ def test_export_includes_interactions(client, new_user):
     h, _ = new_user
     client.post(f"{API}/events", headers=h, json={"type": "share", "place_id": _first(client)["id"]})
     assert client.get(f"{API}/me/export", headers=h).json()["interactions"][0]["type"] == "share"
+
+
+def test_locked_gems_do_not_leak_slug(client, free_h, insider_h):
+    real = {g["slug"] for g in client.get(f"{API}/places/gems", headers=insider_h).json()}
+    locked = client.get(f"{API}/places/gems", headers=free_h).json()
+    assert all(g["slug"].startswith("pepite-") and g["slug"] not in real for g in locked)
+
+
+def test_home_uses_district_as_origin_without_filtering(client):
+    d = client.get(f"{API}/recommendations/home", params={"city": "abidjan", "district": "port-bouet"}).json()[
+        "sections"
+    ]
+    items = [i for s in d for i in s["items"]]
+    assert len({i["district"] for i in items}) > 1, "le quartier sert de point de départ, pas de filtre"
+
+
+def test_match_scores_are_spread(client, free_h):
+    items = client.get(f"{API}/places/search", params={"city": "abidjan", "page_size": 50}, headers=free_h).json()[
+        "items"
+    ]
+    matches = [i["match"] for i in items if i["match"] is not None]
+    assert matches and max(matches) < 100 and min(matches) < 50

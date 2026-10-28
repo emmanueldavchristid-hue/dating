@@ -259,6 +259,12 @@ const ICONS = {
       <Polyline points="12 5 19 12 12 19" />
     </>
   ),
+  mail: (
+    <>
+      <Rect x={2.5} y={4.5} width={19} height={15} rx={2.5} />
+      <Polyline points="3 7 12 13 21 7" />
+    </>
+  ),
   globe: (
     <>
       <Circle cx={12} cy={12} r={9.5} />

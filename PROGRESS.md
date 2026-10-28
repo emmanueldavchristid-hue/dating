@@ -1,60 +1,54 @@
-# État du projet — MVP v0.1
+# État du projet — v0.2
 
-Dernière mise à jour : 26 octobre 2026 · Branche `mvp`
+Dernière mise à jour : 28 octobre 2026 · Branche `mvp` · Pull request #1
 
-## Fonctionnel et testé de bout en bout
+## Prêt à être donné à un client ?
+
+**Pas encore.** L'application est complète et fonctionne de bout en bout, mais elle tourne sur des **lieux fictifs**.
+Trois choses la séparent d'une première version client :
+1. importer les vrais lieux et photos (commande prête, bloquée par l'accès réseau de l'environnement de développement) ;
+2. la tester sur de vrais téléphones (Expo Go) ;
+3. l'héberger en ligne.
+
+## Fonctionnel et testé
 
 | Domaine | État |
 | --- | --- |
-| Base PostgreSQL + PostGIS + pgvector, migration Alembic `0001` (montée et descente testées) | ✅ |
-| Recherche : GPS ou ville/quartier, multi-catégories, ambiances, budget FCFA, ouvert maintenant, rayon, parking, PMR, note min., 4 tris, pagination | ✅ |
-| Classement déterministe 0–100 et raisons affichées | ✅ |
-| Accueil personnalisé (5 sections), découverte, carte Leaflet/OSM avec mode dégradé, fiche lieu complète | ✅ |
-| Comptes (Argon2id + JWT), rôles user/curator/admin, préférences, consentement de géolocalisation | ✅ |
-| Favoris, collections, avis (note recalculée), signalements | ✅ |
-| Itinéraires multi-étapes : suggestion, enregistrement, détail (limites par offre côté serveur) | ✅ |
-| Concierge en mode règles, quotas journaliers par offre, réponses limitées aux lieux de la base | ✅ |
-| Pépites premium verrouillées côté serveur (nom et position masqués pour l'offre gratuite) | ✅ |
-| Administration : statistiques, lieux (création/édition), utilisateurs (rôle/offre), signalements, curation, journal d'audit | ✅ |
-| Export et suppression du compte, historique de recherche arrondi et purgeable | ✅ |
-| Importeur OpenStreetMap (lieux créés en brouillon, à curer) | ✅ |
-| Tâches planifiées : purge de l'historique, file de curation (anciens, signalés, contradictoires) | ✅ |
+| **App mobile** Expo (Android + iPhone) : 5 onglets + onboarding, recherche, fiche, soirée, favoris, collections, compte, premium | ✅ bundles Android/iOS compilés, 46 tests, 41 écrans vérifiés (rendu web) |
+| **App web** + console d'administration | ✅ 61 tests, 34/34 vérifications de bout en bout |
+| Recherche multicritère géolocalisée, classement 0–100 explicable | ✅ |
+| **Matching** : profil de goûts (préférences + favoris, itinéraires, appels, partages, vues, avis), affinité « xx % pour toi », lieux similaires (sens + « aimé par les mêmes personnes ») | ✅ |
+| **RAG** : fiches, résumés et avis indexés (pgvector HNSW + plein texte), recherche hybride, concierge avec relances, garde-fou anti-lieu inventé | ✅ en mode lexical (voir ci-dessous) |
+| Premium contrôlé côté serveur, quotas, pépites verrouillées (sans nom, position ni slug révélateur) | ✅ |
+| Import OpenStreetMap multi-villes + photos libres Wikimedia (licence et auteur) | ✅ testé avec réponses simulées |
+| Comptes, rôles, export et suppression des données, audit, curation | ✅ |
+| CI GitHub : backend, web, mobile | ✅ |
 
-## Simulé, désactivé ou non vérifié — à dire clairement
+## Simulé, désactivé ou non vérifié
 
-- **Données** : les 38 lieux, avis et horaires sont **fictifs** (badge « Démo », bandeau en pied de page).
-- **Visuels** : dégradés générés, aucune photo réelle (`MEDIA_BASE_URL` non configuré).
-- **Temps de trajet** : aucun fournisseur branché → seule la distance à vol d'oiseau est affichée. L'adaptateur OSRM est codé et couvert par des tests unitaires, mais pas essayé sur un vrai serveur.
-- **IA** : le concierge tourne en mode règles. L'adaptateur Anthropic est codé et testé avec des réponses simulées, mais pas avec une vraie clé.
-- **Paiement** : aucun agrégateur intégré ; le passage à une offre payante renvoie « bientôt disponible ». Un administrateur peut attribuer une offre manuellement (tracé dans l'audit).
-- **Carte** : tuiles OSM non chargeables depuis l'environnement de développement ; le mode dégradé a été vérifié, le rendu réel des tuiles non.
-- **Docker Compose** : écrit mais pas exécuté (pas de démon Docker disponible). La CI GitHub, elle, est verte.
-- **Recherche sémantique (pgvector)** : colonne et extension prêtes, aucun fournisseur d'embeddings.
-- **Alertes de découverte, collections éditoriales exclusives** : modèle de données prêt, pas d'interface.
+- **Données** : 38 lieux fictifs (badge « Démo »). Commande d'import réel prête : `python -m app.importers --publish --purge-demo`.
+- **Réseau de développement** : `overpass-api.de`, `wikidata.org`, `commons.wikimedia.org`, `huggingface.co` sont bloqués → à autoriser dans claude.ai (Paramètres → Capacités).
+- **Recherche « par le sens »** : encodeur hors ligne (mots, trigrammes, synonymes métier) en attendant le modèle multilingue `fastembed`.
+- **IA du concierge** : mode règles ; adaptateur Claude prêt, testé avec réponses simulées, sans clé réelle.
+- **Mobile sur appareil réel** : non testé ici (carte native, GPS, partage, haptique, appel). Icône et écran de démarrage par défaut.
+- **Temps de trajet** : aucun fournisseur (OSRM prêt). **Paiement** : aucun agrégateur. **Photos Google** : non implémenté (API officielle payante, à décider).
+- **Docker Compose** : non exécuté (pas de Docker ici).
 
-## Tests exécutés
+## Tests
 
 | Commande | Résultat |
 | --- | --- |
-| `cd backend && pytest -q` | 42 réussis (unitaires + intégration sur PostgreSQL/PostGIS réel) |
-| `cd backend && ruff check app tests alembic` | OK |
-| `cd web && npm test` | 61 réussis (client API, formatages, filtres ⇄ URL, règles d'honnêteté des cartes) |
-| `cd web && npm run lint && npm run build` | OK, 0 avertissement, 16 routes |
-| CI GitHub Actions (backend + web) | ✅ verte sur `mvp` |
-| `node web/e2e/smoke.mjs` (build de production + API réelle) | 34/34 vérifications, téléphone 390×844 et bureau 1440×900, 4 profils |
+| `cd backend && pytest -q` | 59 réussis (PostgreSQL/PostGIS/pgvector réel) |
+| `cd web && npm test && npm run lint && npm run build` | 61 réussis, OK |
+| `cd mobile && npx tsc --noEmit && npx expo lint && npm test` | 0 erreur, 46 réussis |
+| `cd mobile && npx expo export --platform android` (et ios) | bundles compilés |
+| E2E web (`web/e2e/smoke.mjs`) / mobile rendu web (`mobile/e2e/screens.mjs`) | 34/34 · 41/41 |
 
-## Prochaines tâches, par priorité
+## Prochaines tâches
 
-1. **Valider Docker Compose** sur une machine avec Docker (`docker compose up --build`).
-2. **Données réelles** : importer OSM pour Abidjan (`python -m app.importers.osm --city abidjan --fetch`), puis organiser la curation terrain des premiers lieux publiés et de leurs photos sous licence.
-3. **Itinéraires réels** : héberger un OSRM (extrait Côte d'Ivoire de Geofabrik) et définir `ROUTING_PROVIDER=osrm`.
-4. **Paiement** : choisir un agrégateur Mobile Money (vérifier disponibilité, frais, KYC), implémenter `PaymentProvider` et le webhook vers `payments` / `subscriptions`.
-5. **Concierge IA** : brancher `ANTHROPIC_API_KEY`, ajouter un contrôle qui vérifie que chaque lieu cité dans la réponse existe dans la liste fournie.
-6. **Stockage photos** : bucket S3 compatible + endpoint d'upload signé + modération.
-7. **Production** : Redis pour la limitation de débit multi-instance, sauvegardes, journalisation centralisée, en-têtes de sécurité, déclaration ARTCI.
-8. **Mobile natif** : application Expo réutilisant `docs/API.md` et `web/src/lib/`.
-
-## Pour reprendre
-
-Lire `README.md` (lancement), `docs/API.md` (contrat), `docs/DATABASE.md` (schéma), `docs/DECISIONS.md` (choix).
-Le contrat `docs/API.md` reflète l'implémentation actuelle (écarts relevés pendant l'intégration corrigés).
+1. Ouvrir l'accès réseau, lancer l'import réel (Abidjan, Grand-Bassam, Assinie) et passer à `fastembed`.
+2. Test sur téléphones avec Expo Go ; corriger ce qui ne se voit que sur appareil (carte, permissions).
+3. Clé API Claude → concierge IA ; contrôle qualité des réponses.
+4. Icône, écran de démarrage, nom définitif.
+5. Hébergement (API + base + web), puis builds stores (EAS).
+6. Agrégateur Mobile Money, OSRM, stockage photos S3 + curation terrain.

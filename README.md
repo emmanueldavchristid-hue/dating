@@ -9,7 +9,8 @@ recommandations explicables, carte, fiches détaillées, favoris, itinéraires d
 ## Architecture
 
 ```
-web/        Next.js 15 + React 19 + TypeScript — application web responsive (mobile d'abord)
+mobile/     Expo (React Native) + TypeScript — application Android et iPhone
+web/        Next.js 15 + React 19 + TypeScript — application web responsive + console d'administration
 backend/    FastAPI + SQLAlchemy 2 + Alembic — API REST /api/v1
 infra/db/   Image PostgreSQL 16 + PostGIS + pgvector
 docs/       API.md (contrat), DATABASE.md (schéma), DECISIONS.md
@@ -57,6 +58,26 @@ cp .env.example .env.local
 npm install
 npm run dev        # http://localhost:3000
 ```
+
+## Tester l'application mobile sur son téléphone
+
+1. Installer **Expo Go** depuis le Play Store ou l'App Store.
+2. Lancer l'API (voir ci-dessus) sur un ordinateur du même réseau Wi-Fi que le téléphone.
+3. Dans `mobile/` : `cp .env.example .env`, puis mettre dans `EXPO_PUBLIC_API_URL` l'adresse IP locale de l'ordinateur
+   (ex. `http://192.168.1.20:8000/api/v1` ; `ipconfig` sous Windows, `ipconfig getifaddr en0` sous macOS).
+4. `npm install` puis `npx expo start`, et scanner le QR code avec Expo Go (Android) ou l'appareil photo (iPhone).
+
+Détails et builds pour les stores : `mobile/README.md`.
+
+## Données réelles et RAG
+
+```bash
+cd backend
+python -m app.importers --cities abidjan,grand-bassam,assinie --publish --purge-demo   # OSM + photos libres + index RAG
+pip install -r requirements-ai.txt && EMBEDDINGS_PROVIDER=fastembed python -m app.tasks index-embeddings --rebuild   # recherche « par le sens »
+```
+
+Ces commandes ont besoin d'accéder à `overpass-api.de`, `www.wikidata.org`, `commons.wikimedia.org` et `huggingface.co`.
 
 ## Comptes de démonstration
 

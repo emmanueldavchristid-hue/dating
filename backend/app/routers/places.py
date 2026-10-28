@@ -138,9 +138,16 @@ def gems(db: DB, user: OptionalUser, city: str | None = None):
 
 
 @router.get("/recommendations/home", response_model=HomeOut, dependencies=[Depends(limit("search"))])
-def home(db: DB, user: OptionalUser, lat: float | None = None, lng: float | None = None, city: str | None = None):
+def home(
+    db: DB,
+    user: OptionalUser,
+    lat: float | None = None,
+    lng: float | None = None,
+    city: str | None = None,
+    district: str | None = None,
+):
     prefs, tiers, seen = _prefs(db, user), _tiers(user), []
-    base = {"lat": lat, "lng": lng, "city": city, "tiers": tiers, "page_size": 10}
+    base = {"lat": lat, "lng": lng, "city": city, "origin_district": district, "tiers": tiers, "page_size": 10}
     specs = [
         ("for_you", "Pour toi", "Sélection selon tes envies et ta position", {}),
         ("open_now", "Ouvert maintenant", "Horaires renseignés et vérifiables", {"open_now": True}),

@@ -54,6 +54,7 @@ class SearchParams:
     page_size: int = 20
     tiers: tuple[str, ...] = ("free",)
     exclude_ids: list[uuid.UUID] = field(default_factory=list)
+    origin_district: str | None = None  # quartier servant de point de départ, sans filtrer dessus
     only_ids: list[uuid.UUID] | None = None
 
 
@@ -70,8 +71,9 @@ def resolve_origin(db: Session, p: SearchParams) -> tuple[Origin, City | None, D
         city = db.scalar(select(City).where(City.slug == p.city))
         if not city:
             raise ApiError(400, "unknown_city", f"Ville inconnue : {p.city}")
-        if p.district:
-            district = db.scalar(select(District).where(District.city_id == city.id, District.slug == p.district))
+        dslug = p.district or p.origin_district
+        if dslug:
+            district = db.scalar(select(District).where(District.city_id == city.id, District.slug == dslug))
     if p.lat is not None and p.lng is not None:
         return Origin(p.lat, p.lng, "gps"), city, district
     if not city:
@@ -84,7 +86,7 @@ def resolve_origin(db: Session, p: SearchParams) -> tuple[Origin, City | None, D
     else:
         g = cast(City.center, Geometry)
         lng, lat = db.execute(select(func.ST_X(g), func.ST_Y(g)).where(City.id == city.id)).one()
-    return Origin(lat, lng, "city"), city, district
+    return Origin(lat, lng, "city"), city, (district if p.district else None)
 
 
 def _open_now_clause(now: datetime):
@@ -333,6 +335,7 @@ def lock_card(card: PlaceCard) -> PlaceCard:
     return card.model_copy(
         update={
             "name": "Pépite Insider",
+            "slug": f"pepite-{card.id[:8]}",  # le vrai slug révélerait le nom
             "short_description": "Un lieu rare sélectionné par nos curateurs. Réservé aux membres Insider.",
             "location": None,
             "match": None,

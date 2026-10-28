@@ -55,7 +55,7 @@ def rules_reply(parsed, cards: list[PlaceCard], relaxed: list[str], snippets: di
     for c in cards:
         bits = []
         if c.distance_km is not None:
-            bits.append(f"{c.distance_km} km à vol d'oiseau")
+            bits.append(f"{str(c.distance_km).replace('.', ',')} km à vol d'oiseau")
         if c.budget_min_fcfa is not None and c.budget_max_fcfa is not None:
             bits.append(f"{_fmt_fcfa(c.budget_min_fcfa)} – {_fmt_fcfa(c.budget_max_fcfa)}")
         bits.append(

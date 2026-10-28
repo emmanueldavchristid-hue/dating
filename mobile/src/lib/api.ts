@@ -233,7 +233,7 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 // ---------------------------------------------------------------------------
 // Points d'entrée
 
-export type Origin = { lat?: number; lng?: number; city?: string };
+export type Origin = { lat?: number; lng?: number; city?: string; district?: string };
 
 export const api = {
   health: () => request<{ status: string; db: string }>("/health", { auth: false }),

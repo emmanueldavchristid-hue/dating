@@ -27,10 +27,11 @@ export function formatBudgetRange(min: number | null, max: number | null): strin
   return null;
 }
 
-/** "₣₣" visuel du niveau de prix, ou null. */
+/** Niveau de prix lisible ("Abordable", "Modéré", "Chic", "Haut de gamme"), ou null. */
+const PRICE_LEVELS = ["Abordable", "Modéré", "Chic", "Haut de gamme"];
 export function priceLevelLabel(level: number | null): string | null {
   if (level == null || level < 1) return null;
-  return "₣".repeat(Math.min(4, Math.round(level)));
+  return PRICE_LEVELS[Math.min(4, Math.round(level)) - 1] ?? null;
 }
 
 function frDecimal(n: number, digits = 1): string {
@@ -112,10 +113,14 @@ export function pluralize(n: number, singular: string, plural?: string): string 
   return `${groupThousands(n)} ${n > 1 ? plural ?? `${singular}s` : singular}`;
 }
 
-/** "92 % pour toi" — uniquement si le serveur fournit une affinité. */
+/** En dessous, l'affinité n'est pas mise en avant (une pastille « 9 % pour toi » n'aide personne). */
+export const MATCH_MIN = 50;
+
+/** "92 % pour toi" — uniquement si le serveur fournit une affinité (jamais calculée côté client). */
 export function matchLabel(match: number | null | undefined): string | null {
   if (match == null || !Number.isFinite(match)) return null;
   const m = Math.max(0, Math.min(100, Math.round(match)));
+  if (m < MATCH_MIN) return null;
   return `${m}${NBSP}% pour toi`;
 }
 

@@ -56,7 +56,9 @@ class Taste:
         }
 
     def match(self, place: Place, embedding: list[float] | None) -> int | None:
-        """Affinité 0–100 : 60 % catégories/ambiances aimées, 40 % proximité vectorielle."""
+        """Affinité 0–100 : 55 % catégories/ambiances aimées, 25 % proximité vectorielle, 20 % qualité.
+
+        Sans vecteur (peu de signaux), la part vectorielle est neutre (0,5) : un 100 % reste rare et mérité."""
         if not self.usable:
             return None
         max_c = max((v for v in self.categories.values() if v > 0), default=0)
@@ -64,11 +66,14 @@ class Taste:
         c = max((self.categories.get(s, 0) for s in place.category_slugs or []), default=0) / max_c if max_c else 0
         a = max((self.ambiances.get(s, 0) for s in place.ambiance_slugs or []), default=0) / max_a if max_a else 0
         tax = max(0.0, 0.65 * c + 0.35 * a)
+        sim = 0.5
         if self.vector is not None and embedding is not None:
             cos = sum(x * y for x, y in zip(self.vector, embedding, strict=True))
             sim = math.sqrt(max(0.0, min(1.0, cos)))
-            return round(100 * (0.6 * tax + 0.4 * sim))
-        return round(100 * tax)
+        n = place.rating_count or 0
+        bayes = (10 * 3.8 + (place.rating_avg or 0) * n) / (10 + n)
+        quality = max(0.0, min(1.0, (bayes - 3.0) / 2.0))
+        return round(100 * (0.55 * tax + 0.25 * sim + 0.20 * quality))
 
 
 def compute_taste(db: Session, user: User) -> Taste:
