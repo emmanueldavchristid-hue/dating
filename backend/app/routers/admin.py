@@ -10,6 +10,7 @@ from app.models import AuditLog, City, CurationItem, District, Place, Report, Us
 from app.schemas import AdminPlaceIn, AdminPlacePatch, AdminUserPatch, CurationDecision, StatusPatch
 from app.services.audit import audit
 from app.services.places import set_taxonomy, slugify
+from app.services.rag import index_places
 from app.services.search import cards_for_places
 from app.services.users import user_out
 
@@ -123,6 +124,7 @@ def create_place(body: AdminPlaceIn, db: DB, admin: AdminUser):
     db.flush()
     audit(db, admin, "place.created", "place", str(place.id), name=place.name)
     db.commit()
+    index_places(db, [place.id])
     return _place_row(db)(place)
 
 
@@ -150,6 +152,7 @@ def update_place(pid: str, body: AdminPlacePatch, db: DB, admin: AdminUser):
         raise ApiError(400, "invalid_budget", "Budget minimum supérieur au maximum")
     audit(db, admin, "place.updated", "place", pid, fields=sorted(body.model_dump(exclude_unset=True)))
     db.commit()
+    index_places(db, [place.id])
     return _place_row(db)(place)
 
 

@@ -34,6 +34,7 @@ interface PlaceCard {
   is_demo: boolean;                // donnée fictive de démonstration
   verified_at: string | null; confidence: number;    // 0..1
   score: number | null; reasons: string[];          // explications de classement
+  match: number | null;            // 0..100 : affinité avec les goûts de l'utilisateur connecté (null si anonyme ou pas assez de signaux)
 }
 
 interface PlaceDetail extends PlaceCard {
@@ -73,6 +74,13 @@ interface User {
 - `POST /places/{id}/reports` (auth) `{kind:"closed"|"wrong_hours"|"wrong_location"|"wrong_price"|"other", message}` → 201
 - `POST /places/{id}/reviews` (auth) `{rating:1..5, text}` → 201
 
+## Matching & signaux (v1.1)
+- `POST /events` (auth optionnelle) `{type:"view"|"favorite"|"share"|"directions"|"call"|"itinerary_add"|"dismiss", place_id}` → 204.
+  Alimente le profil de goûts (anonyme : ignoré côté profil, compté en popularité seulement pour view).
+- `GET /recommendations/similar/{id_or_slug}` → `PlaceCard[]` (≤ 10 lieux proches par le sens, la catégorie et l'ambiance).
+- `GET /me/taste` (auth) → `{top_categories:{slug,weight}[], top_ambiances:{slug,weight}[], budget_typical_fcfa:number|null, signals:number}`
+  — ce que l'app a compris des goûts de l'utilisateur (transparence).
+
 ## Auth & compte
 - `POST /auth/register` `{email,password(>=8),display_name}` → `{access_token, token_type:"bearer", user}`
 - `POST /auth/login` `{email,password}` → idem
@@ -93,7 +101,8 @@ interface User {
 - `GET /me/itineraries/{id}` → `{id,title,date,steps:{position,place:PlaceCard,start_time,note,leg_km}[]}` · `DELETE`
 
 ## Concierge (auth)
-- `POST /concierge` `{message, lat?, lng?, city?}` → `{reply, places:PlaceCard[], parsed:{categories,ambiances,budget_max_fcfa,open_now,q}, provider:"rules"|"anthropic", quota:{used,limit}}`
+- `POST /concierge` `{message, lat?, lng?, city?, history?:{role:"user"|"assistant",content}[] (≤ 6)}`
+  → `{reply, places:PlaceCard[], parsed:{categories,ambiances,budget_max_fcfa,open_now,q,district}, provider:"rules"|"anthropic", retrieval:"hybrid"|"lexical", quota:{used,limit}}`
   ; 429 `quota_exceeded`. Les lieux cités viennent **toujours** de la base.
 
 ## Abonnements

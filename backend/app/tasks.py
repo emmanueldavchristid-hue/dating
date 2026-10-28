@@ -2,6 +2,7 @@
 
 python -m app.tasks purge-history     # vie privée : supprime l'historique de recherche ancien
 python -m app.tasks flag-for-review   # curation : lieux à re-vérifier (anciens, signalés, contradictoires)
+python -m app.tasks index-embeddings [--rebuild]   # RAG : indexe les lieux publiés (fiches + avis)
 """
 
 import sys
@@ -75,7 +76,13 @@ def flag_for_review(db) -> int:
 
 
 def main() -> None:
-    jobs = {"purge-history": purge_history, "flag-for-review": flag_for_review}
+    from app.services.rag import index_places
+
+    jobs = {
+        "purge-history": purge_history,
+        "flag-for-review": flag_for_review,
+        "index-embeddings": lambda db: index_places(db, rebuild="--rebuild" in sys.argv),
+    }
     if len(sys.argv) < 2 or sys.argv[1] not in jobs:
         raise SystemExit(f"Usage : python -m app.tasks [{'|'.join(jobs)}]")
     with SessionLocal() as db:

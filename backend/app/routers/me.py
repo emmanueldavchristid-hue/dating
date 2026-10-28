@@ -13,6 +13,7 @@ from app.models import (
     Collection,
     CollectionItem,
     Favorite,
+    Interaction,
     Itinerary,
     Place,
     Report,
@@ -113,6 +114,10 @@ def export(db: DB, user: CurrentUser):
         "itineraries": [
             {"title": i.title, "date": i.day.isoformat() if i.day else None, "steps": len(i.steps)}
             for i in db.scalars(select(Itinerary).where(Itinerary.user_id == user.id))
+        ],
+        "interactions": [
+            {"place_id": str(i.place_id), "type": i.type, "created_at": i.created_at.isoformat()}
+            for i in db.scalars(select(Interaction).where(Interaction.user_id == user.id))
         ],
         "search_history": [
             {"query": s.query, "filters": s.filters, "created_at": s.created_at.isoformat()}

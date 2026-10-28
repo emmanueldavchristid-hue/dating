@@ -27,7 +27,9 @@ from app.schemas import (
 )
 from app.services.entitlements import can_see_premium, require_premium
 from app.services.places import refresh_rating
+from app.services.rag import index_places
 from app.services.search import Origin, SearchParams, cards_for_places, run_search, to_cards
+from app.services.taste import compute_taste
 
 router = APIRouter(tags=["places"])
 
@@ -36,11 +38,12 @@ def _csv(v: str | None) -> list[str]:
     return [x.strip() for x in v.split(",") if x.strip()][:20] if v else []
 
 
-def _prefs(user: User | None) -> dict | None:
-    if user and user.preferences:
-        p = user.preferences
-        return {"categories": p.categories, "ambiances": p.ambiances, "budget_max_fcfa": p.budget_max_fcfa}
-    return None
+def _prefs(db: Session, user: User | None) -> dict | None:
+    """Préférences effectives : déclarées + apprises (profil de goûts, vecteur d'affinité)."""
+    if user is None:
+        return None
+    taste = compute_taste(db, user)
+    return taste.as_prefs() if taste.usable else None
 
 
 def _tiers(user: User | None) -> tuple[str, ...]:
@@ -89,7 +92,7 @@ def search(
         page_size=page_size,
         tiers=_tiers(user),
     )
-    items, total, origin = run_search(db, p, user, _prefs(user))
+    items, total, origin = run_search(db, p, user, _prefs(db, user))
     _record_search(db, user, p, origin, total)
     return SearchResult(
         items=to_cards(db, items, user, origin),
@@ -130,13 +133,13 @@ def _record_search(db: Session, user: User | None, p: SearchParams, origin: Orig
 @router.get("/places/gems", response_model=list[PlaceCard])
 def gems(db: DB, user: OptionalUser, city: str | None = None):
     p = SearchParams(city=city, tiers=("premium",), page_size=30)
-    items, _, origin = run_search(db, p, user, _prefs(user))
+    items, _, origin = run_search(db, p, user, _prefs(db, user))
     return to_cards(db, items, user, origin, with_travel=False)
 
 
 @router.get("/recommendations/home", response_model=HomeOut, dependencies=[Depends(limit("search"))])
 def home(db: DB, user: OptionalUser, lat: float | None = None, lng: float | None = None, city: str | None = None):
-    prefs, tiers, seen = _prefs(user), _tiers(user), []
+    prefs, tiers, seen = _prefs(db, user), _tiers(user), []
     base = {"lat": lat, "lng": lng, "city": city, "tiers": tiers, "page_size": 10}
     specs = [
         ("for_you", "Pour toi", "Sélection selon tes envies et ta position", {}),
@@ -219,7 +222,10 @@ def detail(
         ),
         photos=[
             PhotoOut(
-                url=public_url(m.storage_key), gradient=m.gradient or place.cover_gradient, alt=m.alt, credit=m.credit
+                url=public_url(m.storage_key) or m.source_url,
+                gradient=m.gradient or place.cover_gradient,
+                alt=m.alt,
+                credit=m.credit,
             )
             for m in place.media
             if m.moderation_status == "approved"
@@ -263,4 +269,5 @@ def review(place_id: str, body: ReviewIn, db: DB, user: CurrentUser):
     db.flush()
     refresh_rating(db, place)
     db.commit()
+    index_places(db, [place.id])
     return {"rating_avg": place.rating_avg, "rating_count": place.rating_count}

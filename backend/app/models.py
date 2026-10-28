@@ -150,6 +150,12 @@ class Place(Base):
         Index("ix_places_ambiance_slugs", "ambiance_slugs", postgresql_using="gin"),
         Index("ix_places_city_status_tier", "city_id", "status", "tier"),
         Index("ix_places_name_trgm", "name", postgresql_using="gin", postgresql_ops={"name": "gin_trgm_ops"}),
+        Index(
+            "ix_places_embedding",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
     )
     id: Mapped[uuid.UUID] = uid()
     slug: Mapped[str] = mapped_column(String(160), unique=True)
@@ -180,6 +186,9 @@ class Place(Base):
     category_slugs: Mapped[list[str]] = mapped_column(ARRAY(String(64)), default=list)
     ambiance_slugs: Mapped[list[str]] = mapped_column(ARRAY(String(64)), default=list)
     cover_key: Mapped[str | None] = mapped_column(String(255))  # clé objet S3 de la couverture
+    cover_url: Mapped[str | None] = mapped_column(
+        String(500)
+    )  # image externe sous licence (ex. Wikimedia), crédit dans media
     cover_gradient: Mapped[list[str]] = mapped_column(ARRAY(String(9)), default=lambda: ["#1E3A4C", "#0E0F13"])
     # Équipements : null = inconnu (jamais supposé)
     has_parking: Mapped[bool | None] = mapped_column(Boolean)
@@ -246,6 +255,9 @@ class Media(Base):
     id: Mapped[uuid.UUID] = uid()
     place_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"))
     storage_key: Mapped[str | None] = mapped_column(String(255))
+    source_url: Mapped[str | None] = mapped_column(
+        String(500)
+    )  # URL externe autorisée (licence libre), sinon stockage S3
     gradient: Mapped[list[str]] = mapped_column(ARRAY(String(9)), default=list)
     alt: Mapped[str] = mapped_column(String(255), default="")
     credit: Mapped[str | None] = mapped_column(String(160))
@@ -490,4 +502,67 @@ class AuditLog(Base):
     entity_type: Mapped[str] = mapped_column(String(40))
     entity_id: Mapped[str] = mapped_column(String(64))
     data: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = created()
+
+
+# ---------- Matching & RAG ----------
+
+
+class Interaction(Base):
+    """Signaux d'usage pour le profil de goûts. Volumineuse : candidate au partitionnement mensuel."""
+
+    __tablename__ = "interactions"
+    __table_args__ = (
+        CheckConstraint(
+            "type in ('view','favorite','share','directions','call','itinerary_add','dismiss','review')",
+            name="ck_interactions_type",
+        ),
+        Index("ix_interactions_user_created", "user_id", "created_at"),
+        Index("ix_interactions_place", "place_id"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    place_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"))
+    type: Mapped[str] = mapped_column(String(16))
+    weight: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = created()
+
+
+class PlaceDocument(Base):
+    """Fragments indexés pour le RAG : fiche du lieu, avis, résumé. Le concierge ne cite que ces faits."""
+
+    __tablename__ = "place_documents"
+    __table_args__ = (
+        UniqueConstraint("place_id", "kind", "ref"),
+        Index("ix_place_documents_place", "place_id"),
+        Index(
+            "ix_place_documents_embedding",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+        Index("ix_place_documents_tsv", "tsv", postgresql_using="gin"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    place_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(12))  # profile | review | summary
+    ref: Mapped[str] = mapped_column(String(64), default="")
+    content: Mapped[str] = mapped_column(Text)
+    tsv = mapped_column(TSVECTOR, Computed("to_tsvector('simple', f_unaccent(content))", persisted=True))
+    embedding = mapped_column(Vector(384), nullable=False)
+    model: Mapped[str] = mapped_column(String(80))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class PlaceExternalId(Base):
+    """Identifiants chez des fournisseurs (OSM, Wikidata, Google place_id…) — seuls ces identifiants sont conservés durablement."""
+
+    __tablename__ = "place_external_ids"
+    __table_args__ = (UniqueConstraint("provider", "external_id"), Index("ix_place_external_place", "place_id"))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    place_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"))
+    provider: Mapped[str] = mapped_column(String(20))  # osm | wikidata | google
+    external_id: Mapped[str] = mapped_column(String(160))
     created_at: Mapped[datetime] = created()

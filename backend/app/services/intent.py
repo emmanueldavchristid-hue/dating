@@ -9,10 +9,19 @@ CATEGORY_WORDS = {
     "restaurant": ["restaurant", "resto", "diner", "dejeuner", "manger", "gastronom"],
     "maquis": ["maquis", "garba", "alloco", "braise", "poisson braise", "attieke"],
     "lounge": ["lounge", "chicha"],
-    "rooftop": ["rooftop", "terrasse en hauteur", "toit", "vue panoramique"],
-    "plage": ["plage", "mer", "sable", "baignade", "bord de mer"],
+    "rooftop": [
+        "rooftop",
+        "terrasse en hauteur",
+        "en hauteur",
+        "toit",
+        "vue panoramique",
+        "belle vue",
+        "vue sur la ville",
+        "skyline",
+    ],
+    "plage": ["plage", "mer", "sable", "baignade", "bord de mer", "bord de la mer", "ocean", "vagues"],
     "nature": ["nature", "parc", "foret", "jardin", "lagune", "randonnee", "vert"],
-    "bar": ["bar", "verre", "cocktail", "biere", "apero"],
+    "bar": ["bar", "verre", "cocktail", "cocktails", "biere", "apero", "boire"],
     "cafe": ["cafe", "coffee", "brunch", "the ", "patisserie"],
     "activite": ["activite", "jeu", "bowling", "karting", "escape", "sport", "loisir"],
     "culture": ["culture", "musee", "galerie", "expo", "art", "theatre", "cinema", "concert", "jazz", "musique"],
@@ -37,7 +46,7 @@ AMBIANCE_WORDS = {
     "decouverte": ["decouvrir", "decouverte", "original", "insolite", "cache", "secret", "nouveau"],
     "plein-air": ["plein air", "dehors", "exterieur", "en plein air", "terrasse", "bord de l'eau", "au bord de l'eau"],
 }
-CHEAP_WORDS = ["pas cher", "petit budget", "economique", "abordable", "bon marche"]
+CHEAP_WORDS = ["pas cher", "moins cher", "petit budget", "economique", "abordable", "bon marche", "petit prix"]
 NOW_WORDS = ["maintenant", "en ce moment", "tout de suite", "ouvert"]
 
 

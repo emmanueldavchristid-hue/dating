@@ -3,7 +3,7 @@
 Le score (0–100) est calculé en SQL pour paginer sur de gros volumes :
   30 % accessibilité (distance à vol d'oiseau, faute d'itinéraire réel au moment du tri)
   25 % qualité (note bayésienne : peu d'avis ⇒ tirée vers la moyenne a priori)
-  15 % adéquation aux préférences (catégories, ambiances)
+  15 % adéquation aux goûts (catégories/ambiances préférées + affinité vectorielle avec le profil de goûts)
   10 % fraîcheur de la vérification
   10 % adéquation au budget
   10 % popularité
@@ -28,6 +28,7 @@ from app.models import City, District, OpeningHours, Place, User
 from app.schemas import Cover, LatLng, PlaceCard, TravelOut
 from app.services.entitlements import can_see_premium
 from app.services.hours import Slot, local_now, open_status
+from app.services.taste import compute_taste
 
 PRIOR_MEAN, PRIOR_WEIGHT = 3.8, 10
 WEIGHTS = {"prox": 0.30, "quality": 0.25, "pref": 0.15, "fresh": 0.10, "budget": 0.10, "pop": 0.10}
@@ -53,6 +54,7 @@ class SearchParams:
     page_size: int = 20
     tiers: tuple[str, ...] = ("free",)
     exclude_ids: list[uuid.UUID] = field(default_factory=list)
+    only_ids: list[uuid.UUID] | None = None
 
 
 @dataclass
@@ -99,52 +101,14 @@ def _open_now_clause(now: datetime):
     )
 
 
-def run_search(
-    db: Session, p: SearchParams, user: User | None, prefs: dict | None = None
-) -> tuple[list[dict], int, Origin]:
-    origin, city, district = resolve_origin(db, p)
-    now = local_now(get_settings().timezone)
-    point = func.ST_SetSRID(func.ST_MakePoint(origin.lng, origin.lat), 4326).cast(Geography)
-    dist_m = func.ST_Distance(Place.location, point)
-
-    pref_cats = list(dict.fromkeys([*(p.categories or []), *((prefs or {}).get("categories") or [])]))
-    pref_ambs = list(dict.fromkeys([*(p.ambiances or []), *((prefs or {}).get("ambiances") or [])]))
-    pref_budget = p.budget_max or (prefs or {}).get("budget_max_fcfa")
-
-    prox = 1.0 / (1.0 + dist_m / 3000.0)
-    bayes = (PRIOR_WEIGHT * PRIOR_MEAN + func.coalesce(Place.rating_avg, 0) * Place.rating_count) / (
-        PRIOR_WEIGHT + Place.rating_count
-    )
-    quality = bayes / 5.0
+def build_conditions(p: SearchParams, origin: Origin, city, district, point, now: datetime):
+    """Filtres communs à la recherche et au RAG. Retourne (conditions, rang texte éventuel)."""
     arr = lambda xs: cast(literal(xs or ["__none__"]), ARRAY(String))  # noqa: E731
-    pref = (
-        (
-            case((Place.category_slugs.op("&&")(arr(pref_cats)), 0.6), else_=0.0)
-            + case((Place.ambiance_slugs.op("&&")(arr(pref_ambs)), 0.4), else_=0.0)
-        )
-        if (pref_cats or pref_ambs)
-        else literal(0.5)
-    )
-    age_days = func.extract("epoch", func.now() - Place.verified_at) / 86400.0
-    fresh = func.coalesce(func.greatest(0.0, 1.0 - age_days / 365.0), 0.3)
-    budget_fit = (
-        case((Place.budget_min_fcfa.is_(None), 0.5), (Place.budget_min_fcfa <= pref_budget, 1.0), else_=0.0)
-        if pref_budget
-        else literal(0.5)
-    )
-    pop = func.least(1.0, func.ln(1 + Place.popularity + Place.rating_count) / math.log(500))
-    score = 100 * (
-        WEIGHTS["prox"] * prox
-        + WEIGHTS["quality"] * quality
-        + WEIGHTS["pref"] * pref
-        + WEIGHTS["fresh"] * fresh
-        + WEIGHTS["budget"] * budget_fit
-        + WEIGHTS["pop"] * pop
-    )
-
     conds = [Place.status == "published", Place.tier.in_(p.tiers)]
     if p.exclude_ids:
         conds.append(Place.id.not_in(p.exclude_ids))
+    if p.only_ids is not None:
+        conds.append(Place.id.in_(p.only_ids or [uuid.uuid4()]))
     if city is not None and origin.source == "city":
         conds.append(Place.city_id == city.id)
     if district is not None:
@@ -173,6 +137,60 @@ def run_search(
         tsq = func.websearch_to_tsquery("simple", func.f_unaccent(q))
         conds.append(or_(Place.search_vector.op("@@")(tsq), func.similarity(Place.name, q) > 0.3))
         text_rank = func.ts_rank(Place.search_vector, tsq) + func.similarity(Place.name, q)
+
+    return conds, text_rank
+
+
+def run_search(
+    db: Session, p: SearchParams, user: User | None, prefs: dict | None = None
+) -> tuple[list[dict], int, Origin]:
+    origin, city, district = resolve_origin(db, p)
+    now = local_now(get_settings().timezone)
+    point = func.ST_SetSRID(func.ST_MakePoint(origin.lng, origin.lat), 4326).cast(Geography)
+    dist_m = func.ST_Distance(Place.location, point)
+
+    pref_cats = list(dict.fromkeys([*(p.categories or []), *((prefs or {}).get("categories") or [])]))
+    pref_ambs = list(dict.fromkeys([*(p.ambiances or []), *((prefs or {}).get("ambiances") or [])]))
+    pref_budget = p.budget_max or (prefs or {}).get("budget_max_fcfa")
+
+    prox = 1.0 / (1.0 + dist_m / 3000.0)
+    bayes = (PRIOR_WEIGHT * PRIOR_MEAN + func.coalesce(Place.rating_avg, 0) * Place.rating_count) / (
+        PRIOR_WEIGHT + Place.rating_count
+    )
+    quality = bayes / 5.0
+    arr = lambda xs: cast(literal(xs or ["__none__"]), ARRAY(String))  # noqa: E731
+    taxonomy = (
+        (
+            case((Place.category_slugs.op("&&")(arr(pref_cats)), 0.6), else_=0.0)
+            + case((Place.ambiance_slugs.op("&&")(arr(pref_ambs)), 0.4), else_=0.0)
+        )
+        if (pref_cats or pref_ambs)
+        else literal(0.5)
+    )
+    taste_vec = (prefs or {}).get("vector")
+    if taste_vec is not None:  # matching : similarité cosinus entre le lieu et le profil de goûts
+        affinity = func.coalesce(1.0 - Place.embedding.cosine_distance(taste_vec), 0.5)
+        pref = 0.6 * taxonomy + 0.4 * func.greatest(0.0, affinity)
+    else:
+        pref = taxonomy
+    age_days = func.extract("epoch", func.now() - Place.verified_at) / 86400.0
+    fresh = func.coalesce(func.greatest(0.0, 1.0 - age_days / 365.0), 0.3)
+    budget_fit = (
+        case((Place.budget_min_fcfa.is_(None), 0.5), (Place.budget_min_fcfa <= pref_budget, 1.0), else_=0.0)
+        if pref_budget
+        else literal(0.5)
+    )
+    pop = func.least(1.0, func.ln(1 + Place.popularity + Place.rating_count) / math.log(500))
+    score = 100 * (
+        WEIGHTS["prox"] * prox
+        + WEIGHTS["quality"] * quality
+        + WEIGHTS["pref"] * pref
+        + WEIGHTS["fresh"] * fresh
+        + WEIGHTS["budget"] * budget_fit
+        + WEIGHTS["pop"] * pop
+    )
+
+    conds, text_rank = build_conditions(p, origin, city, district, point, now)
 
     order = {
         "distance": [dist_m.asc()],
@@ -263,6 +281,7 @@ def to_cards(
     locs = place_location(db, places)
     now = local_now(get_settings().timezone)
     entitled = can_see_premium(user)
+    taste = compute_taste(db, user) if user is not None else None
     travel: list = [None] * len(places)
     if with_travel and origin is not None:
         unlocked = [locs[p.id] for p in places]
@@ -287,7 +306,7 @@ def to_cards(
             rating_avg=round(place.rating_avg, 1) if place.rating_avg is not None else None,
             rating_count=place.rating_count,
             cover=Cover(
-                url=public_url(place.cover_key),
+                url=public_url(place.cover_key) or place.cover_url,
                 gradient=place.cover_gradient or ["#1E3A4C", "#0E0F13"],
                 alt=f"Ambiance de {place.name}",
             ),
@@ -301,6 +320,7 @@ def to_cards(
             is_demo=place.is_demo,
             verified_at=place.verified_at,
             confidence=place.confidence,
+            match=taste.match(place, list(place.embedding) if place.embedding is not None else None) if taste else None,
             score=round(item["score"], 1) if item.get("score") is not None else None,
             reasons=explain(item, origin, st) if origin is not None and item.get("components") else [],
         )
@@ -315,6 +335,7 @@ def lock_card(card: PlaceCard) -> PlaceCard:
             "name": "Pépite Insider",
             "short_description": "Un lieu rare sélectionné par nos curateurs. Réservé aux membres Insider.",
             "location": None,
+            "match": None,
             "travel": None,
             "distance_km": None,
             "locked": True,
@@ -336,3 +357,10 @@ def cards_for_places(
             ).all()
         )
     return to_cards(db, [{"place": p, "dist_m": dists.get(p.id)} for p in places], user, origin, with_travel=False)
+
+
+def search_conditions(db: Session, p: SearchParams) -> tuple[list, Origin]:
+    origin, city, district = resolve_origin(db, p)
+    point = func.ST_SetSRID(func.ST_MakePoint(origin.lng, origin.lat), 4326).cast(Geography)
+    conds, _ = build_conditions(p, origin, city, district, point, local_now(get_settings().timezone))
+    return conds, origin

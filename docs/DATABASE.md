@@ -16,6 +16,9 @@ Le schéma est versionné par Alembic (`backend/alembic/versions/`). Source de v
 | Contenus | `reviews`, `reports`, `favorites`, `collections`, `collection_items` | Un avis par utilisateur et par lieu ; collections éditoriales possibles (`user_id` NULL) |
 | Sorties | `itineraries`, `itinerary_steps` | Étapes ordonnées, unicité `(itinerary_id, position)` |
 | Vie privée | `search_history`, `concierge_usage` | Position arrondie à ~1 km ; purge automatique (`python -m app.tasks purge-history`) |
+| Matching | `interactions` | Signaux pondérés (favori, itinéraire, appel, partage, vue, rejet) → profil de goûts ; candidate au partitionnement mensuel |
+| RAG | `place_documents` (+ `places.embedding`) | Fragments indexés (fiche, résumé, avis) : vecteur 384 d (index **HNSW** cosinus) + tsvector (GIN) |
+| Sources externes | `place_external_ids` | Identifiants OSM / Wikidata / Google : seuls ces identifiants sont conservés durablement |
 | Gouvernance | `partners`, `curation_items`, `audit_log` | Curation : pépites, infos anciennes, signalements contradictoires |
 
 ## Parcours critique : recherche
@@ -37,7 +40,7 @@ Ce qui est prévu quand le volume le justifiera (non garanti automatiquement, à
 2. **Réplicas en lecture** pour la recherche ; écritures sur le primaire.
 3. **Cache Redis** des sections d'accueil par zone et par heure (aujourd'hui non requis).
 4. Pagination par curseur (keyset) au-delà de quelques milliers de résultats.
-5. Index HNSW sur `places.embedding` quand un fournisseur d'embeddings sera branché.
+5. Passer de l'encodeur hors ligne (`hashing`) au modèle multilingue (`fastembed`) puis réindexer ; au-delà, base vectorielle dédiée si nécessaire.
 6. Découpage par région/pays (`city_id` est déjà la clé naturelle).
 
 ## Règles de données

@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     payments_provider: str = "none"  # none | (agrégateur Mobile Money à intégrer)
     map_provider: str = "osm"
     media_base_url: str = ""  # URL publique du bucket S3 / CDN
+    embeddings_provider: str = "hashing"  # hashing (hors ligne) | fastembed (modèle multilingue)
+    google_places_api_key: str = ""  # optionnel : photos via l'API officielle Google Places (jamais stockées)
 
     # Vie privée & abus
     search_history_retention_days: int = 30

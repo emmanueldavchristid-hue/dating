@@ -53,6 +53,7 @@ class PlaceCard(BaseModel):
     confidence: float
     score: float | None
     reasons: list[str]
+    match: int | None = None
 
 
 class Amenities(BaseModel):
@@ -309,6 +310,7 @@ class ConciergeOut(BaseModel):
     places: list[PlaceCard]
     parsed: Parsed
     provider: str
+    retrieval: str = "lexical"
     quota: Quota
 
 

@@ -308,6 +308,9 @@ def seed_demo(db) -> None:
                 )
             )
     db.commit()
+    from app.services.rag import index_places
+
+    index_places(db, rebuild=True)
     print(f"Démo : {len(P)} lieux fictifs, {len(plans_users)} comptes (mot de passe : {DEMO_PASSWORD})")
 
 
