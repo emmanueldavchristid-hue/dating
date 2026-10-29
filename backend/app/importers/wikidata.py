@@ -16,7 +16,7 @@ from sqlalchemy import cast, func, select
 
 from app.db import SessionLocal
 from app.importers import osm
-from app.importers.wikimedia import file_info
+from app.importers.wikimedia import file_info, images_from_pages
 from app.models import City, DataSource, Media, Place, PlaceExternalId
 from app.services.places import set_taxonomy, slugify
 
@@ -91,6 +91,33 @@ def _claim(ent: dict, prop: str):
     return c[0]["mainsnak"].get("datavalue", {}).get("value") if c else None
 
 
+def parse_entities(entities: dict) -> list[dict]:
+    """Entités Wikidata brutes -> lieux de sortie géolocalisés (types filtrés, rien d'inventé)."""
+    out = []
+    for qid, ent in entities.items():
+        coord = _claim(ent, "P625")
+        label = (ent.get("labels", {}).get("fr") or ent.get("labels", {}).get("en") or {}).get("value")
+        types = [
+            c["mainsnak"].get("datavalue", {}).get("value", {}).get("id") for c in ent.get("claims", {}).get("P31", [])
+        ]
+        cats = sorted({TYPES[t] for t in types if t in TYPES})
+        if not (coord and label and cats):
+            continue
+        out.append(
+            {
+                "qid": qid,
+                "name": label,
+                "lat": coord["latitude"],
+                "lng": coord["longitude"],
+                "categories": cats,
+                "description": (ent.get("descriptions", {}).get("fr") or {}).get("value", ""),
+                "image": _claim(ent, "P18"),
+                "website": _claim(ent, "P856"),
+            }
+        )
+    return out
+
+
 def fetch_entities(api: Polite, ids: list[str]) -> list[dict]:
     out = []
     for i in range(0, len(ids), 50):
@@ -103,28 +130,7 @@ def fetch_entities(api: Polite, ids: list[str]) -> list[dict]:
                 "languages": "fr|en",
             },
         )
-        for qid, ent in d.get("entities", {}).items():
-            coord = _claim(ent, "P625")
-            label = (ent.get("labels", {}).get("fr") or ent.get("labels", {}).get("en") or {}).get("value")
-            types = [
-                c["mainsnak"].get("datavalue", {}).get("value", {}).get("id")
-                for c in ent.get("claims", {}).get("P31", [])
-            ]
-            cats = sorted({TYPES[t] for t in types if t in TYPES})
-            if not (coord and label and cats):
-                continue
-            out.append(
-                {
-                    "qid": qid,
-                    "name": label,
-                    "lat": coord["latitude"],
-                    "lng": coord["longitude"],
-                    "categories": cats,
-                    "description": (ent.get("descriptions", {}).get("fr") or {}).get("value", ""),
-                    "image": _claim(ent, "P18"),
-                    "website": _claim(ent, "P856"),
-                }
-            )
+        out += parse_entities(d.get("entities", {}))
     return out
 
 
@@ -205,7 +211,21 @@ def main() -> None:
     ap.add_argument("--cities", default="abidjan,grand-bassam,assinie")
     ap.add_argument("--radius-km", type=float, default=25)
     ap.add_argument("--publish", action="store_true")
+    ap.add_argument("--from-file", help="JSON produit par scripts/fetch_wikidata.py (collecte faite ailleurs)")
     args = ap.parse_args()
+    if args.from_file:
+        import json
+
+        with open(args.from_file, encoding="utf-8") as f, SessionLocal() as db:
+            for slug, block in json.load(f).items():
+                city = db.scalar(select(City).where(City.slug == slug))
+                if not city:
+                    continue
+                items = parse_entities(block["entities"])
+                images = images_from_pages(block["images"])
+                created, updated = import_entities(db, city, items, images, args.publish)
+                print(f"Wikidata {city.name} : {created} créés, {updated} mis à jour, {len(images)} photos libres")
+        return
     with SessionLocal() as db, httpx.Client(timeout=60, headers=UA) as client:
         api = Polite(client)
         for slug in args.cities.split(","):

@@ -92,6 +92,9 @@ def import_cities(
         radius = radius_km if slug == "abidjan" else min(radius_km, 12)
         items = osm.parse_elements({"elements": within(elements, lat, lng, radius)})
         report[slug] = osm.import_places(db, city, items, publish=publish)
+        archived = osm.archive_missing(db, city, {i.ref for i in items if not i.excluded})
+        if archived:
+            print(f"{slug} : {archived} lieux archivés (plus des lieux de sortie ou retirés d'OSM)")
     return report
 
 

@@ -1,14 +1,22 @@
-# État du projet — v0.2
+# État du projet — v0.3
 
-Dernière mise à jour : 28 octobre 2026 · Branche `mvp` · Pull request #1
+Dernière mise à jour : 29 octobre 2026 · Branche `mvp` · Pull request #1
 
 ## Prêt à être donné à un client ?
 
-**Pas encore.** L'application est complète et fonctionne de bout en bout, mais elle tourne sur des **lieux fictifs**.
-Trois choses la séparent d'une première version client :
-1. importer les vrais lieux et photos (commande prête, bloquée par l'accès réseau de l'environnement de développement) ;
-2. la tester sur de vrais téléphones (Expo Go) ;
-3. l'héberger en ligne.
+**Pas encore.** L'application est complète et tourne désormais sur de **vrais lieux** (OpenStreetMap).
+Restent : photos (Wikimedia, collecte à faire depuis une machine non limitée), modèle sémantique, validation des
+pépites par l'équipe, test sur de vrais téléphones, hébergement.
+
+## Données réelles (base de développement, 29/10/2026)
+
+- **2 852 lieux publiés** (Abidjan, Grand-Bassam, Assinie) depuis l'extrait OpenStreetMap Geofabrik.
+- 3 700 entrées sans vrai nom (« Maquis », « Kiosque »…) gardées en **brouillon** pour la curation ; 83 lieux hors sujet archivés
+  (ambassades, écoles, terrains de sport…).
+- **60 pépites candidates** proposées dans l'administration (onglet Curation) : à valider par l'équipe.
+- Photos : 0 pour l'instant (Wikimedia limite l'adresse du serveur de développement ; script `backend/scripts/fetch_wikidata.py`
+  à lancer depuis un ordinateur, puis `python -m app.importers.wikidata --from-file … --publish`).
+- Les tests automatiques et le seed de démonstration utilisent toujours les 38 lieux fictifs (base de test séparée).
 
 ## Fonctionnel et testé
 
@@ -26,7 +34,6 @@ Trois choses la séparent d'une première version client :
 
 ## Simulé, désactivé ou non vérifié
 
-- **Données** : 38 lieux fictifs (badge « Démo »). Commande d'import réel prête : `python -m app.importers --publish --purge-demo`.
 - **Réseau de développement** : `overpass-api.de`, `wikidata.org`, `commons.wikimedia.org`, `huggingface.co` sont bloqués → à autoriser dans claude.ai (Paramètres → Capacités).
 - **Recherche « par le sens »** : encodeur hors ligne (mots, trigrammes, synonymes métier) en attendant le modèle multilingue `fastembed`.
 - **IA du concierge** : mode règles ; adaptateur Claude prêt, testé avec réponses simulées, sans clé réelle.
@@ -38,7 +45,7 @@ Trois choses la séparent d'une première version client :
 
 | Commande | Résultat |
 | --- | --- |
-| `cd backend && pytest -q` | 59 réussis (PostgreSQL/PostGIS/pgvector réel) |
+| `cd backend && pytest -q` | 69 réussis (PostgreSQL/PostGIS/pgvector réel) |
 | `cd web && npm test && npm run lint && npm run build` | 61 réussis, OK |
 | `cd mobile && npx tsc --noEmit && npx expo lint && npm test` | 0 erreur, 46 réussis |
 | `cd mobile && npx expo export --platform android` (et ios) | bundles compilés |
@@ -46,7 +53,8 @@ Trois choses la séparent d'une première version client :
 
 ## Prochaines tâches
 
-1. Ouvrir l'accès réseau, lancer l'import réel (Abidjan, Grand-Bassam, Assinie) et passer à `fastembed`.
+1. Photos Wikimedia (collecte depuis un ordinateur) et modèle sémantique `fastembed` (fichiers à récupérer), puis réindexation.
+2. Validation des pépites candidates et curation des brouillons.
 2. Test sur téléphones avec Expo Go ; corriger ce qui ne se voit que sur appareil (carte, permissions).
 3. Clé API Claude → concierge IA ; contrôle qualité des réponses.
 4. Icône, écran de démarrage, nom définitif.

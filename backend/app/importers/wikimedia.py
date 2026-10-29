@@ -74,24 +74,30 @@ def file_info(client: httpx.Client, filenames: list[str]) -> dict[str, dict]:
                 "format": "json",
             },
         )
-        pages = data.get("query", {}).get("pages", {})
         norm = {n["to"]: n["from"] for n in data.get("query", {}).get("normalized", [])}
-        for page in pages.values():
-            info = (page.get("imageinfo") or [None])[0]
-            if not info:
-                continue
-            meta = info.get("extmetadata", {})
-            lic = (meta.get("LicenseShortName") or {}).get("value", "")
-            if not FREE.match(lic.strip()):
-                continue
-            title = norm.get(page["title"], page["title"]).removeprefix("File:")
-            out[title] = {
-                "url": info.get("thumburl") or info["url"],
-                "license": lic[:80],
-                "artist": (_strip_html((meta.get("Artist") or {}).get("value")) or "Auteur inconnu")[:120],
-                "width": info.get("thumbwidth") or info.get("width"),
-                "height": info.get("thumbheight") or info.get("height"),
-            }
+        out |= images_from_pages(data.get("query", {}).get("pages", {}), norm)
+    return out
+
+
+def images_from_pages(pages: dict, norm: dict | None = None) -> dict[str, dict]:
+    """Pages Commons (prop=imageinfo) -> {nom de fichier: infos}, licences libres uniquement."""
+    out = {}
+    for page in pages.values():
+        info = (page.get("imageinfo") or [None])[0]
+        if not info:
+            continue
+        meta = info.get("extmetadata", {})
+        lic = (meta.get("LicenseShortName") or {}).get("value", "")
+        if not FREE.match(lic.strip()):
+            continue
+        title = (norm or {}).get(page["title"], page["title"]).removeprefix("File:")
+        out[title] = {
+            "url": info.get("thumburl") or info["url"],
+            "license": lic[:80],
+            "artist": (_strip_html((meta.get("Artist") or {}).get("value")) or "Auteur inconnu")[:120],
+            "width": info.get("thumbwidth") or info.get("width"),
+            "height": info.get("thumbheight") or info.get("height"),
+        }
     return out
 
 

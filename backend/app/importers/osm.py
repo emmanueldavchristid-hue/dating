@@ -53,7 +53,6 @@ TAG_MAP = {
     ("leisure", "amusement_arcade"): "activite",
     ("leisure", "water_park"): "activite",
     ("leisure", "escape_game"): "activite",
-    ("leisure", "sports_centre"): "activite",
 }
 GRADIENTS = {
     "restaurant": ["#5A2E1C", "#120C0A"],
@@ -77,6 +76,63 @@ class OsmPlace:
     lng: float
     categories: list[str]
     tags: dict
+    excluded: bool = False  # pas un lieu de sortie (ambassade, école, terrain de sport…) : jamais publié
+
+
+EXCLUDED_KEYS = {"embassy", "diplomatic", "office", "government", "military"}
+EXCLUDED_AMENITIES = {
+    "embassy",
+    "school",
+    "university",
+    "college",
+    "hospital",
+    "clinic",
+    "place_of_worship",
+    "police",
+    "townhall",
+    "bank",
+}
+EXCLUDED_WORDS = {
+    "ambassade",
+    "embassy",
+    "consulat",
+    "ministere",
+    "ministry",
+    "prefecture",
+    "mairie",
+    "hopital",
+    "chu",
+    "clinique",
+    "ecole",
+    "lycee",
+    "college",
+    "universite",
+    "institut",
+    "eglise",
+    "church",
+    "mosquee",
+    "temple",
+    "paroisse",
+    "cathedrale",
+    "stade",
+    "football",
+    "terrain",
+    "gendarmerie",
+    "police",
+    "camp",
+    "caserne",
+    "banque",
+    "station",
+    "residence",
+    "cite",
+}
+
+
+def is_excluded(name: str, tags: dict) -> bool:
+    if EXCLUDED_KEYS & set(tags) or tags.get("amenity") in EXCLUDED_AMENITIES:
+        return True
+    toks = re.findall(r"[a-z0-9]+", unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode().lower())
+    return bool(EXCLUDED_WORDS & set(toks))
 
 
 def parse_elements(data: dict) -> list[OsmPlace]:
@@ -90,7 +146,7 @@ def parse_elements(data: dict) -> list[OsmPlace]:
         ref = f"{el.get('type')}/{el.get('id')}"
         if name and lat is not None and lng is not None and cats and ref not in seen:
             seen.add(ref)
-            out.append(OsmPlace(ref, name, float(lat), float(lng), cats, tags))
+            out.append(OsmPlace(ref, name, float(lat), float(lng), cats, tags, is_excluded(name, tags)))
     return out
 
 
@@ -243,6 +299,10 @@ def _upsert(db, city: City, source, it: OsmPlace, publish: bool) -> tuple[Place,
     short, long = describe(it.categories, t)
     cats = sorted(set(it.categories) | name_categories(it.name))
     generic = is_generic_name(it.name)
+    if it.excluded:
+        if place is not None and place.verified_at is None:
+            place.status = "archived"
+        return place, False
     if place is None:
         slug, n = slugify(it.name), 1
         while db.scalar(select(Place.id).where(Place.slug == slug)):
@@ -296,6 +356,26 @@ def _upsert(db, city: City, source, it: OsmPlace, publish: bool) -> tuple[Place,
     return place, ext is None
 
 
+def archive_missing(db, city: City, kept_refs: set[str]) -> int:
+    """Lieux OSM publiés absents de l'extrait (supprimés d'OSM, catégorie retirée, exclus) : archivés, jamais effacés."""
+    from sqlalchemy import update
+
+    source = db.scalar(select(DataSource).where(DataSource.kind == "osm"))
+    n = db.execute(
+        update(Place)
+        .where(
+            Place.city_id == city.id,
+            Place.source_id == source.id,
+            Place.status == "published",
+            Place.verified_at.is_(None),
+            Place.external_ref.not_in(kept_refs or {"__none__"}),
+        )
+        .values(status="archived")
+    ).rowcount
+    db.commit()
+    return n
+
+
 def import_places(db, city: City, items: list[OsmPlace], publish: bool = False) -> tuple[int, int]:
     source = db.scalar(select(DataSource).where(DataSource.kind == "osm"))
     created = updated = 0
@@ -305,11 +385,13 @@ def import_places(db, city: City, items: list[OsmPlace], publish: bool = False) 
         try:
             with db.begin_nested():
                 place, is_new = _upsert(db, city, source, it, publish)
+            if place is None:  # exclu et jamais importé
+                continue
         except Exception as e:  # une fiche OSM malformée ne bloque pas tout l'import
             skipped += 1
             log.warning("Lieu OSM ignoré %s : %s", it.ref, type(e).__name__)
             continue
-        created, updated = created + is_new, updated + (not is_new)
+        created, updated = created + is_new, updated + (not is_new and not it.excluded)
         touched.append(place.id)
     db.commit()
     if publish and touched:

@@ -330,3 +330,23 @@ def test_tasks_flag_reported_places(client, new_user):
     with SessionLocal() as db:
         assert flag_for_review(db) >= 1
         assert purge_history(db) >= 0
+
+
+def test_gem_candidates_are_proposed_not_promoted():
+    from sqlalchemy import select
+
+    from app.db import SessionLocal
+    from app.models import CurationItem, Place
+    from app.tasks import flag_gem_candidates
+
+    with SessionLocal() as db:
+        db.query(Place).filter(Place.is_demo.is_(True), Place.category_slugs.op("&&")(["nature"])).update(
+            {"is_demo": False}, synchronize_session=False
+        )
+        db.commit()
+        n = flag_gem_candidates(db, limit=5)
+        assert n >= 1
+        items = db.scalars(
+            select(CurationItem).where(CurationItem.reason == "gem_candidate", CurationItem.status == "pending")
+        ).all()
+        assert all(i.place.tier == "free" for i in items)

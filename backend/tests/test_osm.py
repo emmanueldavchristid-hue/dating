@@ -210,3 +210,27 @@ def test_generic_place_is_kept_as_draft():
         city = db.scalar(select(City).where(City.slug == "abidjan"))
         import_places(db, city, parse_elements(data), publish=True)
         assert db.scalar(select(Place).where(Place.external_ref == "node/99")).status == "draft"
+
+
+def test_non_outing_places_are_excluded():
+    from app.importers.osm import is_excluded
+
+    assert is_excluded("Ambassade de France", {"leisure": "garden"})
+    assert is_excluded("Jardin", {"leisure": "garden", "diplomatic": "embassy"})
+    assert is_excluded("Centre Technique National de Football", {"leisure": "pitch"})
+    assert not is_excluded("Jardin Botanique de Bingerville", {"leisure": "garden"})
+    data = {
+        "elements": [
+            {
+                "type": "node",
+                "id": 501,
+                "lat": 5.32,
+                "lon": -4.0,
+                "tags": {"leisure": "garden", "name": "Ambassade Test"},
+            }
+        ]
+    }
+    with SessionLocal() as db:
+        city = db.scalar(select(City).where(City.slug == "abidjan"))
+        assert import_places(db, city, parse_elements(data), publish=True) == (0, 0)
+        assert db.scalar(select(Place).where(Place.external_ref == "node/501")) is None

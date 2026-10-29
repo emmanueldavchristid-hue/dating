@@ -70,3 +70,41 @@ def test_polite_client_retries_on_429(monkeypatch):
         )
 
     assert Polite(httpx.Client(transport=httpx.MockTransport(h)), pause=0).get("https://x", {}) == {"ok": 1}
+
+
+def test_offline_file_format_matches_importer():
+    """Le JSON produit par scripts/fetch_wikidata.py (collecte faite ailleurs) s'importe à l'identique."""
+    from app.importers.wikidata import parse_entities
+    from app.importers.wikimedia import images_from_pages
+
+    entities = {
+        "Q9100": {
+            "labels": {"fr": {"value": "Parc Hors Ligne"}},
+            "claims": {
+                "P31": [{"mainsnak": {"datavalue": {"value": {"id": "Q22698"}}}}],
+                "P625": [{"mainsnak": {"datavalue": {"value": {"latitude": 5.36, "longitude": -3.98}}}}],
+                "P18": [{"mainsnak": {"datavalue": {"value": "Parc HL.jpg"}}}],
+            },
+        }
+    }
+    pages = {
+        "File:Parc HL.jpg": {
+            "title": "File:Parc HL.jpg",
+            "imageinfo": [
+                {
+                    "url": "https://upload.wikimedia.org/p.jpg",
+                    "extmetadata": {"LicenseShortName": {"value": "CC0"}, "Artist": {"value": "B"}},
+                }
+            ],
+        },
+        "File:Pas libre.jpg": {
+            "title": "File:Pas libre.jpg",
+            "imageinfo": [{"url": "u", "extmetadata": {"LicenseShortName": {"value": "Copyrighted"}}}],
+        },
+    }
+    items, images = parse_entities(entities), images_from_pages(pages)
+    assert [i["name"] for i in items] == ["Parc Hors Ligne"] and list(images) == ["Parc HL.jpg"]
+    with SessionLocal() as db:
+        city = db.scalar(select(City).where(City.slug == "abidjan"))
+        assert import_entities(db, city, items, images, publish=True) == (1, 0)
+        assert db.scalar(select(Place).where(Place.external_ref == "Q9100")).cover_url.endswith("p.jpg")
