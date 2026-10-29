@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "Sortie",
+    "slug": "sortie",
+    "scheme": "sortie",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0E0F13",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.sortie.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Ta position sert uniquement à trier les lieux par distance (à vol d'oiseau). Elle n'est jamais partagée.",
+        "NSCameraUsageDescription": "L'appareil photo sert uniquement à photographier un lieu pour illustrer sa fiche. Rien n'est envoyé sans ton accord.",
+        "NSPhotoLibraryUsageDescription": "L'application accède à tes photos uniquement quand tu choisis une image à ajouter à la fiche d'un lieu. Rien n'est envoyé sans ton accord."
+      }
+    },
+    "android": {
+      "package": "com.sortie.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0E0F13",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "CAMERA"],
+      "blockedPermissions": ["android.permission.RECORD_AUDIO"],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        { "image": "./assets/splash-icon.png", "imageWidth": 160, "resizeMode": "contain", "backgroundColor": "#0E0F13" }
+      ],
+      [
+        "expo-location",
+        { "locationWhenInUsePermission": "Ta position sert uniquement à trier les lieux par distance (à vol d'oiseau). Elle n'est jamais partagée." }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "L'appareil photo sert uniquement à photographier un lieu pour illustrer sa fiche. Rien n'est envoyé sans ton accord.",
+          "photosPermission": "L'application accède à tes photos uniquement quand tu choisis une image à ajouter à la fiche d'un lieu. Rien n'est envoyé sans ton accord.",
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "experiments": { "typedRoutes": false, "tsconfigPaths": true }
+  }
+}

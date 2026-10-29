@@ -1,0 +1,208 @@
+.page {
+  padding-top: var(--s-4);
+}
+.hero {
+  position: relative;
+  padding: var(--s-5) 0 var(--s-2);
+}
+.hero::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -80px -40% auto -40%;
+  height: 420px;
+  background:
+    radial-gradient(40% 50% at 30% 40%, rgba(255, 138, 61, 0.16), transparent 70%),
+    radial-gradient(30% 40% at 75% 20%, rgba(76, 116, 255, 0.08), transparent 70%);
+  pointer-events: none;
+}
+.heroTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: var(--s-3);
+}
+.hello {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.title {
+  font-size: var(--fs-4xl);
+  letter-spacing: -0.035em;
+  max-width: 14ch;
+}
+.titleAccent {
+  color: var(--accent);
+}
+.search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-top: var(--s-5);
+  max-width: 680px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-md);
+  transition:
+    border-color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease);
+}
+.search:focus-within {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 4px var(--accent-tint),
+    var(--shadow-md);
+}
+.searchIcon {
+  position: absolute;
+  left: 18px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  height: 56px;
+  padding: 0 8px 0 50px;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-size: var(--fs-md);
+}
+.searchInput::placeholder {
+  color: var(--text-subtle);
+}
+.searchBtn {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  margin-right: 6px;
+  border-radius: 50%;
+}
+.searchHint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 0 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+}
+.cats {
+  margin-top: var(--s-5);
+}
+.skelRow {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: min(78%, 300px);
+  gap: var(--s-4);
+  overflow: hidden;
+}
+
+.teasers {
+  display: grid;
+  gap: var(--s-3);
+}
+@media (min-width: 768px) {
+  .teasers {
+    grid-template-columns: 1.3fr 1fr;
+  }
+}
+.gemsTeaser,
+.planTeaser {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 22px;
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  transition:
+    transform var(--t-med) var(--ease),
+    border-color var(--t-med) var(--ease);
+}
+.gemsTeaser {
+  background:
+    radial-gradient(70% 120% at 100% 0%, rgba(233, 196, 106, 0.18), transparent 60%),
+    linear-gradient(135deg, #241e12, #17150f);
+  border: 1px solid var(--gold-border);
+}
+.planTeaser {
+  background:
+    radial-gradient(70% 120% at 100% 0%, rgba(255, 138, 61, 0.14), transparent 60%),
+    var(--surface-1);
+  border: 1px solid var(--border-strong);
+}
+.gemsTeaser:hover,
+.planTeaser:hover {
+  transform: translateY(-2px);
+}
+.gemsTeaser:hover {
+  border-color: #6b5829;
+}
+.planTeaser:hover {
+  border-color: var(--border-hover);
+}
+.teaserIcon,
+.teaserIconAccent {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  flex: none;
+}
+.teaserIcon {
+  background: var(--gold-bg);
+  border: 1px solid var(--gold-border);
+  color: var(--gold);
+}
+.teaserIconAccent {
+  background: var(--accent-tint);
+  border: 1px solid rgba(255, 138, 61, 0.35);
+  color: var(--accent);
+}
+.teaserIcon svg,
+.teaserIconAccent svg {
+  width: 24px;
+  height: 24px;
+}
+.teaserText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.teaserEyebrow,
+.teaserEyebrowAccent {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.teaserEyebrow {
+  color: var(--gold);
+}
+.teaserEyebrowAccent {
+  color: var(--accent-soft);
+}
+.teaserTitle {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  line-height: 1.25;
+}
+.teaserSub {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.teaserArrow {
+  flex: none;
+  color: var(--text-muted);
+}

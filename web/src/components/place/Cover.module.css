@@ -1,0 +1,68 @@
+.cover {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  background:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--c1, #3a2a20) 92%, white 8%) 0%, transparent 60%),
+    linear-gradient(140deg, var(--c1, #3a2a20) 0%, var(--c2, #16171c) 100%);
+  isolation: isolate;
+}
+.card {
+  aspect-ratio: 16 / 10;
+}
+.thumb {
+  aspect-ratio: 1;
+}
+.hero {
+  height: 100%;
+  min-height: 300px;
+}
+.img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.glow {
+  position: absolute;
+  inset: auto -20% -45% 30%;
+  height: 90%;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, 0.16), transparent);
+  filter: blur(6px);
+  z-index: -1;
+}
+.glyph {
+  position: absolute;
+  right: -6%;
+  bottom: -14%;
+  color: rgba(255, 255, 255, 0.24);
+  transform: rotate(-8deg);
+  transition: transform 400ms var(--ease);
+}
+.hero .glyph {
+  right: 4%;
+  bottom: -6%;
+  color: rgba(255, 255, 255, 0.16);
+}
+.thumb .glyph {
+  right: 50%;
+  bottom: 50%;
+  transform: translate(50%, 50%);
+  color: rgba(255, 255, 255, 0.55);
+}
+.grain {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 45%, rgba(10, 10, 14, 0.38) 100%),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 6px);
+  pointer-events: none;
+}
+.locked {
+  background:
+    radial-gradient(90% 80% at 15% 10%, rgba(233, 196, 106, 0.22), transparent 60%),
+    linear-gradient(140deg, #2b2416 0%, #15130d 100%);
+}
+.locked .glyph {
+  color: rgba(233, 196, 106, 0.22);
+  filter: blur(1.5px);
+}

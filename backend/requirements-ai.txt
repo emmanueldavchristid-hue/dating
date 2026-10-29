@@ -1,0 +1,3 @@
+-r requirements.txt
+# Recherche sémantique locale (modèle ONNX multilingue, téléchargé depuis huggingface.co au 1er lancement)
+fastembed==0.6.0

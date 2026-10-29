@@ -21,3 +21,11 @@ coverage/
 *.sqlite
 *.dump
 media/
+*.tsbuildinfo
+next-env.d.ts
+.expo/
+dist/
+web-build/
+backend/data/
+*.osm.pbf
+backend/media/
