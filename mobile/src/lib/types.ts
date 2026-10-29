@@ -70,6 +70,15 @@ export interface Review {
   created_at: string;
 }
 
+/** Photo d'une fiche. `id` null : visuel non géré (ex. dégradé de secours). */
+export interface PlacePhoto {
+  id?: string | null;
+  url: string | null;
+  gradient: [string, string];
+  alt: string;
+  credit: string | null;
+}
+
 export interface PlaceDetail extends PlaceCard {
   description: string;
   address: string | null;
@@ -77,7 +86,7 @@ export interface PlaceDetail extends PlaceCard {
   website: string | null;
   hours: { weekday: number; open: string; close: string }[];
   amenities: Amenities;
-  photos: { url: string | null; gradient: [string, string]; alt: string; credit: string | null }[];
+  photos: PlacePhoto[];
   reviews_summary: string | null;
   reviews: Review[];
   source: { kind: "demo" | "osm" | "partner" | "curated"; attribution: string | null };

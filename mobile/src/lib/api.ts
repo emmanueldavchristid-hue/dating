@@ -177,10 +177,16 @@ function isAbort(e: unknown): boolean {
   return !!e && typeof e === "object" && (e as { name?: string }).name === "AbortError";
 }
 
+/** Corps multipart : le moteur fixe lui-même l'en-tête (avec la frontière). */
+export function isFormData(body: unknown): body is FormData {
+  return typeof FormData !== "undefined" && body instanceof FormData;
+}
+
 export async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const { method = "GET", query, body, signal, auth = true, timeoutMs = 15000 } = opts;
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const multipart = isFormData(body);
+  if (body !== undefined && !multipart) headers["Content-Type"] = "application/json";
   const sentToken = auth ? token : null;
   if (sentToken) headers.Authorization = `Bearer ${sentToken}`;
 
@@ -199,7 +205,7 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
     res = await fetch(`${API_URL}${path}${buildQuery(query)}`, {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body === undefined ? undefined : multipart ? body : JSON.stringify(body),
       signal: ctrl.signal,
     });
   } catch (e) {
@@ -228,6 +234,62 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
     throw err;
   }
   return data as T;
+}
+
+/** Réponse de `POST /admin/places/{id}/photos`. */
+export interface UploadedPhoto {
+  id: string;
+  url: string;
+  is_cover: boolean;
+}
+
+/**
+ * Envoi multipart avec progression (XMLHttpRequest : `fetch` n'expose pas la progression d'envoi).
+ * Mêmes conventions d'erreur que `request` ; sans XHR, retombe sur `request`.
+ */
+export function uploadForm<T>(
+  path: string,
+  form: FormData,
+  { onProgress, timeoutMs = 90000 }: { onProgress?: (ratio: number) => void; timeoutMs?: number } = {},
+): Promise<T> {
+  if (!onProgress || typeof XMLHttpRequest === "undefined") {
+    return request<T>(path, { method: "POST", body: form, timeoutMs });
+  }
+  const sentToken = token;
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_URL}${path}`);
+    xhr.setRequestHeader("Accept", "application/json");
+    if (sentToken) xhr.setRequestHeader("Authorization", `Bearer ${sentToken}`);
+    xhr.timeout = timeoutMs;
+    if (xhr.upload) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && e.total > 0) onProgress(Math.min(1, e.loaded / e.total));
+      };
+    }
+    const fail = () => reject(new ApiError(0, "network_error", DEFAULT_MESSAGES.network));
+    xhr.onerror = fail;
+    xhr.ontimeout = fail;
+    xhr.onload = () => {
+      let data: unknown = null;
+      if (xhr.responseText) {
+        try {
+          data = JSON.parse(xhr.responseText);
+        } catch {
+          data = null;
+        }
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress(1);
+        resolve(data as T);
+        return;
+      }
+      const err = parseErrorBody(xhr.status, data);
+      if (err.status === 401 && sentToken && unauthorizedHandler) unauthorizedHandler();
+      reject(err);
+    };
+    xhr.send(form);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -327,6 +389,15 @@ export const api = {
   billing: {
     plans: () => request<BillingPlan[]>("/billing/plans", { auth: false }),
     checkout: (plan: Plan) => request<unknown>("/billing/checkout", { method: "POST", body: { plan } }),
+  },
+
+  /** Photos des lieux — curateurs et administrateurs uniquement. */
+  photos: {
+    upload: (placeId: string, form: FormData, onProgress?: (ratio: number) => void) =>
+      uploadForm<UploadedPhoto>(`/admin/places/${encodeURIComponent(placeId)}/photos`, form, { onProgress }),
+    setCover: (mediaId: string) =>
+      request<{ id: string; is_cover: boolean }>(`/admin/photos/${encodeURIComponent(mediaId)}/cover`, { method: "PATCH" }),
+    remove: (mediaId: string) => request<void>(`/admin/photos/${encodeURIComponent(mediaId)}`, { method: "DELETE" }),
   },
 
   /** v1.1 — signal de goût, « fire-and-forget » (voir lib/events.ts). */
