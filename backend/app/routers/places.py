@@ -229,6 +229,7 @@ def detail(
         ),
         photos=[
             PhotoOut(
+                id=str(m.id),
                 url=public_url(m.storage_key) or m.source_url,
                 gradient=m.gradient or place.cover_gradient,
                 alt=m.alt,

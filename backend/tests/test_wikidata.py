@@ -108,3 +108,48 @@ def test_offline_file_format_matches_importer():
         city = db.scalar(select(City).where(City.slug == "abidjan"))
         assert import_entities(db, city, items, images, publish=True) == (1, 0)
         assert db.scalar(select(Place).where(Place.external_ref == "Q9100")).cover_url.endswith("p.jpg")
+
+
+def test_wikidata_merges_into_existing_osm_place():
+    from app.importers.osm import import_places as osm_import
+    from app.importers.osm import parse_elements
+    from app.importers.wikidata import parse_entities
+
+    osm = {
+        "elements": [
+            {
+                "type": "node",
+                "id": 7001,
+                "lat": 5.3400,
+                "lon": -4.0000,
+                "tags": {"amenity": "theatre", "name": "Palais de la Culture d'Abidjan"},
+            }
+        ]
+    }
+    entities = {
+        "Q9200": {
+            "labels": {"fr": {"value": "Palais de la culture"}},
+            "descriptions": {"fr": {"value": "salle de spectacle à Abidjan"}},
+            "claims": {
+                "P31": [{"mainsnak": {"datavalue": {"value": {"id": "Q24354"}}}}],
+                "P625": [{"mainsnak": {"datavalue": {"value": {"latitude": 5.3405, "longitude": -4.0004}}}}],
+                "P18": [{"mainsnak": {"datavalue": {"value": "Palais.jpg"}}}],
+            },
+        }
+    }
+    images = {
+        "Palais.jpg": {
+            "url": "https://upload.wikimedia.org/palais.jpg",
+            "license": "CC BY-SA 4.0",
+            "artist": "C",
+            "width": 1,
+            "height": 1,
+        }
+    }
+    with SessionLocal() as db:
+        city = db.scalar(select(City).where(City.slug == "abidjan"))
+        osm_import(db, city, parse_elements(osm), publish=True)
+        assert import_entities(db, city, parse_entities(entities), images, publish=True) == (0, 1)
+        places = db.scalars(select(Place).where(Place.name.ilike("palais de la culture%"))).all()
+        assert len(places) == 1 and places[0].cover_url.endswith("palais.jpg")
+        assert places[0].short_description == "Salle de spectacle à Abidjan"

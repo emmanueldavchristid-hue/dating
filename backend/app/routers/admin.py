@@ -1,12 +1,13 @@
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, File, Form, Query, Response, UploadFile
 from sqlalchemy import func, or_, select
 
+from app.adapters import storage
 from app.deps import DB, AdminUser, StaffUser
 from app.errors import ApiError, not_found
-from app.models import AuditLog, City, CurationItem, District, Place, Report, User
+from app.models import AuditLog, City, CurationItem, District, Media, Place, Report, User
 from app.schemas import AdminPlaceIn, AdminPlacePatch, AdminUserPatch, CurationDecision, StatusPatch
 from app.services.audit import audit
 from app.services.places import set_taxonomy, slugify
@@ -265,3 +266,69 @@ def audit_log(db: DB, _: AdminUser, page: int = Query(1, ge=1)):
             "created_at": a.created_at,
         },
     )
+
+
+# ---------- Photos (curateurs et admins, depuis le terrain) ----------
+
+
+@router.post("/places/{pid}/photos", status_code=201)
+async def upload_photo(
+    pid: str,
+    db: DB,
+    user: StaffUser,
+    file: UploadFile = File(...),
+    credit: str | None = Form(default=None, max_length=160),
+    make_cover: bool = Form(default=False),
+):
+    place = db.get(Place, _id(pid))
+    if not place:
+        raise not_found("Lieu")
+    data, width, height = storage.process_image(await file.read(storage.MAX_BYTES + 1))
+    key = storage.save(f"places/{place.id}", data)
+    count = db.scalar(select(func.count()).select_from(Media).where(Media.place_id == place.id)) or 0
+    media = Media(
+        place_id=place.id,
+        storage_key=key,
+        alt=f"Photo de {place.name}",
+        credit=(credit or f"Photo : {user.display_name}")[:160],
+        license="Tous droits réservés (équipe)",
+        width=width,
+        height=height,
+        position=count,
+    )
+    db.add(media)
+    if make_cover or (place.cover_key is None and place.cover_url is None):
+        place.cover_key = key
+    db.flush()
+    audit(db, user, "photo.added", "place", pid, media_id=str(media.id))
+    db.commit()
+    return {"id": str(media.id), "url": storage.public_url(key), "is_cover": place.cover_key == key}
+
+
+@router.patch("/photos/{mid}/cover")
+def set_cover(mid: str, db: DB, user: StaffUser):
+    media = db.get(Media, _id(mid))
+    if not media or not (media.storage_key or media.source_url):
+        raise not_found("Photo")
+    place = db.get(Place, media.place_id)
+    place.cover_key, place.cover_url = (media.storage_key, None) if media.storage_key else (None, media.source_url)
+    audit(db, user, "photo.cover", "place", str(place.id), media_id=mid)
+    db.commit()
+    return {"id": mid, "is_cover": True}
+
+
+@router.delete("/photos/{mid}", status_code=204)
+def delete_photo(mid: str, db: DB, user: StaffUser):
+    media = db.get(Media, _id(mid))
+    if not media:
+        raise not_found("Photo")
+    place = db.get(Place, media.place_id)
+    if media.storage_key and place.cover_key == media.storage_key:
+        place.cover_key = None
+    if media.source_url and place.cover_url == media.source_url:
+        place.cover_url = None
+    storage.delete(media.storage_key)
+    db.delete(media)
+    audit(db, user, "photo.deleted", "place", str(place.id), media_id=mid)
+    db.commit()
+    return Response(status_code=204)

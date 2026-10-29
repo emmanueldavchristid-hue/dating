@@ -1,9 +1,11 @@
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import get_settings
@@ -67,6 +69,9 @@ async def unhandled(request: Request, exc: Exception):
     )  # pas de corps de requête dans les logs
     return JSONResponse({"detail": "Erreur interne", "code": "internal_error"}, status_code=500)
 
+
+Path(settings.media_dir).mkdir(parents=True, exist_ok=True)
+app.mount("/media", StaticFiles(directory=settings.media_dir), name="media")  # photos envoyées (stockage local)
 
 for r in (
     meta.router,

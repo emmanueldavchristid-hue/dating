@@ -134,6 +134,56 @@ def fetch_entities(api: Polite, ids: list[str]) -> list[dict]:
     return out
 
 
+def find_twin(db, it: dict) -> Place | None:
+    """Lieu publié existant, à moins de 400 m et au nom proche (trigrammes, sans accents)."""
+    from geoalchemy2 import Geography
+
+    point = func.ST_SetSRID(func.ST_MakePoint(it["lng"], it["lat"]), 4326).cast(Geography)
+    sim = func.similarity(func.f_unaccent(func.lower(Place.name)), func.f_unaccent(func.lower(it["name"])))
+    return db.scalar(
+        select(Place)
+        .where(
+            Place.status == "published",
+            Place.is_demo.is_(False),
+            func.ST_DWithin(Place.location, point, 400),
+            sim > 0.35,
+        )
+        .order_by(sim.desc())
+        .limit(1)
+    )
+
+
+def osm_generic_descriptions() -> set[str]:
+    return {
+        "Lieu culturel",
+        "Espace naturel",
+        "Plage",
+        "Activité de loisirs",
+        "Restaurant",
+        "Bar",
+        "Café",
+        "Club",
+        "Lieu",
+    }
+
+
+def attach_photo(db, place: Place, info: dict | None) -> None:
+    if not info or place.cover_url:
+        return
+    db.add(
+        Media(
+            place_id=place.id,
+            source_url=info["url"],
+            alt=f"Photo de {place.name}",
+            license=info["license"],
+            credit=f"{info['artist']} · {info['license']} · Wikimedia Commons"[:160],
+            width=info["width"],
+            height=info["height"],
+        )
+    )
+    place.cover_url = info["url"]
+
+
 def import_entities(db, city: City, items: list[dict], images: dict[str, dict], publish: bool) -> tuple[int, int]:
     source = db.scalar(
         select(DataSource).where(DataSource.kind == "curated", DataSource.name == "Wikidata")
@@ -151,8 +201,20 @@ def import_entities(db, city: City, items: list[dict], images: dict[str, dict], 
             )
         )
         place = db.get(Place, ext.place_id) if ext else None
+        if place is None:
+            twin = find_twin(db, it)
+            if twin is not None:  # même lieu déjà connu (OSM) : on l'enrichit au lieu de le dupliquer
+                db.add(PlaceExternalId(place_id=twin.id, provider="wikidata", external_id=it["qid"]))
+                if it["description"] and twin.short_description in osm_generic_descriptions():
+                    twin.short_description = (it["description"][:1].upper() + it["description"][1:])[:280]
+                attach_photo(db, twin, images.get((it["image"] or "").replace("_", " ")))
+                touched.append(twin.id)
+                updated += 1
+                continue
         if place is not None and place.source_id != source.id:
-            continue  # déjà importé par OSM : on n'écrase pas, l'enrichissement photo s'en charge
+            attach_photo(db, place, images.get((it["image"] or "").replace("_", " ")))
+            touched.append(place.id)
+            continue
         if place is None:
             slug, n = slugify(it["name"]), 1
             while db.scalar(select(Place.id).where(Place.slug == slug)):
@@ -183,20 +245,7 @@ def import_entities(db, city: City, items: list[dict], images: dict[str, dict], 
         db.flush()
         if ext is None:
             db.add(PlaceExternalId(place_id=place.id, provider="wikidata", external_id=it["qid"]))
-        info = images.get((it["image"] or "").replace("_", " "))
-        if info and not place.cover_url:
-            db.add(
-                Media(
-                    place_id=place.id,
-                    source_url=info["url"],
-                    alt=f"Photo de {place.name}",
-                    license=info["license"],
-                    credit=f"{info['artist']} · {info['license']} · Wikimedia Commons"[:160],
-                    width=info["width"],
-                    height=info["height"],
-                )
-            )
-            place.cover_url = info["url"]
+        attach_photo(db, place, images.get((it["image"] or "").replace("_", " ")))
         touched.append(place.id)
     db.commit()
     if publish and touched:

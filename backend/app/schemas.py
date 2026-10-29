@@ -72,6 +72,7 @@ class HoursOut(BaseModel):
 
 
 class PhotoOut(BaseModel):
+    id: str | None = None
     url: str | None
     gradient: list[str]
     alt: str

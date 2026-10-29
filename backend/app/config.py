@@ -28,7 +28,9 @@ class Settings(BaseSettings):
     llm_model: str = "claude-haiku-5-5"
     payments_provider: str = "none"  # none | (agrégateur Mobile Money à intégrer)
     map_provider: str = "osm"
-    media_base_url: str = ""  # URL publique du bucket S3 / CDN
+    media_base_url: str = ""  # URL publique du bucket S3 / CDN (sinon : PUBLIC_BASE_URL/media)
+    media_dir: str = "media"  # stockage local des photos envoyées
+    public_base_url: str = "http://localhost:8000"  # adresse publique de l'API (ex. IP du PC sur le Wi-Fi)
     embeddings_provider: str = "hashing"  # hashing (hors ligne) | fastembed (modèle multilingue)
     google_places_api_key: str = ""  # optionnel : photos via l'API officielle Google Places (jamais stockées)
 

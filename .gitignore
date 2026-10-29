@@ -28,3 +28,4 @@ dist/
 web-build/
 backend/data/
 *.osm.pbf
+backend/media/
