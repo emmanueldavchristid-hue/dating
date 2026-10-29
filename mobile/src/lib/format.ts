@@ -150,3 +150,101 @@ export function haversineKm(a: { lat: number; lng: number } | null, b: { lat: nu
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
   return Math.round(2 * 6371 * Math.asin(Math.sqrt(h)) * 10) / 10;
 }
+
+/** Phrase propre : espaces réduits, majuscule initiale (les données OSM commencent parfois en minuscule). */
+export function cleanSentence(s: string | null | undefined): string {
+  const t = (s ?? "").replace(/\s+/g, " ").trim();
+  if (!t) return "";
+  return t.charAt(0).toLocaleUpperCase("fr-FR") + t.slice(1);
+}
+
+/** Libellés de catégorie génériques produits par l'import OpenStreetMap. */
+const GENERIC_KINDS = new Set(
+  [
+    "bar",
+    "restaurant",
+    "café",
+    "cafe",
+    "club",
+    "lounge",
+    "rooftop",
+    "maquis",
+    "plage",
+    "restauration rapide / maquis",
+    "restauration rapide",
+    "activité de loisirs",
+    "espace naturel",
+    "lieu culturel",
+    "événement",
+  ].map((x) => x.normalize("NFC")),
+);
+
+/** Cuisines OSM (souvent en anglais) → libellé français. */
+const CUISINE_FR: Record<string, string> = {
+  african: "africaine",
+  local: "locale",
+  regional: "locale",
+  french: "française",
+  european: "européenne",
+  lebanese: "libanaise",
+  italian: "italienne",
+  chinese: "chinoise",
+  vietnamese: "vietnamienne",
+  japanese: "japonaise",
+  indian: "indienne",
+  thai: "thaïe",
+  asian: "asiatique",
+  mexican: "mexicaine",
+  international: "internationale",
+  seafood: "fruits de mer",
+  burger: "burgers",
+  sandwich: "sandwichs",
+  ice_cream: "glaces",
+  chicken: "poulet",
+  coffee_shop: "café",
+};
+/** Spécialités (noms) : pas de « Cuisine » devant. */
+const DISHES = new Set(["pizza", "burgers", "poulet", "glaces", "sandwichs", "café", "fruits de mer", "grillades", "crêpes", "pâtisserie", "sushi", "kebab", "tacos", "brochettes"]);
+
+function cuisineLabel(raw: string): string | null {
+  const k = raw.trim().toLowerCase().replace(/\s+/g, " ");
+  if (!k) return null;
+  const fr = CUISINE_FR[k.replace(/ /g, "_")] ?? k;
+  if (DISHES.has(fr)) return cleanSentence(fr);
+  return `Cuisine ${fr}`;
+}
+
+/**
+ * Lit une accroche du type « Restaurant · cuisine africaine, locale ».
+ * `generic` : l'accroche ne fait que répéter la catégorie (inutile en « À propos ») ;
+ * `cuisines` : spécialités lisibles à afficher en puces.
+ */
+export function parseTagline(short: string | null | undefined, categoryNames: string[] = []): { generic: boolean; cuisines: string[] } {
+  const t = (short ?? "").replace(/\s+/g, " ").trim();
+  if (!t) return { generic: true, cuisines: [] };
+  const parts = t.split(/\s+·\s+/);
+  const head = parts[0]!.toLowerCase().normalize("NFC");
+  const cats = new Set(categoryNames.map((c) => c.toLowerCase().normalize("NFC")));
+  const headGeneric = GENERIC_KINDS.has(head) || cats.has(head);
+  const rest = parts.slice(1);
+  const cuisineParts = rest.filter((p) => /^cuisine\s+/i.test(p));
+  const generic = headGeneric && cuisineParts.length === rest.length;
+  const cuisines: string[] = [];
+  if (generic) {
+    for (const p of cuisineParts) {
+      for (const c of p.replace(/^cuisine\s+/i, "").split(/[,;]/)) {
+        const label = cuisineLabel(c);
+        if (label && !cuisines.includes(label)) cuisines.push(label);
+      }
+    }
+  }
+  return { generic, cuisines };
+}
+
+/** Texte « À propos » : la description, sinon une accroche qui apporte quelque chose ; null sinon. */
+export function aboutText(description: string | null | undefined, short: string | null | undefined, categoryNames: string[] = []): string | null {
+  const d = cleanSentence(description);
+  if (d) return d;
+  if (parseTagline(short, categoryNames).generic) return null;
+  return cleanSentence(short) || null;
+}

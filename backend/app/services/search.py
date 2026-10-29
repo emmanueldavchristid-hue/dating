@@ -246,8 +246,8 @@ def explain(item: dict, origin: Origin, open_st: str) -> list[str]:
     c, place, reasons = item["components"], item["place"], []
     if item["prefs_used"] and c["pref"] >= 0.6:
         reasons.append("Correspond à tes envies")
-    if item["dist_m"] is not None and item["dist_m"] < 3000:
-        reasons.append("Tout près de toi" if origin.source == "gps" else "Proche du centre de la zone choisie")
+    if origin.source == "gps" and item["dist_m"] is not None and item["dist_m"] < 1500:
+        reasons.append("Tout près de toi")
     if place.rating_count >= 20 and (place.rating_avg or 0) >= 4.3:
         reasons.append(f"Très bien noté ({place.rating_count} avis)")
     if open_st == "open":

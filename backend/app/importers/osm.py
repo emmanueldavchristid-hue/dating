@@ -233,7 +233,14 @@ def _tokens(name: str) -> list[str]:
 def is_generic_name(name: str) -> bool:
     """« Maquis », « Kiosque à café », « Buvette traditionnelle »… : pas de vrai nom, inutilisable tel quel."""
     toks = _tokens(name)
-    return not toks or all(t in GENERIC_WORDS for t in toks)
+    letters = sum(c.isalpha() for c in name)
+    return not toks or letters < 3 or all(t in GENERIC_WORDS for t in toks)
+
+
+def tidy_name(name: str) -> str:
+    """Majuscule initiale pour les noms saisis tout en minuscules (« espace Georges » → « Espace Georges »)."""
+    name = " ".join(name.split())[:160]
+    return name[:1].upper() + name[1:] if name == name.lower() else name
 
 
 def name_categories(name: str) -> set[str]:
@@ -320,7 +327,7 @@ def _upsert(db, city: City, source, it: OsmPlace, publish: bool) -> tuple[Place,
             cover_gradient=GRADIENTS.get(it.categories[0], ["#1E3A4C", "#0E0F13"]),
         )
         db.add(place)
-    place.name, place.short_description, place.description = it.name[:160], short, long
+    place.name, place.short_description, place.description = tidy_name(it.name), short, long
     if generic and place.verified_at is None:
         place.status = "draft"  # sans vrai nom : à nommer par la curation avant publication
     place.location = f"SRID=4326;POINT({it.lng} {it.lat})"

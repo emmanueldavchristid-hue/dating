@@ -1,5 +1,8 @@
 import {
+  aboutText,
+  cleanSentence,
   distanceLabel,
+  parseTagline,
   formatBudgetRange,
   formatFcfa,
   formatRating,
@@ -62,5 +65,23 @@ describe("formatage", () => {
   it("validation d'inscription", () => {
     expect(validateRegister("A", "x", "123")).toEqual({ name: expect.any(String), email: expect.any(String), password: expect.any(String) });
     expect(validateRegister("Aya", "aya@ex.ci", "motdepasse")).toEqual({ name: null, email: null, password: null });
+  });
+});
+
+describe("données réelles (OpenStreetMap)", () => {
+  it("accroche générique reconnue, cuisines en français", () => {
+    expect(parseTagline("Bar")).toEqual({ generic: true, cuisines: [] });
+    expect(parseTagline("Restaurant · cuisine africaine, locale")).toEqual({ generic: true, cuisines: ["Cuisine africaine", "Cuisine locale"] });
+    expect(parseTagline("Restaurant · cuisine vietnamese")).toEqual({ generic: true, cuisines: ["Cuisine vietnamienne"] });
+    expect(parseTagline("Restauration rapide / maquis · cuisine burgers").cuisines).toEqual(["Burgers"]);
+    expect(parseTagline("Rooftops", ["Rooftops"]).generic).toBe(true);
+    expect(parseTagline("Vue à 360° sur la lagune").generic).toBe(false);
+  });
+
+  it("« À propos » : description nettoyée, sinon accroche utile, sinon rien", () => {
+    expect(cleanSentence("  déjeuner  uniquement, café.")).toBe("Déjeuner uniquement, café.");
+    expect(aboutText("déjeuner uniquement", "Restaurant")).toBe("Déjeuner uniquement");
+    expect(aboutText("", "Restaurant · cuisine locale")).toBeNull();
+    expect(aboutText("", "Vue à 360° sur la lagune")).toBe("Vue à 360° sur la lagune");
   });
 });

@@ -31,6 +31,7 @@ import type {
   ReportStatus,
   Role,
   SearchResponse,
+  UploadedPhoto,
   Subscription,
   SuggestRequest,
   SuggestResponse,
@@ -171,10 +172,16 @@ interface RequestOptions {
   auth?: boolean;
 }
 
+/** Corps multipart : le navigateur fixe lui-même l'en-tête (avec la frontière). */
+export function isFormData(body: unknown): body is FormData {
+  return typeof FormData !== "undefined" && body instanceof FormData;
+}
+
 export async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const { method = "GET", query, body, signal, auth = true } = opts;
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const multipart = isFormData(body);
+  if (body !== undefined && !multipart) headers["Content-Type"] = "application/json";
   const token = auth ? getToken() : null;
   if (token) headers.Authorization = `Bearer ${token}`;
 
@@ -183,7 +190,7 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
     res = await fetch(`${API_URL}${path}${buildQuery(query)}`, {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body === undefined ? undefined : multipart ? body : JSON.stringify(body),
       signal,
     });
   } catch (e) {
@@ -347,6 +354,12 @@ export const api = {
         body: note ? { decision, note } : { decision },
       }),
     audit: (page: number) => request<Paginated<AuditEntry>>("/admin/audit", { query: { page } }),
+    /** Photos : curateurs et administrateurs. */
+    uploadPhoto: (placeId: string, form: FormData) =>
+      request<UploadedPhoto>(`/admin/places/${encodeURIComponent(placeId)}/photos`, { method: "POST", body: form }),
+    setCover: (mediaId: string) =>
+      request<{ id: string; is_cover: boolean }>(`/admin/photos/${encodeURIComponent(mediaId)}/cover`, { method: "PATCH" }),
+    deletePhoto: (mediaId: string) => request<void>(`/admin/photos/${encodeURIComponent(mediaId)}`, { method: "DELETE" }),
   },
 };
 

@@ -58,6 +58,8 @@ export const IconCrown = make("Crown", <><path d="m3 8 4.5 4L12 5l4.5 7L21 8l-2 
 export const IconPlus = make("Plus", <path d="M12 5v14M5 12h14" />);
 export const IconMinus = make("Minus", <path d="M5 12h14" />);
 export const IconTrash = make("Trash", <><path d="M4 7h16M10 11v6M14 11v6" /><path d="M6 7l1 13h10l1-13M9 7V4h6v3" /></>);
+export const IconImage = make("Image", <><rect x="3" y="3" width="18" height="18" rx="2.5" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></>);
+export const IconCamera = make("Camera", <><path d="M4 7.5h3.2L9 5h6l1.8 2.5H20a1 1 0 0 1 1 1V19a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8.5a1 1 0 0 1 1-1z" /><circle cx="12" cy="13.5" r="3.6" /></>);
 export const IconBookmark = make("Bookmark", <path d="M6 3h12v18l-6-4-6 4z" />);
 export const IconFolder = make("Folder", <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z" />);
 export const IconExternal = make("External", <><path d="M14 4h6v6M20 4l-9 9" /><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></>);

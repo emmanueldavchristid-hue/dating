@@ -8,10 +8,11 @@ import { useToast } from "@/context/ToastContext";
 import { api, errorMessage, itemsOf } from "@/lib/api";
 import { formatBudgetRange, formatDate, planLabel } from "@/lib/format";
 import type { AdminPlace, AdminReport, AdminUser, AuditEntry, CurationItem, Paginated, Plan, ReportStatus, Role } from "@/lib/types";
-import { IconCheck, IconEdit, IconExternal, IconGem, IconPlus, IconSearch, IconX } from "../icons";
+import { IconCheck, IconEdit, IconExternal, IconGem, IconImage, IconPlus, IconSearch, IconX } from "../icons";
 import { Cover } from "../place/Cover";
 import { EmptyState, ErrorState } from "../ui/States";
 import { Pager } from "./Pager";
+import { PhotoModal } from "./PhotoManager";
 import { PlaceForm } from "./PlaceForm";
 import styles from "./admin.module.css";
 
@@ -59,6 +60,7 @@ export function PlacesTab() {
   const [error, setError] = useState<unknown>(null);
   const [editing, setEditing] = useState<AdminPlace | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [photosOf, setPhotosOf] = useState<{ id: string; slug: string; name: string } | null>(null);
 
   const load = useCallback(() => {
     setError(null);
@@ -132,6 +134,9 @@ export function PlacesTab() {
                         <Link href={`/places/${encodeURIComponent(p.slug)}`} className="icon-btn icon-btn-sm" aria-label={`Voir la fiche de ${p.name}`} target="_blank">
                           <IconExternal />
                         </Link>
+                        <button type="button" className="icon-btn icon-btn-sm" onClick={() => setPhotosOf(p)} aria-label={`Photos de ${p.name}`} title="Photos">
+                          <IconImage />
+                        </button>
                         <button
                           type="button"
                           className="icon-btn icon-btn-sm"
@@ -153,6 +158,7 @@ export function PlacesTab() {
           <Pager page={data.page} pageSize={data.page_size} total={data.total} onPage={setPage} />
         </>
       )}
+      <PhotoModal place={photosOf} onClose={() => setPhotosOf(null)} />
       <PlaceForm
         open={formOpen}
         onClose={() => setFormOpen(false)}
@@ -383,6 +389,7 @@ export function CurationTab() {
   const [error, setError] = useState<unknown>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [photosOf, setPhotosOf] = useState<{ id: string; slug: string; name: string } | null>(null);
 
   const load = useCallback(() => {
     setError(null);
@@ -461,6 +468,11 @@ export function CurationTab() {
                     <button type="button" className="btn btn-sm" onClick={() => decide(c, "rejected")} disabled={busy === c.id}>
                       <IconX /> Rejeter
                     </button>
+                    {p ? (
+                      <button type="button" className="btn btn-sm btn-ghost" onClick={() => setPhotosOf(p)} aria-label={`Photos de ${p.name}`}>
+                        <IconImage /> Photos
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </li>
@@ -468,6 +480,7 @@ export function CurationTab() {
           })}
         </ul>
       )}
+      <PhotoModal place={photosOf} onClose={() => setPhotosOf(null)} />
     </div>
   );
 }

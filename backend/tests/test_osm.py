@@ -234,3 +234,11 @@ def test_non_outing_places_are_excluded():
         city = db.scalar(select(City).where(City.slug == "abidjan"))
         assert import_places(db, city, parse_elements(data), publish=True) == (0, 0)
         assert db.scalar(select(Place).where(Place.external_ref == "node/501")) is None
+
+
+def test_junk_and_lowercase_names():
+    from app.importers.osm import is_generic_name, tidy_name
+
+    assert is_generic_name("1") and is_generic_name("A2") and is_generic_name("...")
+    assert tidy_name("espace  georges tai benson") == "Espace georges tai benson"
+    assert tidy_name("O'gourmet") == "O'gourmet" and tidy_name("iCafé") == "iCafé" and tidy_name("chez awa") == "Chez awa"

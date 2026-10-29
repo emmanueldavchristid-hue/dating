@@ -1,4 +1,7 @@
+"use client";
+
 /* eslint-disable @next/next/no-img-element */
+import { useState } from "react";
 import type { Cover as CoverT } from "@/lib/types";
 import { CategoryIcon } from "../icons";
 import styles from "./Cover.module.css";
@@ -19,12 +22,14 @@ export function Cover({ cover, category, categoryIcon, size = "card", locked = f
   const [a, b] = cover.gradient ?? [];
   const c1 = a && SAFE_COLOR.test(a) ? a : "#3a2a20";
   const c2 = b && SAFE_COLOR.test(b) ? b : "#16171c";
+  // Image injoignable (réseau, lien mort) : visuel généré plutôt qu'une image cassée.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const cls = `${styles.cover} ${styles[size]} ${locked ? styles.locked : ""} ${className ?? ""}`;
 
-  if (cover.url && !locked) {
+  if (cover.url && !locked && failedUrl !== cover.url) {
     return (
       <div className={cls}>
-        <img src={cover.url} alt={cover.alt} className={styles.img} loading="lazy" />
+        <img src={cover.url} alt={cover.alt} className={styles.img} loading="lazy" onError={() => setFailedUrl(cover.url)} />
       </div>
     );
   }

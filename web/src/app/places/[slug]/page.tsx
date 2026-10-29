@@ -16,6 +16,7 @@ import {
   IconGlobe,
   IconHeart,
   IconHeartFilled,
+  IconImage,
   IconParking,
   IconPhone,
   IconPin,
@@ -29,6 +30,7 @@ import {
   IconWifi,
   IconX,
 } from "@/components/icons";
+import { PhotoModal } from "@/components/admin/PhotoManager";
 import { CollectionPicker } from "@/components/place/CollectionPicker";
 import { Cover } from "@/components/place/Cover";
 import { DemoBadge, DistanceTravel, OpenBadge } from "@/components/place/PlaceMeta";
@@ -49,6 +51,7 @@ import {
   formatFcfa,
   formatRating,
 } from "@/lib/format";
+import { canManagePhotos, creditLabel, isCoverPhoto, realPhotos } from "@/lib/photos";
 import type { Amenities, PlaceDetail } from "@/lib/types";
 import styles from "./place.module.css";
 
@@ -84,6 +87,7 @@ export default function PlacePage() {
   const [collOpen, setCollOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [shareFallback, setShareFallback] = useState(false);
+  const [photosOpen, setPhotosOpen] = useState(false);
 
   const coordKey = coords ? `${coords.lat.toFixed(4)},${coords.lng.toFixed(4)}` : "";
   const load = useCallback(() => {
@@ -164,6 +168,10 @@ export default function PlacePage() {
   const conf = confidenceLabel(place.confidence);
   const mainCat = place.categories[0];
   const today = (new Date().getDay() + 6) % 7; // 0 = lundi
+  const photos = realPhotos(place.photos);
+  const coverPhoto = photos.find((ph) => isCoverPhoto(ph, place.cover)) ?? null;
+  const coverCredit = place.cover.url ? creditLabel(coverPhoto?.credit) : null;
+  const staff = canManagePhotos(user);
   const hoursByDay = WEEKDAYS.map((_, i) => place.hours.filter((h) => h.weekday === i).sort((a, b) => a.open.localeCompare(b.open)));
 
   return (
@@ -172,6 +180,11 @@ export default function PlacePage() {
       <header className={styles.hero}>
         <Cover cover={place.cover} category={mainCat} categoryIcon={mainCat ? categoryIcon(mainCat) : null} size="hero" className={styles.heroCover} />
         <div className={styles.heroShade} aria-hidden="true" />
+        {coverCredit ? (
+          <p className={styles.heroCredit} data-testid="hero-credit">
+            {coverCredit}
+          </p>
+        ) : null}
         <div className={styles.heroBar}>
           <button
             type="button"
@@ -292,6 +305,34 @@ export default function PlacePage() {
                 <IconX />
               </button>
             </div>
+          ) : null}
+
+          {photos.length > 1 || staff ? (
+            <section className={styles.block} aria-labelledby="photos-title">
+              <div className={styles.blockHead}>
+                <h2 id="photos-title" className={styles.blockTitle}>
+                  Photos
+                </h2>
+                {staff ? (
+                  <button type="button" className="btn btn-sm" onClick={() => setPhotosOpen(true)}>
+                    <IconImage size={16} /> Gérer les photos
+                  </button>
+                ) : null}
+              </div>
+              {photos.length ? (
+                <ul className={styles.gallery}>
+                  {photos.map((ph, i) => (
+                    <li key={ph.id ?? `${ph.url}-${i}`} className={styles.galleryItem}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={ph.url!} alt={ph.alt} loading="lazy" className={styles.galleryImg} />
+                      {creditLabel(ph.credit) ? <span className={styles.galleryCredit}>{creditLabel(ph.credit)}</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="muted">Pas encore de photo pour ce lieu.</p>
+              )}
+            </section>
           ) : null}
 
           <section className={styles.block}>
@@ -496,6 +537,15 @@ export default function PlacePage() {
         <>
           <CollectionPicker open={collOpen} onClose={() => setCollOpen(false)} placeId={place.id} placeName={place.name} />
           <ReportForm open={reportOpen} onClose={() => setReportOpen(false)} placeId={place.id} placeName={place.name} />
+          {staff ? (
+            <PhotoModal
+              place={photosOpen ? place : null}
+              onClose={() => {
+                setPhotosOpen(false);
+                setAttempt((n) => n + 1);
+              }}
+            />
+          ) : null}
         </>
       ) : null}
     </article>

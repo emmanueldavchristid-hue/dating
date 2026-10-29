@@ -461,3 +461,48 @@
   align-self: flex-start;
   font-size: var(--fs-sm);
 }
+
+/* Crédits photo (obligatoires pour les photos sous licence libre) */
+.heroCredit {
+  position: absolute;
+  right: var(--gutter);
+  bottom: 4px;
+  z-index: 1;
+  margin: 0;
+  max-width: min(70%, 520px);
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(244, 241, 234, 0.72);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gallery {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+.galleryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.galleryImg {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  display: block;
+}
+.galleryCredit {
+  font-size: 11px;
+  color: var(--text-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

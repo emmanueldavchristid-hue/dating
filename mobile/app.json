@@ -12,7 +12,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.sortie.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Ta position sert uniquement à trier les lieux par distance (à vol d'oiseau). Elle n'est jamais partagée."
+        "NSLocationWhenInUseUsageDescription": "Ta position sert uniquement à trier les lieux par distance (à vol d'oiseau). Elle n'est jamais partagée.",
+        "NSCameraUsageDescription": "L'appareil photo sert uniquement à photographier un lieu pour illustrer sa fiche. Rien n'est envoyé sans ton accord.",
+        "NSPhotoLibraryUsageDescription": "L'application accède à tes photos uniquement quand tu choisis une image à ajouter à la fiche d'un lieu. Rien n'est envoyé sans ton accord."
       }
     },
     "android": {
@@ -23,7 +25,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "CAMERA"],
+      "blockedPermissions": ["android.permission.RECORD_AUDIO"],
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -41,6 +44,14 @@
       [
         "expo-location",
         { "locationWhenInUsePermission": "Ta position sert uniquement à trier les lieux par distance (à vol d'oiseau). Elle n'est jamais partagée." }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "L'appareil photo sert uniquement à photographier un lieu pour illustrer sa fiche. Rien n'est envoyé sans ton accord.",
+          "photosPermission": "L'application accède à tes photos uniquement quand tu choisis une image à ajouter à la fiche d'un lieu. Rien n'est envoyé sans ton accord.",
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": { "typedRoutes": false, "tsconfigPaths": true }

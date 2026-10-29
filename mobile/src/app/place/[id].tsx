@@ -2,12 +2,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { FlatList, StyleSheet, View, useWindowDimensions } from "react-native";
-import Animated, { FadeInDown, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, Extrapolation } from "react-native-reanimated";
+import Animated, { FadeInDown, interpolate, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, Extrapolation } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Cover } from "@/components/Cover";
 import { EmptyState, ErrorState, Skeleton, useToast } from "@/components/feedback";
 import { categoryIcon, Icon, type IconName } from "@/components/Icon";
 import { categoriesLabel, openColor, PlaceTile } from "@/components/PlaceCard";
+import { AddPhotoSheet, PhotoActionsSheet, PhotoCredit, PlaceGallery } from "@/components/PlacePhotos";
 import { CollectionSheet, ReportSheet, ReviewSheet } from "@/components/PlaceSheets";
 import { UpsellCard } from "@/components/Premium";
 import { goBack } from "@/components/Screen";
@@ -18,18 +19,21 @@ import { useSettings } from "@/context/SettingsContext";
 import { api, ApiError, errorMessage, isUnsupported } from "@/lib/api";
 import { track } from "@/lib/events";
 import {
+  aboutText,
   confidenceLabel,
   distanceLabel,
   formatBudgetRange,
   formatDate,
   matchLabel,
   openStatusLabel,
+  parseTagline,
   priceLevelLabel,
   travelLabel,
   WEEKDAYS,
 } from "@/lib/format";
 import { callPhone, openDirections, sharePlace } from "@/lib/links";
-import type { Amenities, PlaceCard, PlaceDetail } from "@/lib/types";
+import { canManagePhotos, isCoverPhoto, realPhotos } from "@/lib/photos";
+import type { Amenities, PlaceCard, PlaceDetail, PlacePhoto } from "@/lib/types";
 import { colors, fonts, GUTTER, radius, space } from "@/theme/tokens";
 
 const HERO = 360;
@@ -109,6 +113,11 @@ export default function PlaceScreen() {
   const [fav, setFav] = useState(false);
   const [sheet, setSheet] = useState<"collection" | "report" | "review" | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [addPhoto, setAddPhoto] = useState(false);
+  const [managed, setManaged] = useState<PlacePhoto | null>(null);
+  const [heroUrl, setHeroUrl] = useState<string | null>(null);
+  const scrollRef = useAnimatedRef<Animated.ScrollView>();
+  const staff = canManagePhotos(user);
   const y = useSharedValue(0);
   const [prevId, setPrevId] = useState(id);
   if (id !== prevId) {
@@ -118,6 +127,7 @@ export default function PlaceScreen() {
     setError(null);
     setSimilar(null);
     setAllReviews(false);
+    setHeroUrl(null);
   }
 
   useEffect(() => {
@@ -246,8 +256,19 @@ export default function PlaceScreen() {
   const conf = confidenceLabel(p.confidence);
   const known = AMENITIES.filter((a) => p.amenities?.[a.key] != null);
   const today = (new Date().getDay() + 6) % 7;
-  const credits = p.photos.filter((ph) => ph.url && ph.credit);
-  const hero = p.photos.find((ph) => ph.url) ?? null;
+  const photos = realPhotos(p.photos);
+  const credits = photos.filter((ph) => ph.credit);
+  // Photo du héros : celle choisie dans la galerie, sinon la couverture, sinon la première.
+  const hero = (heroUrl ? photos.find((ph) => ph.url === heroUrl) : null) ?? photos.find((ph) => isCoverPhoto(ph, p.cover)) ?? (p.cover.url ? null : photos[0]) ?? null;
+  const catLabels = p.categories.map((c) => catName[c] ?? c);
+  const about = aboutText(p.description, p.short_description, catLabels);
+  const { cuisines } = parseTagline(p.short_description, catLabels);
+  const hasRating = p.rating_avg != null && p.rating_count > 0;
+  const hoursKnown = p.hours.length > 0 || p.open_status !== "unknown";
+  const reload = () => {
+    setHeroUrl(null);
+    setReloadKey((k) => k + 1);
+  };
 
   return (
     <View style={s.screen}>
@@ -262,9 +283,10 @@ export default function PlaceScreen() {
           shade={false}
         />
         <LinearGradient colors={["rgba(14,15,19,0.55)", "rgba(14,15,19,0)", "rgba(14,15,19,0.2)", colors.bg]} locations={[0, 0.3, 0.7, 1]} style={StyleSheet.absoluteFill} />
+        {hero?.url ? <PhotoCredit credit={hero.credit} style={s.heroCredit} testID="hero-credit" /> : null}
       </Animated.View>
 
-      <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingBottom: insets.bottom + 110 }} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView ref={scrollRef} onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingBottom: insets.bottom + 110 }} showsVerticalScrollIndicator={false}>
         <View style={{ height: HERO - 64 }} />
         <Animated.View entering={FadeInDown.duration(420)} style={s.body}>
           <View style={s.pills}>
@@ -282,19 +304,19 @@ export default function PlaceScreen() {
           </View>
 
           <View style={s.facts}>
+            {hasRating ? (
+              <Fact icon="star" label="Note" value={`${p.rating_avg!.toFixed(1).replace(".", ",")} · ${p.rating_count} avis`} color={colors.gold} />
+            ) : null}
             <Fact
-              icon="star"
-              label="Note"
-              value={p.rating_avg != null && p.rating_count > 0 ? `${p.rating_avg.toFixed(1).replace(".", ",")} · ${p.rating_count} avis` : "Pas encore d'avis"}
-              color={p.rating_count > 0 ? colors.gold : colors.textSubtle}
+              icon="clock"
+              label="Horaires"
+              value={hoursKnown ? openStatusLabel(p.open_status, p.closes_at) : "Non communiqués"}
+              color={hoursKnown ? openColor(p.open_status) : colors.textSubtle}
             />
-            <Fact icon="clock" label="Horaires" value={openStatusLabel(p.open_status, p.closes_at)} color={openColor(p.open_status)} />
-            <Fact
-              icon="pin"
-              label={fromCenter ? "Depuis le centre-ville" : "Distance"}
-              value={dist ? (travel ? `${dist}\n${travel} · ${p.travel?.source}` : dist) : "Position non choisie"}
-            />
-            <Fact icon="card" label={level ? `Budget / pers. · ${level}` : "Budget / pers."} value={budget ?? "Non communiqué"} />
+            {dist ? (
+              <Fact icon="pin" label={fromCenter ? "Depuis le centre-ville" : "Distance"} value={travel ? `${dist}\n${travel} · ${p.travel?.source}` : dist} />
+            ) : null}
+            {budget || level ? <Fact icon="card" label={budget && level ? `Budget / pers. · ${level}` : "Budget / pers."} value={budget ?? level!} /> : null}
           </View>
 
           <View style={s.actions}>
@@ -304,18 +326,38 @@ export default function PlaceScreen() {
             <ActionTile icon="flag" label="Signaler" onPress={() => requireAuth() && setSheet("report")} />
           </View>
 
-          <Section title="À propos">
-            <Txt variant="body" color={colors.textMuted} style={{ lineHeight: 23 }}>
-              {p.description || p.short_description}
-            </Txt>
-            {p.ambiances.length ? (
-              <View style={s.wrap}>
-                {p.ambiances.map((a) => (
-                  <Chip key={a} size="sm" label={ambName[a] ?? a} />
-                ))}
-              </View>
-            ) : null}
-          </Section>
+          <PlaceGallery
+            photos={p.photos}
+            cover={p.cover}
+            user={user}
+            selectedUrl={hero?.url ?? null}
+            onSelect={(ph) => {
+              setHeroUrl(ph.url);
+              scrollRef.current?.scrollTo({ y: 0, animated: true });
+            }}
+            onAdd={() => setAddPhoto(true)}
+            onManage={setManaged}
+          />
+
+          {about || cuisines.length || p.ambiances.length ? (
+            <Section title={about ? "À propos" : "En bref"}>
+              {about ? (
+                <Txt variant="body" color={colors.textMuted} style={{ lineHeight: 23 }}>
+                  {about}
+                </Txt>
+              ) : null}
+              {cuisines.length || p.ambiances.length ? (
+                <View style={s.wrap}>
+                  {cuisines.map((c) => (
+                    <Chip key={`c-${c}`} size="sm" label={c} icon="utensils" />
+                  ))}
+                  {p.ambiances.map((a) => (
+                    <Chip key={a} size="sm" label={ambName[a] ?? a} />
+                  ))}
+                </View>
+              ) : null}
+            </Section>
+          ) : null}
 
           {known.length ? (
             <Section title="Sur place">
@@ -338,8 +380,8 @@ export default function PlaceScreen() {
             </Section>
           ) : null}
 
-          <Section title="Horaires">
-            {p.hours.length ? (
+          {p.hours.length ? (
+            <Section title="Horaires">
               <View style={s.hours}>
                 {WEEKDAYS.map((d, i) => {
                   const slots = p.hours.filter((h) => h.weekday === i).sort((a, b) => a.open.localeCompare(b.open));
@@ -356,12 +398,8 @@ export default function PlaceScreen() {
                   );
                 })}
               </View>
-            ) : (
-              <Txt variant="body" color={colors.textMuted}>
-                Horaires non vérifiés : appelle avant de te déplacer.
-              </Txt>
-            )}
-          </Section>
+            </Section>
+          ) : null}
 
           {p.events.length ? (
             <Section title="Événements">
@@ -524,7 +562,13 @@ export default function PlaceScreen() {
 
       <CollectionSheet placeId={p.id} visible={sheet === "collection"} onClose={() => setSheet(null)} />
       <ReportSheet placeId={p.id} visible={sheet === "report"} onClose={() => setSheet(null)} />
-      <ReviewSheet placeId={p.id} visible={sheet === "review"} onClose={() => setSheet(null)} onDone={() => setReloadKey((k) => k + 1)} />
+      {staff ? (
+        <>
+          <AddPhotoSheet visible={addPhoto} onClose={() => setAddPhoto(false)} placeId={p.id} placeName={p.name} hasCover={!!p.cover.url} onUploaded={reload} />
+          <PhotoActionsSheet photo={managed} isCover={!!managed && isCoverPhoto(managed, p.cover)} onClose={() => setManaged(null)} onChanged={reload} />
+        </>
+      ) : null}
+      <ReviewSheet placeId={p.id} visible={sheet === "review"} onClose={() => setSheet(null)} onDone={reload} />
     </View>
   );
 }
@@ -545,6 +589,7 @@ function Row({ label, value, color }: { label: string; value: string; color?: st
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   hero: { position: "absolute", top: 0, left: 0, right: 0, height: HERO },
+  heroCredit: { position: "absolute", right: 12, bottom: 64 + 12 },
   body: {
     backgroundColor: colors.bg,
     borderTopLeftRadius: radius.xl,

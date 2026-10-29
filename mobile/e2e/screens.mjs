@@ -1,9 +1,10 @@
 // Captures de tous les écrans (export web, viewport téléphone 390×844).
-// Prérequis : API sur http://localhost:8000 (données de démo) et un export web :
+// Prérequis : API sur http://localhost:8000 (données réelles ou de démo : aucun nom de lieu n'est supposé) et un export web :
 //   EXPO_PUBLIC_API_URL=http://localhost:4810/api/v1 npx expo export --platform web --output-dir dist-web
 // Usage : SHOTS_DIR=/chemin node e2e/screens.mjs   (Chromium via PLAYWRIGHT_BROWSERS_PATH, jamais téléchargé ici)
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import { startServer } from "./serve.mjs";
 
@@ -11,12 +12,26 @@ const PORT = 4810;
 const BASE = `http://localhost:${PORT}`;
 const OUT = process.env.SHOTS_DIR ?? join(process.cwd(), "e2e", "output");
 const PASSWORD = process.env.DEMO_PASSWORD ?? "Demo-2026!";
+const PHOTO = fileURLToPath(new URL("./fixtures/lieu.jpg", import.meta.url));
 mkdirSync(OUT, { recursive: true });
 
 const problems = [];
 let shots = 0;
 
 const server = await startServer(PORT);
+
+/** Appel direct à l'API (via le relais) pour choisir des lieux sans dépendre des données. */
+async function apiGet(path, token) {
+  const res = await fetch(`${BASE}/api/v1${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!res.ok) throw new Error(`${path} → ${res.status}`);
+  return res.json();
+}
+// Un lieu avec une vraie photo (crédit visible) et un lieu sans photo ni avis (état « données éparses »).
+const SAMPLE = (await apiGet("/places/search?page_size=50")).items.filter((p) => !p.locked);
+const PHOTO_SLUG = SAMPLE.find((p) => p.cover?.url)?.slug ?? null;
+const SPARSE_SLUG = SAMPLE.find((p) => !p.cover?.url && p.rating_count === 0)?.slug ?? SAMPLE[0]?.slug ?? null;
+const GEMS = await apiGet("/places/gems").catch(() => []);
+console.log(`lieu avec photo : ${PHOTO_SLUG ?? "—"} · lieu sans photo : ${SPARSE_SLUG ?? "—"} · pépites : ${GEMS.length}`);
 const browser = await chromium.launch();
 
 async function newPhone({ onboarded = false } = {}) {
@@ -125,8 +140,8 @@ async function login(page, email) {
     await page.getByRole("button", { name: "Fermer", exact: true }).last().click();
   });
   await step("search", async () => {
-    // Quartier Cocody + rooftops : aucun résultat → état vide.
-    await nav(page, "/search?categories=rooftop,lounge");
+    // Requête introuvable → état vide (indépendant des données).
+    await nav(page, "/search?q=zzqxw-introuvable");
     await page.getByText("Aucun lieu ne correspond").waitFor({ timeout: 10000 });
     await shot(page, "12a-recherche-vide");
     await nav(page, "/search?categories=restaurant,maquis,cafe");
@@ -139,7 +154,9 @@ async function login(page, email) {
     await btn(page, "Voir les lieux").click();
   });
   await step("place", async () => {
-    await nav(page, "/place/rooftop-horizon-8");
+    // Premier résultat d'une recherche, ouvert comme un membre le ferait.
+    await nav(page, "/search?categories=restaurant,maquis,cafe");
+    await page.getByTestId("place-row").first().click();
     await page.getByText("Fiabilité de la fiche").waitFor({ timeout: 10000 });
     await shot(page, "15-fiche-lieu");
     await scroll(page, 650);
@@ -156,14 +173,31 @@ async function login(page, email) {
     await shot(page, "20-signaler-erreur");
     await page.getByRole("button", { name: "Fermer", exact: true }).last().click();
   });
+  await step("place-photo", async () => {
+    if (!PHOTO_SLUG) return;
+    await nav(page, `/place/${PHOTO_SLUG}`);
+    await page.getByText("Fiabilité de la fiche").waitFor({ timeout: 10000 });
+    await shot(page, "18a-fiche-photo-credit");
+  });
+  await step("place-sparse", async () => {
+    if (!SPARSE_SLUG) return;
+    await nav(page, `/place/${SPARSE_SLUG}`);
+    await page.getByText("Fiabilité de la fiche").waitFor({ timeout: 10000 });
+    await shot(page, "18b-fiche-donnees-eparses");
+    await scroll(page, 700);
+    await shot(page, "18c-fiche-donnees-eparses-bas");
+  });
   await step("gem-gate", async () => {
-    await nav(page, "/place/le-salon-sans-enseigne");
+    const gem = GEMS.find((g) => g.locked);
+    if (!gem) return;
+    await nav(page, `/place/${gem.slug || gem.id}`);
     await shot(page, "21-pepite-verrouillee");
   });
   await step("gems", async () => {
     await nav(page, "/gems");
-    await page.getByTestId("locked-card").first().waitFor({ timeout: 10000 });
-    await shot(page, "22-pepites-gratuit");
+    // Sans pépite publiée, on capture l'état vide.
+    if (GEMS.length) await page.getByTestId("locked-card").first().waitFor({ timeout: 10000 });
+    await shot(page, GEMS.length ? "22-pepites-gratuit" : "22-pepites-vide");
   });
   await step("map", async () => {
     await page.getByTestId("tab-map").click();
@@ -174,7 +208,7 @@ async function login(page, email) {
     await page.getByTestId("tab-concierge").click();
     await shot(page, "24-concierge");
     await btn(page, "Un rooftop calme ce soir pour un date").click();
-    await page.getByTestId("place-row").first().waitFor({ timeout: 15000 });
+    await page.getByTestId("place-row").first().waitFor({ timeout: 15000 }).catch(() => wait(page, 4000));
     await shot(page, "25-concierge-reponse");
   });
   await step("soiree", async () => {
@@ -233,10 +267,55 @@ async function login(page, email) {
   await step("insider", async () => {
     await login(page, "insider@sortie.demo");
     await nav(page, "/gems");
-    await page.getByTestId("place-row").first().waitFor({ timeout: 10000 });
+    if (GEMS.length) await page.getByTestId("place-row").first().waitFor({ timeout: 10000 });
     await shot(page, "38-pepites-insider");
     await nav(page, "/me");
     await shot(page, "39-moi-insider");
+  });
+  await ctx.close();
+}
+
+// ---------------------------------------------------------------- Curateur : photos d'un lieu
+{
+  const { ctx, page } = await newPhone({ onboarded: true });
+  await page.goto(BASE + "/");
+  await wait(page, 2500);
+  await step("curateur-photo", async () => {
+    const slug = SPARSE_SLUG ?? PHOTO_SLUG;
+    if (!slug) throw new Error("aucun lieu disponible");
+    await login(page, "curateur@sortie.demo");
+    await nav(page, `/place/${slug}`);
+    await page.getByText("Fiabilité de la fiche").waitFor({ timeout: 10000 });
+    await page.getByTestId("add-photo").scrollIntoViewIfNeeded();
+    await shot(page, "41-curateur-galerie");
+    await page.getByTestId("add-photo").click();
+    await shot(page, "42-curateur-ajout-photo");
+    // Le sélecteur web ouvre un <input type=file> : on lui donne la photo de test.
+    const chooser = page.waitForEvent("filechooser", { timeout: 10000 });
+    await btn(page, "Choisir dans la galerie").click();
+    await (await chooser).setFiles(PHOTO);
+    await page.getByText("Utiliser comme photo principale").waitFor({ timeout: 10000 });
+    await page.getByLabel("Crédit (facultatif)", { exact: true }).fill("Photo : équipe e2e");
+    await shot(page, "43-curateur-apercu");
+    await btn(page, "Publier la photo").click();
+    await page.getByText(/Photo ajoutée/).waitFor({ timeout: 20000 });
+    await wait(page, 1500);
+    await scroll(page, -3000);
+    await shot(page, "44-curateur-photo-publiee");
+    const detail = await apiGet(`/places/${slug}`);
+    const mine = detail.photos.find((ph) => ph.credit === "Photo : équipe e2e");
+    if (!mine) throw new Error("photo envoyée absente de la fiche");
+    console.log(`  photo ${mine.id} · couverture=${detail.cover.url === mine.url}`);
+    // Menu de la photo → suppression (nettoyage).
+    await page.getByTestId("photo-menu").last().scrollIntoViewIfNeeded();
+    await page.getByTestId("photo-menu").last().click();
+    await shot(page, "45-curateur-menu-photo");
+    await btn(page, "Supprimer").click();
+    await shot(page, "46-curateur-confirmation");
+    await page.getByRole("button", { name: "Supprimer", exact: true }).last().click();
+    await page.getByText("Photo supprimée").waitFor({ timeout: 10000 });
+    const after = await apiGet(`/places/${slug}`);
+    if (after.photos.some((ph) => ph.id === mine.id)) throw new Error("photo non supprimée");
   });
   await ctx.close();
 }

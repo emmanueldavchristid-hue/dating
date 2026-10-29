@@ -65,23 +65,31 @@ function OpenDot({ status, closesAt }: { status: OpenStatus; closesAt: string | 
 function Meta({ p }: { p: Place }) {
   const dist = distanceLabel(p.distance_km);
   const travel = travelLabel(p.travel);
+  const rated = p.rating_avg != null && p.rating_count > 0;
+  // Chaque information porte sa propre icône : rien ne commence par « · » quand la ligne se replie.
   return (
     <View style={s.metaRow}>
       <View style={s.inline}>
-        <Icon name="star" size={13} color={p.rating_avg != null && p.rating_count > 0 ? colors.gold : colors.textSubtle} fill={p.rating_avg != null && p.rating_count > 0 ? colors.gold : "none"} />
-        <Txt variant="caption" color={colors.textMuted} testID="rating">
+        <Icon name="star" size={13} color={rated ? colors.gold : colors.textSubtle} fill={rated ? colors.gold : "none"} />
+        <Txt variant="caption" color={rated ? colors.textMuted : colors.textSubtle} testID="rating">
           {ratingText(p)}
         </Txt>
       </View>
       {dist ? (
-        <Txt variant="caption" color={colors.textMuted} numberOfLines={1} testID="distance">
-          · {dist}
-        </Txt>
+        <View style={s.inline}>
+          <Icon name="pin" size={12} color={colors.textSubtle} />
+          <Txt variant="caption" color={colors.textMuted} numberOfLines={1} testID="distance">
+            {dist}
+          </Txt>
+        </View>
       ) : null}
       {travel ? (
-        <Txt variant="caption" color={colors.textMuted} numberOfLines={1} testID="travel">
-          · {travel} ({p.travel?.source})
-        </Txt>
+        <View style={s.inline}>
+          <Icon name="route" size={12} color={colors.textSubtle} />
+          <Txt variant="caption" color={colors.textMuted} numberOfLines={1} testID="travel">
+            {travel} ({p.travel?.source})
+          </Txt>
+        </View>
       ) : null}
     </View>
   );
@@ -215,7 +223,7 @@ const s = StyleSheet.create({
   coverTop: { position: "absolute", top: 12, left: 12, right: 12, flexDirection: "row", justifyContent: "space-between" },
   coverBottom: { position: "absolute", bottom: 12, left: 12, right: 12, flexDirection: "row", gap: 6, flexWrap: "wrap" },
   matchPill: { backgroundColor: "rgba(26,15,5,0.82)" },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 4, flexWrap: "wrap" },
+  metaRow: { flexDirection: "row", alignItems: "center", columnGap: 10, rowGap: 3, flexWrap: "wrap" },
   inline: { flexDirection: "row", alignItems: "center", gap: 5 },
   dot: { width: 7, height: 7, borderRadius: 4 },
   row: {

@@ -7,6 +7,7 @@ import { toggleIn } from "@/lib/filters";
 import type { AdminPlace, AdminPlaceInput, Tier } from "@/lib/types";
 import { CategoryIcon } from "../icons";
 import { Modal } from "../ui/Modal";
+import { PhotoManager } from "./PhotoManager";
 import styles from "./admin.module.css";
 
 interface FormState {
@@ -302,6 +303,8 @@ export function PlaceForm({ open, onClose, place, onSaved }: { open: boolean; on
           </p>
         ) : null}
       </form>
+      {/* Hors du <form> : l'envoi de photo est indépendant de l'enregistrement de la fiche. */}
+      {place ? <PhotoManager placeId={place.id} slug={place.slug} /> : null}
     </Modal>
   );
 }

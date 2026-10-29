@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { colors } from "@/theme/tokens";
 import { Icon, type IconName } from "./Icon";
@@ -41,11 +41,21 @@ export function Cover({
   centered?: boolean;
 }) {
   const [a, b] = locked ? (["#3A2F17", "#14110A"] as [string, string]) : safeGradient(gradient);
+  // Image injoignable (réseau, lien mort) : on retombe sur la couverture générée plutôt qu'un aplat vide.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const showImage = !!url && !locked && failedUrl !== url;
   return (
     <View style={[s.wrap, style]} accessible accessibilityRole="image" accessibilityLabel={alt}>
       <LinearGradient colors={[a, b]} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={StyleSheet.absoluteFill} />
-      {url && !locked ? (
-        <Image source={{ uri: url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={250} accessibilityIgnoresInvertColors />
+      {showImage ? (
+        <Image
+          source={{ uri: url }}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          transition={250}
+          accessibilityIgnoresInvertColors
+          onError={() => setFailedUrl(url)}
+        />
       ) : (
         <>
           {/* Halo lumineux + glyphe de catégorie */}

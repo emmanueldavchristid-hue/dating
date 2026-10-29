@@ -161,6 +161,8 @@ def home(
         items, _, origin = run_search(db, params, user, prefs)
         if not items:
             continue
+        if key == "popular" and not any(i["place"].rating_count or i["place"].popularity for i in items):
+            continue  # pas encore d'avis ni de visites : un classement « les plus appréciés » serait faux
         seen.extend(i["place"].id for i in items[:4])
         sections.append(HomeSection(key=key, title=title, subtitle=subtitle, items=to_cards(db, items, user, origin)))
     return HomeOut(sections=sections)
