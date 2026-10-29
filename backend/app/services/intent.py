@@ -97,3 +97,21 @@ def parse(message: str, districts: dict[str, str] | None = None) -> Parsed:
         q=None,
         district=district,
     )
+
+
+CITY_ALIASES = {
+    "bassam": "grand-bassam",
+    "grand bassam": "grand-bassam",
+    "assinie": "assinie",
+    "assinie mafia": "assinie",
+}
+
+
+def find_city(message: str, cities: dict[str, str]) -> str | None:
+    """Ville explicitement citée dans la demande (nom officiel ou alias courant)."""
+    t = normalize(message)
+    names = {normalize(n).strip(): slug for n, slug in cities.items()} | CITY_ALIASES
+    for name in sorted(names, key=len, reverse=True):
+        if f" {name} " in t:
+            return names[name]
+    return None

@@ -10,7 +10,9 @@ Un lieu déjà importé (même identifiant OSM) est mis à jour, pas dupliqué."
 
 import argparse
 import json
+import logging
 import re
+import unicodedata
 from dataclasses import dataclass
 from datetime import time
 
@@ -22,6 +24,7 @@ from app.db import SessionLocal
 from app.models import City, DataSource, District, OpeningHours, Place, PlaceExternalId
 from app.services.places import set_taxonomy, slugify
 
+log = logging.getLogger(__name__)
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 TAG_MAP = {
     ("amenity", "restaurant"): "restaurant",
@@ -110,6 +113,82 @@ def parse_hours(value: str | None) -> list[tuple[int, str, str]]:
     return slots
 
 
+GENERIC_WORDS = set(
+    "maquis kiosque kiosk restaurant resto restau garbadrome garbadromme garbardrome garba bistrot bistro cave cafe express "
+    "buvette traditionnelle traditionelle traditionnel cafetariat cafeteria cafétéria bar a au de du d la le les l des et "
+    "africain africaine patisserie jardin vendeuse atieke attieke poisson poissons snack boisson boissons fast food "
+    "alloco allocodrome braise brochette brochettes grillade grillades table tables coin espace point vente buvettes".split()
+)
+NAME_CATEGORIES = {
+    "maquis": "maquis",
+    "garba": "maquis",
+    "allocodrome": "maquis",
+    "lounge": "lounge",
+    "rooftop": "rooftop",
+    "plage": "plage",
+    "beach": "plage",
+    "club": "club",
+    "night": "club",
+    "cave": "bar",
+}
+CUISINES_FR = {
+    "african": "africaine",
+    "ivorian": "ivoirienne",
+    "local": "locale",
+    "regional": "locale",
+    "french": "française",
+    "lebanese": "libanaise",
+    "italian": "italienne",
+    "chinese": "chinoise",
+    "japanese": "japonaise",
+    "indian": "indienne",
+    "seafood": "fruits de mer",
+    "fish": "poisson",
+    "chicken": "poulet",
+    "grill": "grillades",
+    "barbecue": "barbecue",
+    "burger": "burgers",
+    "pizza": "pizza",
+    "sandwich": "sandwichs",
+    "coffee_shop": "café",
+    "brunch": "brunch",
+    "steak_house": "viandes",
+    "international": "internationale",
+    "fast_food": "restauration rapide",
+    "ice_cream": "glaces",
+    "juice": "jus",
+    "tea": "thé",
+    "vegetarian": "végétarienne",
+    "asian": "asiatique",
+    "moroccan": "marocaine",
+    "senegalese": "sénégalaise",
+    "turkish": "turque",
+    "mexican": "mexicaine",
+    "sushi": "sushis",
+    "kebab": "kebab",
+}
+
+
+def _tokens(name: str) -> list[str]:
+    n = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode().lower()
+    return re.findall(r"[a-z0-9]+", n)
+
+
+def is_generic_name(name: str) -> bool:
+    """« Maquis », « Kiosque à café », « Buvette traditionnelle »… : pas de vrai nom, inutilisable tel quel."""
+    toks = _tokens(name)
+    return not toks or all(t in GENERIC_WORDS for t in toks)
+
+
+def name_categories(name: str) -> set[str]:
+    toks = set(_tokens(name))
+    return {
+        cat
+        for word, cat in NAME_CATEGORIES.items()
+        if word in toks or any(t.startswith(word) for t in toks if len(word) > 4)
+    }
+
+
 def describe(cats: list[str], tags: dict) -> tuple[str, str]:
     """Description factuelle construite uniquement à partir des tags présents."""
     labels = {
@@ -125,9 +204,18 @@ def describe(cats: list[str], tags: dict) -> tuple[str, str]:
     }
     short = labels.get(cats[0], "Lieu")
     if tags.get("cuisine"):
-        short += " · cuisine " + tags["cuisine"].replace(";", ", ").replace("_", " ")
+        raw = [c.strip().lower() for c in tags["cuisine"].split(";") if c.strip()]
+        fr = list(dict.fromkeys(CUISINES_FR.get(c, c.replace("_", " ")) for c in raw))[:4]
+        short += " · cuisine " + ", ".join(fr)
     long = tags.get("description:fr") or tags.get("description") or ""
     return short[:280], long
+
+
+def _first(value: str | None, max_len: int) -> str | None:
+    """Les tags OSM peuvent contenir plusieurs valeurs séparées par « ; » : on garde la première."""
+    if not value:
+        return None
+    return value.split(";")[0].strip()[:max_len] or None
 
 
 def overpass_query(lat: float, lng: float, radius_m: int) -> str:
@@ -145,68 +233,83 @@ def _nearest_district(db, city: City, lat: float, lng: float) -> District | None
     )
 
 
+def _upsert(db, city: City, source, it: OsmPlace, publish: bool) -> tuple[Place, bool]:
+    """Crée ou met à jour un lieu OSM. Retourne (lieu, créé ?)."""
+    ext = db.scalar(
+        select(PlaceExternalId).where(PlaceExternalId.provider == "osm", PlaceExternalId.external_id == it.ref)
+    )
+    place = db.get(Place, ext.place_id) if ext else None
+    t = it.tags
+    short, long = describe(it.categories, t)
+    cats = sorted(set(it.categories) | name_categories(it.name))
+    generic = is_generic_name(it.name)
+    if place is None:
+        slug, n = slugify(it.name), 1
+        while db.scalar(select(Place.id).where(Place.slug == slug)):
+            n += 1
+            slug = f"{slugify(it.name)}-{n}"
+        place = Place(
+            slug=slug,
+            name=it.name,
+            city_id=city.id,
+            is_demo=False,
+            source_id=source.id,
+            external_ref=it.ref,
+            status="published" if publish and not generic else "draft",
+            confidence=0.5 if publish else 0.4,
+            cover_gradient=GRADIENTS.get(it.categories[0], ["#1E3A4C", "#0E0F13"]),
+        )
+        db.add(place)
+    place.name, place.short_description, place.description = it.name[:160], short, long
+    if generic and place.verified_at is None:
+        place.status = "draft"  # sans vrai nom : à nommer par la curation avant publication
+    place.location = f"SRID=4326;POINT({it.lng} {it.lat})"
+    district = _nearest_district(db, city, it.lat, it.lng)
+    place.district_id = district.id if district else None
+    place.website = _first(t.get("website") or t.get("contact:website"), 255)
+    place.phone = _first(t.get("phone") or t.get("contact:phone") or t.get("contact:mobile"), 40)
+    place.wheelchair = {"yes": True, "no": False}.get(t.get("wheelchair"))
+    place.outdoor = True if t.get("outdoor_seating") == "yes" else None
+    place.wifi = True if t.get("internet_access") in ("wlan", "yes") else None
+    place.card_payment = True if t.get("payment:cards") == "yes" or t.get("payment:credit_cards") == "yes" else None
+    place.has_parking = True if t.get("parking") or t.get("parking:fee") else None
+    address = " ".join(x for x in (t.get("addr:housenumber"), t.get("addr:street")) if x)
+    place.address = address[:255] or None
+    set_taxonomy(
+        db,
+        place,
+        cats,
+        ["plein-air"] if (place.outdoor or "plage" in cats or "nature" in cats) else [],
+    )
+    place.hours = [
+        OpeningHours(weekday=d, opens=time.fromisoformat(a), closes=time.fromisoformat(b))
+        for d, a, b in parse_hours(t.get("opening_hours"))
+    ]
+    db.flush()
+    if ext is None:
+        db.add(PlaceExternalId(place_id=place.id, provider="osm", external_id=it.ref))
+    wd = t.get("wikidata")
+    if wd and not db.scalar(
+        select(PlaceExternalId.id).where(PlaceExternalId.provider == "wikidata", PlaceExternalId.external_id == wd)
+    ):
+        db.add(PlaceExternalId(place_id=place.id, provider="wikidata", external_id=wd))
+    return place, ext is None
+
+
 def import_places(db, city: City, items: list[OsmPlace], publish: bool = False) -> tuple[int, int]:
     source = db.scalar(select(DataSource).where(DataSource.kind == "osm"))
     created = updated = 0
     touched = []
+    skipped = 0
     for it in items:
-        ext = db.scalar(
-            select(PlaceExternalId).where(PlaceExternalId.provider == "osm", PlaceExternalId.external_id == it.ref)
-        )
-        place = db.get(Place, ext.place_id) if ext else None
-        t = it.tags
-        short, long = describe(it.categories, t)
-        if place is None:
-            slug, n = slugify(it.name), 1
-            while db.scalar(select(Place.id).where(Place.slug == slug)):
-                n += 1
-                slug = f"{slugify(it.name)}-{n}"
-            place = Place(
-                slug=slug,
-                name=it.name,
-                city_id=city.id,
-                is_demo=False,
-                source_id=source.id,
-                external_ref=it.ref,
-                status="published" if publish else "draft",
-                confidence=0.5 if publish else 0.4,
-                cover_gradient=GRADIENTS.get(it.categories[0], ["#1E3A4C", "#0E0F13"]),
-            )
-            db.add(place)
-            created += 1
-        else:
-            updated += 1
-        place.name, place.short_description, place.description = it.name, short, long
-        place.location = f"SRID=4326;POINT({it.lng} {it.lat})"
-        district = _nearest_district(db, city, it.lat, it.lng)
-        place.district_id = district.id if district else None
-        place.website = t.get("website") or t.get("contact:website")
-        place.phone = t.get("phone") or t.get("contact:phone")
-        place.wheelchair = {"yes": True, "no": False}.get(t.get("wheelchair"))
-        place.outdoor = True if t.get("outdoor_seating") == "yes" else None
-        place.wifi = True if t.get("internet_access") in ("wlan", "yes") else None
-        place.card_payment = True if t.get("payment:cards") == "yes" or t.get("payment:credit_cards") == "yes" else None
-        place.has_parking = True if t.get("parking") or t.get("parking:fee") else None
-        address = " ".join(x for x in (t.get("addr:housenumber"), t.get("addr:street")) if x)
-        place.address = address or None
-        set_taxonomy(
-            db,
-            place,
-            it.categories,
-            ["plein-air"] if (place.outdoor or "plage" in it.categories or "nature" in it.categories) else [],
-        )
-        place.hours = [
-            OpeningHours(weekday=d, opens=time.fromisoformat(a), closes=time.fromisoformat(b))
-            for d, a, b in parse_hours(t.get("opening_hours"))
-        ]
-        db.flush()
-        if ext is None:
-            db.add(PlaceExternalId(place_id=place.id, provider="osm", external_id=it.ref))
-        wd = t.get("wikidata")
-        if wd and not db.scalar(
-            select(PlaceExternalId.id).where(PlaceExternalId.provider == "wikidata", PlaceExternalId.external_id == wd)
-        ):
-            db.add(PlaceExternalId(place_id=place.id, provider="wikidata", external_id=wd))
+        try:
+            with db.begin_nested():
+                place, is_new = _upsert(db, city, source, it, publish)
+        except Exception as e:  # une fiche OSM malformée ne bloque pas tout l'import
+            skipped += 1
+            log.warning("Lieu OSM ignoré %s : %s", it.ref, type(e).__name__)
+            continue
+        created, updated = created + is_new, updated + (not is_new)
         touched.append(place.id)
     db.commit()
     if publish and touched:

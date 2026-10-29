@@ -86,6 +86,9 @@ def concierge(body: ConciergeRequest, db: DB, user: CurrentUser):
         raise ApiError(400, "invalid_location", "lat et lng doivent être fournis ensemble")
     used, quota = consume_concierge(db, user, local_now(s.timezone).date())
     city_slug = body.city or (user.preferences.home_city if user.preferences else None) or s.default_city
+    mentioned = intent.find_city(_context_message(body), {c.name: c.slug for c in db.scalars(select(City))})
+    if mentioned and body.lat is None:
+        city_slug = mentioned  # « une plage à Grand-Bassam » : la ville citée prime sur la ville habituelle
     city = db.scalar(select(City).where(City.slug == city_slug))
     if not city:
         raise ApiError(400, "unknown_city", "Ville inconnue")

@@ -93,3 +93,12 @@ def test_llm_extract_only_allowed_values_and_fails_safely():
     assert p.categories == ["plage"] and p.budget_max_fcfa == 9000 and p.open_now
     down = AnthropicProvider("k", "m", httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(503))))
     assert down.extract("...", ["plage"], []) is None and down.compose("...", []) is None
+
+
+def test_find_city_in_message():
+    from app.services.intent import find_city
+
+    cities = {"Abidjan": "abidjan", "Grand-Bassam": "grand-bassam", "Assinie": "assinie"}
+    assert find_city("une plage à Grand-Bassam ce week-end", cities) == "grand-bassam"
+    assert find_city("on va à Bassam ?", cities) == "grand-bassam"
+    assert find_city("un maquis à Yopougon", cities) is None

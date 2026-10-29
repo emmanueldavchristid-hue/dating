@@ -13,7 +13,7 @@ import re
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app.adapters.embeddings import STOP, _norm, get_embedder
@@ -82,6 +82,12 @@ def index_places(db: Session, place_ids: list[uuid.UUID] | None = None, rebuild:
         indexed = select(PlaceDocument.place_id).where(PlaceDocument.model == embedder.name)
         stmt = stmt.where(Place.id.not_in(indexed))
     places = list(db.scalars(stmt))
+    # un lieu dépublié (brouillon, fermé, archivé) ne doit plus nourrir le RAG
+    db.execute(
+        delete(PlaceDocument).where(PlaceDocument.place_id.in_(select(Place.id).where(Place.status != "published")))
+    )
+    db.execute(update(Place).where(Place.status != "published", Place.embedding.is_not(None)).values(embedding=None))
+    db.commit()
     for i in range(0, len(places), batch):
         chunk = places[i : i + batch]
         docs = [

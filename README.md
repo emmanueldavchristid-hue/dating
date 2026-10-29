@@ -73,7 +73,10 @@ Détails et builds pour les stores : `mobile/README.md`.
 
 ```bash
 cd backend
-python -m app.importers --cities abidjan,grand-bassam,assinie --publish --purge-demo   # OSM + photos libres + index RAG
+# Extrait OSM Côte d'Ivoire (https://download.geofabrik.de/africa/ivory-coast-latest.osm.pbf), lu localement :
+python -m app.importers.pbf --file data/ivory-coast-latest.osm.pbf --publish
+python -m app.importers.wikidata --publish          # musées, parcs, plages… + photos libres (lent : limites Wikimedia)
+python -m app.importers --cities abidjan,grand-bassam,assinie --publish --purge-demo   # variante via l'API Overpass
 pip install -r requirements-ai.txt && EMBEDDINGS_PROVIDER=fastembed python -m app.tasks index-embeddings --rebuild   # recherche « par le sens »
 ```
 

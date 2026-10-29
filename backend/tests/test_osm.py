@@ -54,7 +54,7 @@ def test_import_drafts_then_update_without_duplicates():
         assert import_places(db, city, parse_elements(SAMPLE)) == (0, 2)
         p = db.scalar(select(Place).where(Place.external_ref == "node/1"))
         assert p.status == "draft" and p.verified_at is None and p.wheelchair is True and len(p.hours) == 6
-        assert "ivorian, grill" in p.short_description and p.district is not None and p.is_demo is False
+        assert "ivoirienne, grillades" in p.short_description and p.district is not None and p.is_demo is False
         assert (
             db.scalar(
                 select(PlaceExternalId.external_id).where(
@@ -155,3 +155,58 @@ def test_wikimedia_rejects_non_free_license():
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as client:
         assert file_info(client, ["a.jpg"]) == {}
+
+
+def test_multi_value_tags_are_sanitized():
+    data = {
+        "elements": [
+            {
+                "type": "node",
+                "id": 88,
+                "lat": 5.31,
+                "lon": -4.1,
+                "tags": {
+                    "amenity": "restaurant",
+                    "name": "Campement Test",
+                    "phone": "+225 06 49 12 19;+225 01 91 56 05;+225 59 58 33 58",
+                },
+            }
+        ]
+    }
+    with SessionLocal() as db:
+        city = db.scalar(select(City).where(City.slug == "abidjan"))
+        import_places(db, city, parse_elements(data), publish=False)
+        assert db.scalar(select(Place).where(Place.external_ref == "node/88")).phone == "+225 06 49 12 19"
+
+
+def test_generic_names_and_name_categories():
+    from app.importers.osm import describe, is_generic_name, name_categories
+
+    for n in (
+        "Maquis",
+        "Kiosque à café",
+        "Buvette Traditionnelle",
+        "Garbadrome",
+        "Restaurant Africain",
+        "Café Express",
+    ):
+        assert is_generic_name(n), n
+    for n in ("Maquis Chez Tantie Awa", "Bushman Café", "Le Toit d'Abidjan"):
+        assert not is_generic_name(n), n
+    assert name_categories("Maquis Chez Tantie") == {"maquis"} and "lounge" in name_categories("Sky Lounge")
+    assert (
+        describe(["restaurant"], {"cuisine": "african;french;fish;grill;pizza"})[0]
+        == "Restaurant · cuisine africaine, française, poisson, grillades"
+    )
+
+
+def test_generic_place_is_kept_as_draft():
+    data = {
+        "elements": [
+            {"type": "node", "id": 99, "lat": 5.31, "lon": -4.0, "tags": {"amenity": "restaurant", "name": "Maquis"}}
+        ]
+    }
+    with SessionLocal() as db:
+        city = db.scalar(select(City).where(City.slug == "abidjan"))
+        import_places(db, city, parse_elements(data), publish=True)
+        assert db.scalar(select(Place).where(Place.external_ref == "node/99")).status == "draft"
