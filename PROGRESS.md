@@ -34,7 +34,7 @@ pépites par l'équipe, test sur de vrais téléphones, hébergement.
 
 ## Simulé, désactivé ou non vérifié
 
-- **Réseau de développement** : `overpass-api.de`, `wikidata.org`, `commons.wikimedia.org`, `huggingface.co` sont bloqués → à autoriser dans claude.ai (Paramètres → Capacités).
+- **Réseau de développement** : Overpass et Geofabrik coupent les connexions (contourné via le fichier PBF fourni) ; Wikimedia limite l'adresse du serveur (collecte depuis un ordinateur) ; les gros fichiers Hugging Face passent par `us.aws.cdn.hf.co`, non autorisé.
 - **Recherche « par le sens »** : encodeur hors ligne (mots, trigrammes, synonymes métier) en attendant le modèle multilingue `fastembed`.
 - **IA du concierge** : mode règles ; adaptateur Claude prêt, testé avec réponses simulées, sans clé réelle.
 - **Mobile sur appareil réel** : non testé ici (carte native, GPS, partage, haptique, appel). Icône et écran de démarrage par défaut.
@@ -55,8 +55,8 @@ pépites par l'équipe, test sur de vrais téléphones, hébergement.
 
 1. Photos Wikimedia (collecte depuis un ordinateur) et modèle sémantique `fastembed` (fichiers à récupérer), puis réindexation.
 2. Validation des pépites candidates et curation des brouillons.
-2. Test sur téléphones avec Expo Go ; corriger ce qui ne se voit que sur appareil (carte, permissions).
-3. Clé API Claude → concierge IA ; contrôle qualité des réponses.
-4. Icône, écran de démarrage, nom définitif.
-5. Hébergement (API + base + web), puis builds stores (EAS).
-6. Agrégateur Mobile Money, OSRM, stockage photos S3 + curation terrain.
+3. Test sur téléphones avec Expo Go ; corriger ce qui ne se voit que sur appareil (carte, permissions).
+4. Clé API Claude → concierge IA ; contrôle qualité des réponses.
+5. Icône, écran de démarrage, nom définitif.
+6. Hébergement (API + base + web), puis builds stores (EAS).
+7. Agrégateur Mobile Money, OSRM, stockage photos S3 + curation terrain.
