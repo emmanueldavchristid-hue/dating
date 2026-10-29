@@ -18,8 +18,24 @@ from app.models import Media, Place, PlaceExternalId
 
 WIKIDATA_API = "https://www.wikidata.org/w/api.php"
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
-UA = {"User-Agent": "sortie-importer/0.2 (contact: voir README)"}
+UA = {"User-Agent": "SortieImporter/0.2 (https://github.com/emmanueldavchristid-hue/dating) python-httpx"}
 FREE = re.compile(r"^(cc0|cc[- ]by(-sa)?([- ][0-9.]+)?|public domain|pd.*)$", re.I)
+
+
+def _get(client: httpx.Client, url: str, params: dict) -> dict:
+    """GET avec respect des limitations Wikimedia (429/503 : attente croissante, Retry-After)."""
+    import time
+
+    wait = 5.0
+    for _ in range(8):
+        r = client.get(url, params=params)
+        if r.status_code in (429, 503):
+            time.sleep(float(r.headers.get("Retry-After") or wait))
+            wait = min(wait * 2, 120)
+            continue
+        r.raise_for_status()
+        return r.json()
+    raise RuntimeError("Wikimedia indisponible après plusieurs tentatives")
 
 
 def _strip_html(s: str | None) -> str | None:
@@ -30,12 +46,12 @@ def image_files(client: httpx.Client, qids: list[str]) -> dict[str, str]:
     """QID -> nom du fichier Commons (P18)."""
     out = {}
     for i in range(0, len(qids), 50):
-        r = client.get(
+        data = _get(
+            client,
             WIKIDATA_API,
-            params={"action": "wbgetentities", "ids": "|".join(qids[i : i + 50]), "props": "claims", "format": "json"},
+            {"action": "wbgetentities", "ids": "|".join(qids[i : i + 50]), "props": "claims", "format": "json"},
         )
-        r.raise_for_status()
-        for qid, ent in r.json().get("entities", {}).items():
+        for qid, ent in data.get("entities", {}).items():
             claims = ent.get("claims", {}).get("P18", [])
             if claims:
                 out[qid] = claims[0]["mainsnak"]["datavalue"]["value"]
@@ -46,9 +62,10 @@ def file_info(client: httpx.Client, filenames: list[str]) -> dict[str, dict]:
     """Nom de fichier -> {url, license, artist, width, height} pour les seules licences libres."""
     out = {}
     for i in range(0, len(filenames), 40):
-        r = client.get(
+        data = _get(
+            client,
             COMMONS_API,
-            params={
+            {
                 "action": "query",
                 "titles": "|".join(f"File:{f}" for f in filenames[i : i + 40]),
                 "prop": "imageinfo",
@@ -57,9 +74,8 @@ def file_info(client: httpx.Client, filenames: list[str]) -> dict[str, dict]:
                 "format": "json",
             },
         )
-        r.raise_for_status()
-        pages = r.json().get("query", {}).get("pages", {})
-        norm = {n["to"]: n["from"] for n in r.json().get("query", {}).get("normalized", [])}
+        pages = data.get("query", {}).get("pages", {})
+        norm = {n["to"]: n["from"] for n in data.get("query", {}).get("normalized", [])}
         for page in pages.values():
             info = (page.get("imageinfo") or [None])[0]
             if not info:

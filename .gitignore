@@ -26,3 +26,5 @@ next-env.d.ts
 .expo/
 dist/
 web-build/
+backend/data/
+*.osm.pbf
