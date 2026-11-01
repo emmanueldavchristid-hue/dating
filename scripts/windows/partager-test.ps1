@@ -61,13 +61,23 @@ Set-Location (Join-Path $Racine "mobile")
 "EXPO_PUBLIC_API_URL=$url/api/v1" | Set-Content -Path ".env" -Encoding ASCII
 if (-not (Test-Path "node_modules")) { npm install }
 if (-not (Test-Path "node_modules\@expo\ngrok")) { npm install --no-save "@expo/ngrok@^4.1.0" }
-# Le lien de partage Expo exige un compte Expo (gratuit : https://expo.dev/signup)
+# Le lien de partage Expo exige un compte Expo (gratuit : https://expo.dev/signup).
+# La connexion par navigateur plante sous Windows : on utilise un jeton d'accès, mémorisé pour l'utilisateur Windows.
+if (-not $env:EXPO_TOKEN) { $env:EXPO_TOKEN = [Environment]::GetEnvironmentVariable("EXPO_TOKEN", "User") }
 npx expo whoami *> $null
 if ($LASTEXITCODE -ne 0) {
     Write-Host ""
-    Write-Host "Connexion à ton compte Expo (gratuit). Pas encore de compte ? Crée-le sur https://expo.dev/signup puis reviens ici." -ForegroundColor Yellow
-    npx expo login
-    if ($LASTEXITCODE -ne 0) { Echec "Connexion Expo impossible. Relance partager-test.bat après avoir créé ton compte." }
+    Write-Host "Il faut un jeton d'accès Expo (une seule fois) :" -ForegroundColor Yellow
+    Write-Host " 1. Ouvre https://expo.dev/settings/access-tokens (connecte-toi si besoin)" -ForegroundColor Yellow
+    Write-Host " 2. « Create token », nomme-le « PC », puis copie le jeton" -ForegroundColor Yellow
+    $jeton = Read-Host " 3. Colle le jeton ici puis Entrée"
+    $jeton = $jeton.Trim()
+    if (-not $jeton) { Echec "Aucun jeton saisi." }
+    $env:EXPO_TOKEN = $jeton
+    npx expo whoami
+    if ($LASTEXITCODE -ne 0) { Echec "Jeton refusé par Expo. Vérifie qu'il a été copié en entier." }
+    [Environment]::SetEnvironmentVariable("EXPO_TOKEN", $jeton, "User")
+    Write-Host "Jeton enregistré pour les prochaines fois." -ForegroundColor Green
 }
 Write-Host ""
 Write-Host "Quand le QR code s'affiche :" -ForegroundColor Green
