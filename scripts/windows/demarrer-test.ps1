@@ -22,6 +22,13 @@ function Echec($texte) {
     exit 1
 }
 
+# 0. Mise à jour du projet (récupère les dernières corrections) ------------------
+if (Get-Command git -ErrorAction SilentlyContinue) {
+    Etape "Mise à jour du projet"
+    git pull --ff-only
+    if ($LASTEXITCODE -ne 0) { Write-Host "Mise à jour impossible (modifications locales ?) : on continue avec la version actuelle." -ForegroundColor Yellow }
+}
+
 # 1. Prérequis ---------------------------------------------------------------
 Etape "Vérification de Docker Desktop et Node.js"
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { Echec "Docker Desktop est introuvable. Installe-le depuis https://www.docker.com/products/docker-desktop puis relance." }
