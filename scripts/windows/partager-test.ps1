@@ -61,6 +61,14 @@ Set-Location (Join-Path $Racine "mobile")
 "EXPO_PUBLIC_API_URL=$url/api/v1" | Set-Content -Path ".env" -Encoding ASCII
 if (-not (Test-Path "node_modules")) { npm install }
 if (-not (Test-Path "node_modules\@expo\ngrok")) { npm install --no-save "@expo/ngrok@^4.1.0" }
+# Le lien de partage Expo exige un compte Expo (gratuit : https://expo.dev/signup)
+npx expo whoami *> $null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "Connexion à ton compte Expo (gratuit). Pas encore de compte ? Crée-le sur https://expo.dev/signup puis reviens ici." -ForegroundColor Yellow
+    npx expo login
+    if ($LASTEXITCODE -ne 0) { Echec "Connexion Expo impossible. Relance partager-test.bat après avoir créé ton compte." }
+}
 Write-Host ""
 Write-Host "Quand le QR code s'affiche :" -ForegroundColor Green
 Write-Host " 1. Copie le lien qui commence par exp:// (ligne « Metro: exp://... »)." -ForegroundColor Green

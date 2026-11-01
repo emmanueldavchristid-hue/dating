@@ -54,7 +54,7 @@ Double-cliquer sur **`partager-test.bat`** (en administrateur). Le script :
 1. démarre tout comme d'habitude ;
 2. donne des mots de passe aléatoires aux comptes admin et curateur (affichés une fois, à garder pour soi) ;
 3. ouvre un tunnel Cloudflare temporaire vers le serveur (gratuit, sans compte) ;
-4. lance l'app en mode tunnel et affiche un lien `exp://…`.
+4. lance l'app en mode tunnel et affiche un lien `exp://…` (il faut un **compte Expo gratuit** : https://expo.dev/signup ; le script demande de s'y connecter la première fois).
 
 À envoyer à l'ami : le lien `exp://…` + « installe Expo Go, ouvre-le, *Enter URL manually*, colle le lien,
 connecte-toi avec `user@sortie.demo` / `Demo-2026!` ».
