@@ -114,6 +114,23 @@ def flag_gem_candidates(db, limit: int = 60) -> int:
     return len(places)
 
 
+def secure_demo_staff(db) -> int:
+    """Avant de partager l'app hors du réseau local : mots de passe aléatoires pour les comptes
+    admin/curateur de démonstration (leur mot de passe par défaut est public dans le README)."""
+    import secrets
+
+    from app.models import User
+    from app.security import hash_password
+
+    users = db.scalars(select(User).where(User.email.in_(["admin@sortie.demo", "curateur@sortie.demo"]))).all()
+    for u in users:
+        pwd = secrets.token_urlsafe(12)
+        u.password_hash = hash_password(pwd)
+        print(f"{u.email} : {pwd}")
+    db.commit()
+    return len(users)
+
+
 def main() -> None:
     from app.services.rag import index_places
 
@@ -121,6 +138,7 @@ def main() -> None:
         "purge-history": purge_history,
         "flag-for-review": flag_for_review,
         "flag-gem-candidates": flag_gem_candidates,
+        "secure-demo-staff": secure_demo_staff,
         "index-embeddings": lambda db: index_places(db, rebuild="--rebuild" in sys.argv),
     }
     if len(sys.argv) < 2 or sys.argv[1] not in jobs:

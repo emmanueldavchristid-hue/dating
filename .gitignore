@@ -29,3 +29,5 @@ web-build/
 backend/data/
 *.osm.pbf
 backend/media/
+scripts/windows/outils/
+scripts/windows/demarrage.log

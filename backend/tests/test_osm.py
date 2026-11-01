@@ -241,4 +241,6 @@ def test_junk_and_lowercase_names():
 
     assert is_generic_name("1") and is_generic_name("A2") and is_generic_name("...")
     assert tidy_name("espace  georges tai benson") == "Espace georges tai benson"
-    assert tidy_name("O'gourmet") == "O'gourmet" and tidy_name("iCafé") == "iCafé" and tidy_name("chez awa") == "Chez awa"
+    assert (
+        tidy_name("O'gourmet") == "O'gourmet" and tidy_name("iCafé") == "iCafé" and tidy_name("chez awa") == "Chez awa"
+    )

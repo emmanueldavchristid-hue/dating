@@ -350,3 +350,28 @@ def test_gem_candidates_are_proposed_not_promoted():
             select(CurationItem).where(CurationItem.reason == "gem_candidate", CurationItem.status == "pending")
         ).all()
         assert all(i.place.tier == "free" for i in items)
+
+
+def test_secure_demo_staff_changes_passwords(client):
+    from app.db import SessionLocal
+    from app.tasks import secure_demo_staff
+
+    with SessionLocal() as db:
+        assert secure_demo_staff(db) == 2
+    assert (
+        client.post(f"{API}/auth/login", json={"email": "admin@sortie.demo", "password": "Demo-2026!"}).status_code
+        == 401
+    )
+    assert (
+        client.post(f"{API}/auth/login", json={"email": "user@sortie.demo", "password": "Demo-2026!"}).status_code
+        == 200
+    )
+    from sqlalchemy import select
+
+    from app.models import User
+    from app.security import hash_password
+
+    with SessionLocal() as db:  # remet les mots de passe de démo pour les autres tests
+        for u in db.scalars(select(User).where(User.email.in_(["admin@sortie.demo", "curateur@sortie.demo"]))):
+            u.password_hash = hash_password("Demo-2026!")
+        db.commit()

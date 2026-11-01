@@ -47,3 +47,17 @@ Console d'administration web (validation des pépites, curation) : relancer avec
 | Expo Go indique que le projet n'est pas compatible | Mettre Expo Go à jour depuis le store. Sinon, signaler le message : on passera par une version de test installable (EAS). |
 | Mauvaise adresse IP détectée | `demarrer-test.bat -Ip 192.168.1.20` (voir l'adresse avec `ipconfig`). |
 | Autre erreur | Envoyer le fichier `scripts\windows\demarrage.log`. |
+
+## Faire tester un ami à distance (autre Wi-Fi)
+
+Double-cliquer sur **`partager-test.bat`** (en administrateur). Le script :
+1. démarre tout comme d'habitude ;
+2. donne des mots de passe aléatoires aux comptes admin et curateur (affichés une fois, à garder pour soi) ;
+3. ouvre un tunnel Cloudflare temporaire vers le serveur (gratuit, sans compte) ;
+4. lance l'app en mode tunnel et affiche un lien `exp://…`.
+
+À envoyer à l'ami : le lien `exp://…` + « installe Expo Go, ouvre-le, *Enter URL manually*, colle le lien,
+connecte-toi avec `user@sortie.demo` / `Demo-2026!` ».
+
+Limites : le PC doit rester allumé et connecté pendant le test ; le lien change à chaque lancement ;
+c'est un mode d'essai, pas une mise en ligne (le jour venu, on hébergera serveur et base sur un vrai service).
