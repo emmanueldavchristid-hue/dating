@@ -59,5 +59,15 @@ Double-cliquer sur **`partager-test.bat`** (en administrateur). Le script :
 À envoyer à l'ami : le lien `exp://…` + « installe Expo Go, ouvre-le, *Enter URL manually*, colle le lien,
 connecte-toi avec `user@sortie.demo` / `Demo-2026!` ».
 
+**Ami sur iPhone** : Expo Go sur iPhone n'ouvre le projet que si l'app Expo Go est connectée au **même compte Expo**
+que le PC (Android n'a pas cette contrainte). Pour ne pas donner son compte personnel :
+1. créer un second compte Expo gratuit réservé aux testeurs (ex. `sortie-test`) ;
+2. sur ce compte, créer un jeton d'accès ;
+3. lancer `changer-compte-expo.bat`, puis `partager-test.bat`, et coller ce jeton ;
+4. l'ami, dans Expo Go : icône du compte en haut à droite → se déconnecter → se connecter avec le compte testeur → *Try again*.
+
+Si la fenêtre s'arrête sur `Unexpected server response: 409` : un autre lancement occupe déjà le tunnel.
+Fermer toutes les fenêtres du script, lancer `arreter-test.bat`, puis relancer **une seule fois** `partager-test.bat`.
+
 Limites : le PC doit rester allumé et connecté pendant le test ; le lien change à chaque lancement ;
 c'est un mode d'essai, pas une mise en ligne (le jour venu, on hébergera serveur et base sur un vrai service).
