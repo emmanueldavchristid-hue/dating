@@ -35,11 +35,14 @@ Ordre de travail : semaine 1 corrections rapides → carte → vrai concierge IA
       les noms de modèles disponibles (`/models`) et ajuster `GROQ_MODEL` / `GEMINI_MODEL` / `NVIDIA_MODEL`
 - [x] Trajet tracé dans l'app (OSRM auto-hébergé sur le PC, préparé une fois par le script depuis l'extrait
       OpenStreetMap ; `GET /routes`) et durée calculée « sans trafic » — à vérifier sur le PC au prochain lancement
-- [ ] Photos : Jason décide (curation terrain seule ou Google Places en appoint) ; photos Wikimedia à copier
-      sur notre stockage
+- [ ] Photos et nouveaux lieux : Jason repère pépites et nouveaux endroits sur TikTok/Instagram. Proposition
+      (en attente de son accord) : coller un lien TikTok/Instagram dans l'admin → lieu créé + vidéo officielle
+      intégrée sur la fiche (lecteur officiel, crédit au créateur, pas de copie) ; photos des lieux partenaires ;
+      bouton « Proposer un lieu » pour les utilisateurs. Pas d'aspiration (interdit par leurs conditions).
 - [ ] Accueil éditorialisé « Ce week-end » + agenda d'événements
-- [ ] Partage avec lien (page web publique par lieu et par soirée), WhatsApp en premier
-- [ ] Connexion par téléphone, mot de passe oublié, Google/Apple
+- [ ] Partage avec lien (page web publique par lieu et par soirée), WhatsApp en premier — après le choix de
+      l'hébergement (décision du 5/11 : plus tard)
+- [ ] Mot de passe oublié par e-mail (décision du 5/11 : connexion par e-mail seulement pour l'instant, pas de SMS)
 - [ ] Soirée : modèles (date, afterwork, anniversaire, Bassam) avec ordre logique et heures
 - [ ] Pépites : 30 vraies pépites visitées avant le premium ; prix ; paiement Mobile Money
 - [ ] Nom définitif, icône, CGU et confidentialité, hébergement, builds stores
