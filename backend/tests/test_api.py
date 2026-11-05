@@ -293,6 +293,25 @@ def test_search_understands_activity_words_and_districts(client):
     assert groups and all(g["categories"] for g in groups)
 
 
+def test_route_unavailable_without_provider_then_drawn_with_osrm(client, monkeypatch):
+    params = {"from_lat": 5.30, "from_lng": -4.00, "to_lat": 5.32, "to_lng": -3.98}
+    r = client.get(f"{API}/routes", params=params)
+    assert r.status_code == 503 and r.json()["code"] == "routing_unavailable"
+
+    from app.adapters.routing import Route
+    from app.routers import meta
+
+    class Fake:
+        name = "osrm"
+
+        def route(self, origin, dest, mode="driving"):
+            return Route(mode, 18, 7.2, [origin, dest], "osrm")
+
+    monkeypatch.setattr(meta, "get_routing", lambda: Fake())
+    r = client.get(f"{API}/routes", params=params).json()
+    assert r["minutes"] == 18 and r["traffic"] is False and r["path"][0] == {"lat": 5.30, "lng": -4.00}
+
+
 def test_billing_is_honest(client, free_h):
     plans = client.get(f"{API}/billing/plans").json()
     assert [p["code"] for p in plans] == ["free", "plus", "insider"]

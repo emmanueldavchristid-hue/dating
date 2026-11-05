@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Platform, StyleSheet, View } from "react-native";
-import MapView, { Marker, type MapStyleElement } from "react-native-maps";
+import MapView, { Marker, Polyline, type MapStyleElement } from "react-native-maps";
 import { colors } from "@/theme/tokens";
 import { categoryIcon, Icon } from "./Icon";
 import type { PlacesMapProps } from "./PlacesMap.types";
@@ -24,7 +24,7 @@ const DARK: MapStyleElement[] = [
 
 const DELTA = { latitudeDelta: 0.09, longitudeDelta: 0.09 };
 
-export function PlacesMap({ places, selectedId, onSelect, center, user, recenterKey, bottomInset, onRegionChange }: PlacesMapProps) {
+export function PlacesMap({ places, selectedId, onSelect, center, user, recenterKey, bottomInset, onRegionChange, route }: PlacesMapProps) {
   const ref = useRef<MapView>(null);
   const start = user ?? center;
 
@@ -32,6 +32,15 @@ export function PlacesMap({ places, selectedId, onSelect, center, user, recenter
     const p = places.find((x) => x.id === selectedId);
     if (p?.location) ref.current?.animateCamera({ center: { latitude: p.location.lat, longitude: p.location.lng } }, { duration: 350 });
   }, [selectedId, places]);
+
+  // Trajet affiché : la carte cadre le départ et l'arrivée.
+  useEffect(() => {
+    if (!route || route.length < 2) return;
+    ref.current?.fitToCoordinates(
+      route.map((p) => ({ latitude: p.lat, longitude: p.lng })),
+      { edgePadding: { top: 160, right: 40, bottom: bottomInset + 120, left: 40 }, animated: true },
+    );
+  }, [route, bottomInset]);
 
   useEffect(() => {
     if (recenterKey === 0) return;
@@ -59,6 +68,9 @@ export function PlacesMap({ places, selectedId, onSelect, center, user, recenter
       mapPadding={{ top: 0, right: 0, left: 0, bottom: bottomInset }}
       accessibilityLabel="Carte des lieux"
     >
+      {route && route.length > 1 ? (
+        <Polyline coordinates={route.map((p) => ({ latitude: p.lat, longitude: p.lng }))} strokeColor={colors.accent} strokeWidth={5} lineCap="round" lineJoin="round" />
+      ) : null}
       {places.map((p) => {
         if (!p.location) return null;
         const selected = p.id === selectedId;

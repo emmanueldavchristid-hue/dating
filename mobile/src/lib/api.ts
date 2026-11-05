@@ -7,6 +7,8 @@ import type {
   Capabilities,
   Category,
   CategoryGroup,
+  LatLng,
+  RouteResult,
   ChatTurn,
   City,
   CityRaw,
@@ -304,6 +306,8 @@ export const api = {
   meta: {
     categories: () => request<Category[]>("/meta/categories", { auth: false }),
     groups: () => request<CategoryGroup[]>("/meta/groups", { auth: false }),
+    route: (from: LatLng, to: LatLng, signal?: AbortSignal) =>
+      request<RouteResult>("/routes", { auth: false, signal, query: { from_lat: from.lat, from_lng: from.lng, to_lat: to.lat, to_lng: to.lng } }),
     ambiances: () => request<Ambiance[]>("/meta/ambiances", { auth: false }),
     cities: () => request<CityRaw[]>("/meta/cities", { auth: false }).then((list) => list.map(normalizeCity)),
     capabilities: () => request<Capabilities>("/meta/capabilities", { auth: false }),

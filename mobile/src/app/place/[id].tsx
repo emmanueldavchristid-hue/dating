@@ -309,7 +309,7 @@ export default function PlaceScreen() {
               <Fact icon="clock" label="Horaires" value={openStatusLabel(p.open_status, p.closes_at)} color={openColor(p.open_status)} />
             ) : null}
             {dist && !fromCenter ? (
-              <Fact icon="pin" label="Distance" value={travel ? `${dist}\n${travel} · ${p.travel?.source}` : dist} />
+              <Fact icon="pin" label="Distance" value={travel ? `${travel}, sans trafic\n${dist}` : dist} />
             ) : null}
             {budget || level ? <Fact icon="card" label={budget && level ? `Budget / pers. · ${level}` : "Budget / pers."} value={budget ?? level!} /> : null}
           </View>

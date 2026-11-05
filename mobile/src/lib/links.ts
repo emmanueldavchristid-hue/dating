@@ -40,7 +40,7 @@ export function goThere(lat: number, lng: number, label: string, showInApp: () =
   const open = (url: string) => Linking.openURL(url).catch(() => Alert.alert("Impossible d'ouvrir l'application"));
   if (Platform.OS === "web") return void open(directionsUrl(lat, lng, "google")); // pas de feuille d'options sur le web
   const options: { text: string; onPress?: () => void; style?: "cancel" }[] = [
-    { text: "Voir sur la carte de l'app", onPress: showInApp },
+    { text: "Voir le trajet dans l'app", onPress: showInApp },
     { text: "Guidage avec Google Maps", onPress: () => open(directionsUrl(lat, lng, "google")) },
     { text: "Guidage avec Waze", onPress: () => open(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`) },
   ];

@@ -150,3 +150,30 @@ def test_find_city_in_message():
     assert find_city("une plage à Grand-Bassam ce week-end", cities) == "grand-bassam"
     assert find_city("on va à Bassam ?", cities) == "grand-bassam"
     assert find_city("un maquis à Yopougon", cities) is None
+
+
+def test_osrm_route_returns_path_and_fails_safely():
+    from app.adapters.routing import OsrmRouting
+
+    body = {
+        "routes": [
+            {
+                "duration": 1080.0,
+                "distance": 7240.0,
+                "geometry": {"coordinates": [[-4.0, 5.3], [-3.99, 5.31], [-3.98, 5.32]]},
+            }
+        ]
+    }
+    seen = []
+
+    def ok(r):
+        seen.append(str(r.url))
+        return httpx.Response(200, json=body)
+
+    route = OsrmRouting("http://osrm", httpx.Client(transport=httpx.MockTransport(ok))).route(
+        (5.3, -4.0), (5.32, -3.98)
+    )
+    assert route.minutes == 18 and route.distance_km == 7.2 and route.path[0] == (5.3, -4.0)
+    assert "/route/v1/driving/-4.0,5.3;-3.98,5.32" in seen[0]
+    ko = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(500)))
+    assert OsrmRouting("http://osrm", ko).route((5.3, -4.0), (5.32, -3.98)) is None

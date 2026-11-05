@@ -301,3 +301,13 @@ export interface ChatTurn {
   role: "user" | "assistant";
   content: string;
 }
+
+/** Trajet par la route calculé par le serveur (OSRM) : tracé et durée sans trafic. */
+export interface RouteResult {
+  mode: "driving" | "walking";
+  minutes: number;
+  distance_km: number;
+  path: LatLng[];
+  source: string;
+  traffic: boolean;
+}

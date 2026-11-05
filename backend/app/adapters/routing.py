@@ -17,6 +17,15 @@ class Travel:
     source: str
 
 
+@dataclass(frozen=True)
+class Route:
+    mode: str
+    minutes: int
+    distance_km: float
+    path: list[tuple[float, float]]  # (lat, lng) le long des routes
+    source: str
+
+
 class RoutingProvider(Protocol):
     name: str
 
@@ -24,12 +33,17 @@ class RoutingProvider(Protocol):
         self, origin: tuple[float, float], dests: list[tuple[float, float]], mode: str = "driving"
     ) -> list[Travel | None]: ...
 
+    def route(self, origin: tuple[float, float], dest: tuple[float, float], mode: str = "driving") -> Route | None: ...
+
 
 class NoRouting:
     name = "none"
 
     def durations(self, origin, dests, mode="driving"):
         return [None] * len(dests)
+
+    def route(self, origin, dest, mode="driving"):
+        return None
 
 
 class OsrmRouting:
@@ -55,6 +69,21 @@ class OsrmRouting:
         except (httpx.HTTPError, KeyError, IndexError, ValueError):
             return [None] * len(dests)
         return [Travel(mode, max(1, round(d / 60)), "osrm") if d is not None else None for d in row]
+
+    def route(self, origin, dest, mode="driving"):
+        """Trajet réel par la route (service /route) : tracé, distance et durée calculée, sans trafic."""
+        profile = "driving" if mode == "driving" else "foot"
+        coords = ";".join(f"{lng},{lat}" for lat, lng in (origin, dest))
+        try:
+            r = self.client.get(
+                f"{self.base_url}/route/v1/{profile}/{coords}", params={"overview": "full", "geometries": "geojson"}
+            )
+            r.raise_for_status()
+            best = r.json()["routes"][0]
+            path = [(lat, lng) for lng, lat in best["geometry"]["coordinates"]]
+        except (httpx.HTTPError, KeyError, IndexError, ValueError, TypeError):
+            return None
+        return Route(mode, max(1, round(best["duration"] / 60)), round(best["distance"] / 1000, 1), path, "osrm")
 
 
 def get_routing() -> RoutingProvider:

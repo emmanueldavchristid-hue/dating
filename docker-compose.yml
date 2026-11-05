@@ -32,6 +32,15 @@ services:
       interval: 5s
       retries: 30
 
+  # Itinéraires tracés dans l'app (OSRM, auto-hébergé, sans quota). Données préparées une fois depuis l'extrait
+  # OpenStreetMap par scripts/windows/demarrer-test.ps1, puis : docker compose --profile itineraires up -d osrm
+  osrm:
+    image: ${OSRM_IMAGE:-ghcr.io/project-osrm/osrm-backend:v5.27.1}
+    profiles: ["itineraires"]
+    command: osrm-routed --algorithm mld /data/ci.osrm
+    volumes: ["${OSRM_DATA:-./infra/osrm/data}:/data"]
+    restart: unless-stopped
+
   web:
     build:
       context: ./web

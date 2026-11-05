@@ -36,8 +36,8 @@ describe("formatage", () => {
   });
   it("trajet uniquement si fourni", () => {
     expect(travelLabel(null)).toBeNull();
-    expect(sp(travelLabel({ mode: "driving", minutes: 12.4, source: "osrm" })!)).toBe("12 min en voiture");
-    expect(sp(travelLabel({ mode: "walking", minutes: 75, source: "osrm" })!)).toBe("1 h15 à pied");
+    expect(sp(travelLabel({ mode: "driving", minutes: 12.4, source: "osrm" })!)).toBe("≈ 12 min en voiture");
+    expect(sp(travelLabel({ mode: "walking", minutes: 75, source: "osrm" })!)).toBe("≈ 1 h15 à pied");
   });
   it("statut d'ouverture et note", () => {
     expect(openStatusLabel("unknown")).toBe("Horaires non vérifiés");

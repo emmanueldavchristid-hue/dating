@@ -1,11 +1,17 @@
-from fastapi import APIRouter
+from typing import Annotated, Literal
+
+from fastapi import APIRouter, Depends, Query
 from geoalchemy2 import Geometry
 from sqlalchemy import cast, func, select, text
 
 from app.adapters.llm import llm_mode
+from app.adapters.routing import get_routing
 from app.config import get_settings
 from app.deps import DB
+from app.errors import ApiError
 from app.models import Ambiance, Category, City, Place
+from app.ratelimit import limit
+from app.schemas import RouteOut
 from app.services.vocab import GROUPS
 
 router = APIRouter(tags=["meta"])
@@ -22,6 +28,27 @@ def _counts(db, column) -> dict[str, int]:
     tag = func.unnest(column).label("tag")
     sub = select(tag).where(Place.status == "published").subquery()
     return dict(db.execute(select(sub.c.tag, func.count()).group_by(sub.c.tag)).all())
+
+
+@router.get("/routes", response_model=RouteOut, dependencies=[Depends(limit("search"))])
+def route(
+    from_lat: Annotated[float, Query(ge=-90, le=90)],
+    from_lng: Annotated[float, Query(ge=-180, le=180)],
+    to_lat: Annotated[float, Query(ge=-90, le=90)],
+    to_lng: Annotated[float, Query(ge=-180, le=180)],
+    mode: Literal["driving", "walking"] = "driving",
+):
+    """Trajet tracé dans l'app. Sans service d'itinéraire configuré : 503, l'app n'affiche alors aucune durée."""
+    r = get_routing().route((from_lat, from_lng), (to_lat, to_lng), mode)
+    if r is None:
+        raise ApiError(503, "routing_unavailable", "Calcul d'itinéraire indisponible")
+    return RouteOut(
+        mode=r.mode,
+        minutes=r.minutes,
+        distance_km=r.distance_km,
+        path=[{"lat": a, "lng": b} for a, b in r.path],
+        source=r.source,
+    )
 
 
 @router.get("/meta/categories")

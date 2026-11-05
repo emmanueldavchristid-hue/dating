@@ -26,6 +26,15 @@ class TravelOut(BaseModel):
     source: str
 
 
+class RouteOut(BaseModel):
+    mode: str
+    minutes: int
+    distance_km: float
+    path: list[LatLng]
+    source: str
+    traffic: bool = False  # durée calculée sans le trafic réel
+
+
 class PlaceCard(BaseModel):
     id: str
     slug: str

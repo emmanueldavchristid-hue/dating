@@ -13,7 +13,7 @@ import { useSettings } from "@/context/SettingsContext";
 import { api } from "@/lib/api";
 import { DEFAULT_CENTER } from "@/lib/config";
 import { EMPTY_FILTERS, filtersToApiQuery } from "@/lib/filters";
-import { pluralize } from "@/lib/format";
+import { formatDistance, pluralize, travelLabel } from "@/lib/format";
 import { useAsync } from "@/lib/useAsync";
 import { colors, GUTTER, radius, space } from "@/theme/tokens";
 
@@ -50,6 +50,13 @@ export default function MapTab() {
       setMoved(null);
     }
   }
+
+  // Trajet vers le lieu ouvert depuis sa fiche : tracé par la route, durée calculée par le serveur (sans trafic).
+  const routeKey = params.focus && gps ? JSON.stringify([gps.lat.toFixed(3), gps.lng.toFixed(3), params.lat, params.lng]) : null;
+  const trip = useAsync(
+    () => (routeKey && gps ? api.meta.route(gps, { lat: Number(params.lat), lng: Number(params.lng) }).catch(() => null) : Promise.resolve(null)),
+    [routeKey],
+  );
 
   const key = JSON.stringify([searchOrigin, cats, area]);
   const res = useAsync(() => {
@@ -158,6 +165,7 @@ export default function MapTab() {
         recenterKey={recenter}
         bottomInset={140}
         onRegionChange={setMoved}
+        route={trip.data?.path ?? null}
       />
 
       <View style={[s.top, { paddingTop: insets.top + space[2] }]} pointerEvents="box-none">
@@ -186,6 +194,17 @@ export default function MapTab() {
           />
         </View>
         {chips}
+        {trip.data ? (
+          <View style={s.tripCard}>
+            <Icon name="car" size={18} color={colors.accent} />
+            <Txt variant="label" style={{ flex: 1 }}>
+              {travelLabel(trip.data)} · {formatDistance(trip.data.distance_km)}
+            </Txt>
+            <Txt variant="caption" color={colors.textMuted}>
+              sans trafic
+            </Txt>
+          </View>
+        ) : null}
         {moved ? (
           <PressableScale
             onPress={() => {
@@ -254,6 +273,18 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: radius.pill,
     backgroundColor: "rgba(21,23,29,0.95)",
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  tripCard: {
+    marginHorizontal: GUTTER,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: "rgba(21,23,29,0.96)",
     borderWidth: 1,
     borderColor: colors.borderStrong,
   },

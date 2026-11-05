@@ -54,7 +54,7 @@ describe("PlaceCard — règles d'honnêteté", () => {
 
   it("temps de trajet affiché avec sa source quand fourni", async () => {
     await render(<PlaceRow p={{ ...base, travel: { mode: "driving", minutes: 12, source: "osrm" } }} catName={names} />);
-    expect(screen.getByTestId("travel")).toHaveTextContent(text("12 min en voiture \\(osrm\\)"));
+    expect(screen.getByTestId("travel")).toHaveTextContent(text("≈ 12 min en voiture sans trafic"));
   });
 
   it("pastille d'affinité seulement si match non nul", async () => {

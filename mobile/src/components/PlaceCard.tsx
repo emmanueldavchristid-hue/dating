@@ -92,7 +92,7 @@ function Meta({ p }: { p: Place }) {
         <View style={s.inline}>
           <Icon name="route" size={12} color={colors.textSubtle} />
           <Txt variant="caption" color={colors.textMuted} numberOfLines={1} testID="travel">
-            {travel} ({p.travel?.source})
+            {travel} sans trafic
           </Txt>
         </View>
       ) : null}

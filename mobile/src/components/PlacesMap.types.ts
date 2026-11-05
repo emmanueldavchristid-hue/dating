@@ -11,4 +11,6 @@ export interface PlacesMapProps {
   bottomInset: number;
   /** Appelé quand l'utilisateur a fini de déplacer la carte (centre + rayon visible approximatif). */
   onRegionChange?: (r: { lat: number; lng: number; km: number }) => void;
+  /** Trajet par la route à tracer (calculé par le serveur), ou rien. */
+  route?: { lat: number; lng: number }[] | null;
 }

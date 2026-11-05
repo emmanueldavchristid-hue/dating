@@ -48,6 +48,13 @@ Console d'administration web (validation des pépites, curation) : relancer avec
 | Mauvaise adresse IP détectée | `demarrer-test.bat -Ip 192.168.1.20` (voir l'adresse avec `ipconfig`). |
 | Autre erreur | Envoyer le fichier `scripts\windows\demarrage.log`. |
 
+## Itinéraires dans l'app
+
+Au premier lancement après la mise à jour, le script prépare les itinéraires à partir du fichier
+`*.osm.pbf` de `Documents\sortie-data` (5 à 15 minutes, une seule fois, dossier `osrm`). Ensuite, « Y aller »
+→ « Voir le trajet dans l'app » trace le trajet sur la carte avec sa durée calculée (sans trafic).
+Si la préparation échoue, l'app marche comme avant (distances à vol d'oiseau).
+
 ## Faire tester un ami à distance (autre Wi-Fi)
 
 Double-cliquer sur **`partager-test.bat`** (en administrateur). Le script :

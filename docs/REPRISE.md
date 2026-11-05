@@ -7,7 +7,7 @@ première tâche non cochée, sans redemander le contexte.
 Ce fichier est mis à jour à chaque étape terminée et poussée sur GitHub : il est toujours à jour même si
 la conversation est coupée (réseau, déplacement, PC éteint).
 
-## Où en est-on (5 novembre 2026)
+## Où en est-on (5 novembre 2026, fin de matinée)
 
 Le document « Sortie — Liste complète des améliorations » (validé par Jason le 5/11) sert de feuille de route.
 Ordre de travail : semaine 1 corrections rapides → carte → vrai concierge IA → (en parallèle) curation terrain
@@ -33,7 +33,8 @@ Ordre de travail : semaine 1 corrections rapides → carte → vrai concierge IA
 - [ ] Tester le vrai concierge IA : Jason doit ajouter `api.groq.com`, `generativelanguage.googleapis.com`,
       `integrate.api.nvidia.com` aux domaines autorisés (claude.ai → Paramètres → Capacités), puis vérifier
       les noms de modèles disponibles (`/models`) et ajuster `GROQ_MODEL` / `GEMINI_MODEL` / `NVIDIA_MODEL`
-- [ ] Tracé du trajet dans l'app (OSRM) et durée calculée « sans trafic »
+- [x] Trajet tracé dans l'app (OSRM auto-hébergé sur le PC, préparé une fois par le script depuis l'extrait
+      OpenStreetMap ; `GET /routes`) et durée calculée « sans trafic » — à vérifier sur le PC au prochain lancement
 - [ ] Photos : Jason décide (curation terrain seule ou Google Places en appoint) ; photos Wikimedia à copier
       sur notre stockage
 - [ ] Accueil éditorialisé « Ce week-end » + agenda d'événements

@@ -115,6 +115,41 @@ if ($existe.Trim() -ne "t") {
     Write-Host "La base contient déjà des données : on les garde."
 }
 
+# 4 bis. Itinéraires (OSRM) : préparés une seule fois depuis l'extrait OpenStreetMap du PC ------------------
+$Donnees = Split-Path $Dump -Parent
+$Osrm = Join-Path $Donnees "osrm"
+$pbf = Get-ChildItem $Donnees -Filter *.osm.pbf -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if ($pbf) {
+    New-Item -ItemType Directory -Force -Path $Osrm | Out-Null
+    $imageFile = Join-Path $Osrm "image.txt"
+    if (-not (Test-Path (Join-Path $Osrm "ci.osrm.mldgr"))) {
+        Etape "Préparation des itinéraires dans l'app (une seule fois : 5 à 15 minutes)"
+        $img = $null
+        foreach ($candidat in "ghcr.io/project-osrm/osrm-backend:v5.27.1", "osrm/osrm-backend:v5.27.1") {
+            docker pull $candidat
+            if ($LASTEXITCODE -eq 0) { $img = $candidat; break }
+        }
+        if ($img) {
+            Copy-Item $pbf.FullName (Join-Path $Osrm "ci.osm.pbf") -Force
+            docker run --rm -v "${Osrm}:/data" $img osrm-extract -p /opt/car.lua /data/ci.osm.pbf
+            if ($LASTEXITCODE -eq 0) { docker run --rm -v "${Osrm}:/data" $img osrm-partition /data/ci.osrm }
+            if ($LASTEXITCODE -eq 0) { docker run --rm -v "${Osrm}:/data" $img osrm-customize /data/ci.osrm }
+            if ($LASTEXITCODE -eq 0) { Set-Content -Path $imageFile -Value $img } else { Write-Host "Préparation des itinéraires échouée : l'app marche sans (distances à vol d'oiseau)." -ForegroundColor Yellow }
+        } else {
+            Write-Host "Image OSRM introuvable : l'app marche sans itinéraires (distances à vol d'oiseau)." -ForegroundColor Yellow
+        }
+    }
+    if ((Test-Path (Join-Path $Osrm "ci.osrm.mldgr")) -and (Test-Path $imageFile)) {
+        $env:OSRM_IMAGE = (Get-Content $imageFile -Raw).Trim()
+        $env:OSRM_DATA = $Osrm
+        docker compose --profile itineraires up -d osrm
+        if ($LASTEXITCODE -eq 0) {
+            "ROUTING_PROVIDER=osrm`r`nOSRM_URL=http://osrm:5000" | Add-Content -Path $envFile -Encoding ASCII
+            Write-Host "Itinéraires activés (trajets tracés dans l'app, durées calculées sans trafic)."
+        }
+    }
+}
+
 # 5. Serveur API -------------------------------------------------------------------
 Etape "Démarrage du serveur"
 docker compose up -d --build api

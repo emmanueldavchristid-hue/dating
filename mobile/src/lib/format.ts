@@ -60,7 +60,7 @@ export function travelLabel(travel: Travel | null | undefined): string | null {
   const mode = travel.mode === "walking" ? "à pied" : "en voiture";
   const mins = Math.max(1, Math.round(travel.minutes));
   const duration = mins >= 60 ? `${Math.floor(mins / 60)}${NBSP}h${String(mins % 60).padStart(2, "0")}` : `${mins}${NBSP}min`;
-  return `${duration} ${mode}`;
+  return `≈${NBSP}${duration} ${mode}`;
 }
 
 export function openStatusLabel(status: OpenStatus, closesAt?: string | null): string {
