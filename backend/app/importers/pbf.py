@@ -25,6 +25,7 @@ KEYS = {k for k, _ in osm.TAG_MAP}
 
 def _wanted(tags) -> bool:
     return "name" in tags and any((k, tags.get(k)) in osm.TAG_MAP for k in KEYS if k in tags)
+    # le tri fin (centres sportifs de loisir, fast-food…) est fait ensuite par osm.osm_categories
 
 
 class Collector(osmium.SimpleHandler):
@@ -95,6 +96,9 @@ def import_cities(
         archived = osm.archive_missing(db, city, {i.ref for i in items if not i.excluded})
         if archived:
             print(f"{slug} : {archived} lieux archivés (plus des lieux de sortie ou retirés d'OSM)")
+    from app.tasks import dedupe, refine_categories
+
+    print(f"Catégories précisées : {refine_categories(db)} · doublons archivés : {dedupe(db)}")
     return report
 
 

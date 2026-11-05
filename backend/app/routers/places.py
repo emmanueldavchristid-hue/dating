@@ -28,7 +28,7 @@ from app.schemas import (
 from app.services.entitlements import can_see_premium, require_premium
 from app.services.places import refresh_rating
 from app.services.rag import index_places
-from app.services.search import Origin, SearchParams, cards_for_places, run_search, to_cards
+from app.services.search import Origin, SearchParams, cards_for_places, interpret_query, run_search, to_cards
 from app.services.taste import compute_taste
 
 router = APIRouter(tags=["places"])
@@ -92,6 +92,7 @@ def search(
         page_size=page_size,
         tiers=_tiers(user),
     )
+    understood = interpret_query(db, p)
     items, total, origin = run_search(db, p, user, _prefs(db, user))
     _record_search(db, user, p, origin, total)
     return SearchResult(
@@ -100,6 +101,7 @@ def search(
         page=page,
         page_size=page_size,
         origin={"lat": origin.lat, "lng": origin.lng, "source": origin.source},
+        understood=understood,
     )
 
 
@@ -151,8 +153,25 @@ def home(
     specs = [
         ("for_you", "Pour toi", "Sélection selon tes envies et ta position", {}),
         ("open_now", "Ouvert maintenant", "Horaires renseignés et vérifiables", {"open_now": True}),
-        ("outdoor", "Prendre l'air", "Plages, nature et plein air", {"categories": ["plage", "nature"]}),
-        ("night", "Pour ce soir", "Lounges, rooftops et bars", {"categories": ["lounge", "rooftop", "bar"]}),
+        (
+            "night",
+            "Pour ce soir",
+            "Bars, lounges, rooftops et boîtes",
+            {"categories": ["lounge", "rooftop", "bar", "club"]},
+        ),
+        (
+            "friends",
+            "Entre amis",
+            "Bowling, karting, paintball, jeux…",
+            {"categories": ["bowling", "karting", "paintball", "escape-game", "karaoke", "jeux", "sport-loisir"]},
+        ),
+        (
+            "outdoor",
+            "Prendre l'air",
+            "Plages, piscines, parcs et nature",
+            {"categories": ["plage", "piscine", "nature", "parc-loisirs"]},
+        ),
+        ("relax", "Se détendre", "Spas et massages", {"categories": ["spa"]}),
         ("popular", "Les plus appréciés", "Classés par nombre d'avis et de visites", {"sort": "popularity"}),
     ]
     sections = []
@@ -164,7 +183,10 @@ def home(
         if key == "popular" and not any(i["place"].rating_count or i["place"].popularity for i in items):
             continue  # pas encore d'avis ni de visites : un classement « les plus appréciés » serait faux
         seen.extend(i["place"].id for i in items[:4])
-        sections.append(HomeSection(key=key, title=title, subtitle=subtitle, items=to_cards(db, items, user, origin)))
+        cards = to_cards(db, items, user, origin)
+        # Ce qui donne envie d'abord : un lieu fermé en ce moment ne fait jamais la une, une photo passe devant.
+        cards.sort(key=lambda c: (c.open_status == "closed", c.cover.url is None))
+        sections.append(HomeSection(key=key, title=title, subtitle=subtitle, items=cards))
     return HomeOut(sections=sections)
 
 

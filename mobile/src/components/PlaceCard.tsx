@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
-import { distanceLabel, formatBudgetRange, matchLabel, openStatusLabel, travelLabel } from "@/lib/format";
+import { distanceLabel, formatBudgetRange, formatDistance, matchLabel, openStatusLabel, travelLabel } from "@/lib/format";
 import type { OpenStatus, PlaceCard as Place } from "@/lib/types";
 import { colors, radius } from "@/theme/tokens";
 import { Cover } from "./Cover";
@@ -52,10 +52,11 @@ function openPlace(p: Place) {
 }
 
 function OpenDot({ status, closesAt }: { status: OpenStatus; closesAt: string | null }) {
+  if (status === "unknown") return null; // horaires inconnus : on ne l'annonce pas sur chaque carte
   return (
     <View style={s.inline}>
       <View style={[s.dot, { backgroundColor: openColor(status) }]} />
-      <Txt variant="caption" color={status === "unknown" ? colors.textSubtle : colors.textMuted} numberOfLines={1}>
+      <Txt variant="caption" color={colors.textMuted} numberOfLines={1}>
         {openStatusLabel(status, closesAt)}
       </Txt>
     </View>
@@ -63,18 +64,22 @@ function OpenDot({ status, closesAt }: { status: OpenStatus; closesAt: string | 
 }
 
 function Meta({ p }: { p: Place }) {
-  const dist = distanceLabel(p.distance_km);
+  // Distance seule sur les cartes ; la mention « à vol d'oiseau » figure une fois en tête de liste et sur la fiche.
+  const dist = formatDistance(p.distance_km);
   const travel = travelLabel(p.travel);
   const rated = p.rating_avg != null && p.rating_count > 0;
+  if (!rated && !dist && !travel) return null;
   // Chaque information porte sa propre icône : rien ne commence par « · » quand la ligne se replie.
   return (
     <View style={s.metaRow}>
-      <View style={s.inline}>
-        <Icon name="star" size={13} color={rated ? colors.gold : colors.textSubtle} fill={rated ? colors.gold : "none"} />
-        <Txt variant="caption" color={rated ? colors.textMuted : colors.textSubtle} testID="rating">
-          {ratingText(p)}
-        </Txt>
-      </View>
+      {rated ? (
+        <View style={s.inline}>
+          <Icon name="star" size={13} color={colors.gold} fill={colors.gold} />
+          <Txt variant="caption" color={colors.textMuted} testID="rating">
+            {ratingText(p)}
+          </Txt>
+        </View>
+      ) : null}
       {dist ? (
         <View style={s.inline}>
           <Icon name="pin" size={12} color={colors.textSubtle} />

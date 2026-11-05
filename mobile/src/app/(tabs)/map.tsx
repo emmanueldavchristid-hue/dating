@@ -1,5 +1,5 @@
-import { router } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, ScrollView, StyleSheet, View, useWindowDimensions, type ListViewToken as ViewTokenT } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ErrorState, Notice, RowSkeleton } from "@/components/feedback";
@@ -20,18 +20,48 @@ import { colors, GUTTER, radius, space } from "@/theme/tokens";
 export default function MapTab() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const params = useLocalSearchParams<{ focus?: string; lat?: string; lng?: string }>();
   const { categories, catName } = useMeta();
-  const { searchOrigin, cityCenter, gps, originLabel, apiOrigin } = useSettings();
+  const { searchOrigin, cityCenter, gps, gpsState, choice, enableGps, originLabel, apiOrigin } = useSettings();
   const [cats, setCats] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [recenter, setRecenter] = useState(0);
+  // Zone explorée : par défaut autour de moi (ou de la ville) ; « Rechercher dans cette zone » la remplace.
+  const [area, setArea] = useState<{ lat: number; lng: number; km: number } | null>(null);
+  const [moved, setMoved] = useState<{ lat: number; lng: number; km: number } | null>(null);
   const listRef = useRef<FlatList>(null);
-  const key = JSON.stringify([searchOrigin, cats]);
+  const askedGps = useRef(false);
 
-  const res = useAsync(
-    () => api.places.search(filtersToApiQuery({ ...EMPTY_FILTERS, categories: cats }, searchOrigin, 1, 50)),
-    [key],
-  );
+  // La carte part de ma position : on la demande une fois (si elle n'a pas été refusée).
+  useEffect(() => {
+    if (!MAP_SUPPORTED || askedGps.current || choice.kind === "gps" || gpsState === "denied") return;
+    askedGps.current = true;
+    void enableGps();
+  }, [choice.kind, gpsState, enableGps]);
+
+  // Arrivée depuis une fiche (« Voir sur la carte ») : centrée sur le lieu, qui est sélectionné.
+  const focusKey = params.focus ? `${params.focus}:${params.lat}:${params.lng}` : null;
+  const [prevFocus, setPrevFocus] = useState<string | null>(null);
+  if (focusKey !== prevFocus) {
+    setPrevFocus(focusKey);
+    if (params.focus && params.lat && params.lng) {
+      setArea({ lat: Number(params.lat), lng: Number(params.lng), km: 3 });
+      setSelected(params.focus);
+      setMoved(null);
+    }
+  }
+
+  const key = JSON.stringify([searchOrigin, cats, area]);
+  const res = useAsync(() => {
+    if (area) {
+      return api.places.search({
+        ...filtersToApiQuery({ ...EMPTY_FILTERS, categories: cats, sort: "distance" }, { kind: "gps", lat: area.lat, lng: area.lng }, 1, 50),
+        max_distance_km: Math.min(60, Math.max(1, area.km)),
+      });
+    }
+    const near = searchOrigin.kind === "gps";
+    return api.places.search(filtersToApiQuery({ ...EMPTY_FILTERS, categories: cats, sort: near ? "distance" : "relevance" }, searchOrigin, 1, 50));
+  }, [key]);
   const gems = useAsync(() => api.places.gems(apiOrigin.city ?? undefined), [JSON.stringify(apiOrigin)]);
   const places = (res.data?.items ?? []).filter((p) => p.location && !p.locked);
   const hiddenGems = (gems.data ?? []).filter((g) => g.locked).length;
@@ -123,10 +153,11 @@ export default function MapTab() {
           const i = places.findIndex((p) => p.id === id);
           if (i >= 0) listRef.current?.scrollToIndex({ index: i, animated: true });
         }}
-        center={cityCenter ?? DEFAULT_CENTER}
-        user={gps}
+        center={area ? { lat: area.lat, lng: area.lng } : (cityCenter ?? DEFAULT_CENTER)}
+        user={area ? null : gps}
         recenterKey={recenter}
         bottomInset={140}
+        onRegionChange={setMoved}
       />
 
       <View style={[s.top, { paddingTop: insets.top + space[2] }]} pointerEvents="box-none">
@@ -134,7 +165,7 @@ export default function MapTab() {
           <View style={s.titlePill}>
             <Icon name="pin" size={15} color={colors.accent} />
             <Txt variant="label" numberOfLines={1} style={{ flexShrink: 1 }}>
-              {originLabel}
+              {area ? "Zone explorée" : originLabel}
             </Txt>
             {res.data ? (
               <Txt variant="caption" color={colors.textMuted}>
@@ -142,9 +173,34 @@ export default function MapTab() {
               </Txt>
             ) : null}
           </View>
-          <IconButton icon="locate" label="Recentrer la carte" onPress={() => setRecenter((n) => n + 1)} bg="rgba(21,23,29,0.95)" />
+          <IconButton
+            icon="locate"
+            label="Revenir autour de moi"
+            onPress={() => {
+              setArea(null);
+              setMoved(null);
+              setRecenter((n) => n + 1);
+              if (!gps) void enableGps();
+            }}
+            bg="rgba(21,23,29,0.95)"
+          />
         </View>
         {chips}
+        {moved ? (
+          <PressableScale
+            onPress={() => {
+              setArea(moved);
+              setMoved(null);
+            }}
+            accessibilityRole="button"
+            style={s.areaBtn}
+          >
+            <Icon name="search" size={15} color={colors.onAccent} />
+            <Txt variant="label" color={colors.onAccent}>
+              Rechercher dans cette zone
+            </Txt>
+          </PressableScale>
+        ) : null}
         {hiddenGems ? (
           <PressableScale onPress={() => router.push("/gems")} accessibilityRole="button" accessibilityLabel="Pépites cachées, voir les offres" style={s.gemBanner}>
             <Icon name="lock" size={15} color={colors.gold} />
@@ -200,6 +256,16 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(21,23,29,0.95)",
     borderWidth: 1,
     borderColor: colors.borderStrong,
+  },
+  areaBtn: {
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    height: 38,
+    paddingHorizontal: 16,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accent,
   },
   gemBanner: {
     marginHorizontal: GUTTER,

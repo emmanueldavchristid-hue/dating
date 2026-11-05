@@ -59,12 +59,15 @@ interface User {
 
 ## Méta (public)
 - `GET /health` → `{status:"ok", db:"ok"}`
-- `GET /meta/categories` → `{slug,name,icon}[]` · `GET /meta/ambiances` → `{slug,name}[]`
+- `GET /meta/categories` → `{slug,name,icon,group,count}[]` (`count` = lieux publiés ; l'app masque les catégories vides) · `GET /meta/ambiances` → `{slug,name,count}[]`
+- `GET /meta/groups` → envies `{slug,name,icon,categories[]}[]` (Manger, Boire un verre, Danser, Se détendre, Jeux & loisirs, En famille, Culture), catégories non vides seulement
+- `GET /meta/capabilities` → `{map, routing, ai ("rules" ou fournisseurs, ex. "groq,gemini"), payments, demo_data, coverage{budget,rating,parking,wheelchair,hours}}`
 - `GET /meta/cities` → `{slug,name,center:{lat,lng},districts:{slug,name}[]}[]`
 - `GET /meta/capabilities` → `{map:"osm"|"none", routing:"none"|"osrm", ai:"rules"|"anthropic", payments:"none"|string, demo_data:boolean}`
 
 ## Lieux (public, auth optionnelle — l'auth débloque le premium)
-- `GET /places/search` — query : `lat,lng` (si consentement) **ou** `city` (slug), `district`, `q`, `categories=a,b`,
+- `GET /places/search` — `q` est interprété (vocabulaire français, nouchi, anglais, fautes de frappe) : « bowling », « boîte Marcory », « plage Bassam » deviennent des filtres, renvoyés dans `understood {categories?, district?, city?}` ; sinon recherche par nom.
+  Query : `lat,lng` (si consentement) **ou** `city` (slug), `district`, `q`, `categories=a,b`,
   `ambiances=x,y`, `budget_max`, `open_now=true`, `max_distance_km`, `parking`, `wheelchair`, `min_rating`,
   `sort=relevance|distance|popularity|newest`, `page` (1..), `page_size` (1..50, défaut 20)
   → `{items: PlaceCard[], total, page, page_size, origin:{lat,lng,source:"gps"|"city"}}`

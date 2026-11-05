@@ -49,7 +49,13 @@ export function FilterSheet({
   onApply: (f: SearchFilters) => void;
   gpsActive: boolean;
 }) {
-  const { categories, ambiances } = useMeta();
+  const { categories, groups, ambiances, capabilities } = useMeta();
+  const cov = capabilities?.coverage;
+  // Un filtre n'est proposé que si assez de lieux le renseignent (sinon il ne renverrait rien).
+  const has = (k: keyof NonNullable<typeof cov>) => !cov || cov[k] >= 20;
+  const byGroup = groups.length
+    ? groups.map((g) => ({ title: g.name, items: categories.filter((c) => g.categories.includes(c.slug)) }))
+    : [{ title: "Catégories", items: categories }];
   const [f, setF] = useState(value);
   const [wasVisible, setWasVisible] = useState(visible);
   // À chaque ouverture, on repart des filtres appliqués (état dérivé, sans effet).
@@ -88,38 +94,50 @@ export function FilterSheet({
           />
         ))}
       </Group>
-      <Group title="Catégories">
-        {categories.map((c) => (
-          <Chip key={c.slug} icon={categoryIcon(c.icon || c.slug)} label={c.name} selected={f.categories.includes(c.slug)} onPress={() => setF({ ...f, categories: toggleIn(f.categories, c.slug) })} />
-        ))}
-      </Group>
-      <Group title="Ambiances">
-        {ambiances.map((a) => (
-          <Chip key={a.slug} label={a.name} selected={f.ambiances.includes(a.slug)} onPress={() => setF({ ...f, ambiances: toggleIn(f.ambiances, a.slug) })} />
-        ))}
-      </Group>
-      <Group title="Budget max (FCFA)">
-        <Chip label="Tous" selected={!f.budgetMax} onPress={() => setF({ ...f, budgetMax: null })} />
-        {BUDGET_PRESETS.map((b) => (
-          <Chip key={b.value} label={b.label} selected={f.budgetMax === b.value} onPress={() => setF({ ...f, budgetMax: b.value })} />
-        ))}
-      </Group>
+      {byGroup.map((g) =>
+        g.items.length ? (
+          <Group key={g.title} title={g.title}>
+            {g.items.map((c) => (
+              <Chip key={c.slug} icon={categoryIcon(c.icon || c.slug)} label={c.name} selected={f.categories.includes(c.slug)} onPress={() => setF({ ...f, categories: toggleIn(f.categories, c.slug) })} />
+            ))}
+          </Group>
+        ) : null,
+      )}
+      {ambiances.some((a) => (a.count ?? 20) >= 20) ? (
+        <Group title="Ambiances">
+          {ambiances
+            .filter((a) => (a.count ?? 20) >= 20)
+            .map((a) => (
+              <Chip key={a.slug} label={a.name} selected={f.ambiances.includes(a.slug)} onPress={() => setF({ ...f, ambiances: toggleIn(f.ambiances, a.slug) })} />
+            ))}
+        </Group>
+      ) : null}
+      {has("budget") ? (
+        <Group title="Budget max (FCFA)">
+          <Chip label="Tous" selected={!f.budgetMax} onPress={() => setF({ ...f, budgetMax: null })} />
+          {BUDGET_PRESETS.map((b) => (
+            <Chip key={b.value} label={b.label} selected={f.budgetMax === b.value} onPress={() => setF({ ...f, budgetMax: b.value })} />
+          ))}
+        </Group>
+      ) : null}
       <Group title="Distance max (à vol d'oiseau)">
         <Chip label="Toutes" selected={!f.maxDistanceKm} onPress={() => setF({ ...f, maxDistanceKm: null })} />
         {DISTANCE_PRESETS.map((d) => (
           <Chip key={d} label={`${d} km`} selected={f.maxDistanceKm === d} onPress={() => setF({ ...f, maxDistanceKm: d })} />
         ))}
       </Group>
-      <Group title="Note minimum">
-        <Chip label="Toutes" selected={!f.minRating} onPress={() => setF({ ...f, minRating: null })} />
-        {RATING_PRESETS.map((r) => (
-          <Chip key={r} icon="star" label={String(r).replace(".", ",")} selected={f.minRating === r} onPress={() => setF({ ...f, minRating: r })} />
-        ))}
-      </Group>
+      {has("rating") ? (
+        <Group title="Note minimum">
+          <Chip label="Toutes" selected={!f.minRating} onPress={() => setF({ ...f, minRating: null })} />
+          {RATING_PRESETS.map((r) => (
+            <Chip key={r} icon="star" label={String(r).replace(".", ",")} selected={f.minRating === r} onPress={() => setF({ ...f, minRating: r })} />
+          ))}
+        </Group>
+      ) : null}
       <View style={{ gap: 4 }}>
-        <SwitchRow label="Ouvert maintenant" hint="Seulement les horaires renseignés" value={f.openNow} onChange={(v) => setF({ ...f, openNow: v })} />
-        <SwitchRow label="Parking" value={f.parking} onChange={(v) => setF({ ...f, parking: v })} />
-        <SwitchRow label="Accès fauteuil roulant" value={f.wheelchair} onChange={(v) => setF({ ...f, wheelchair: v })} />
+        {has("hours") ? <SwitchRow label="Ouvert maintenant" hint="Seulement les lieux dont les horaires sont connus" value={f.openNow} onChange={(v) => setF({ ...f, openNow: v })} /> : null}
+        {has("parking") ? <SwitchRow label="Parking" value={f.parking} onChange={(v) => setF({ ...f, parking: v })} /> : null}
+        {has("wheelchair") ? <SwitchRow label="Accès fauteuil roulant" value={f.wheelchair} onChange={(v) => setF({ ...f, wheelchair: v })} /> : null}
       </View>
     </Sheet>
   );

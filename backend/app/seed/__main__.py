@@ -33,14 +33,9 @@ from app.models import (
 )
 from app.security import hash_password
 from app.services.places import refresh_rating, set_taxonomy, slugify
+from app.services.vocab import CATEGORIES
 
 # fmt: off
-CATEGORIES = [
-    ("restaurant", "Restaurants", "utensils"), ("maquis", "Maquis", "flame"), ("lounge", "Lounges", "sofa"),
-    ("rooftop", "Rooftops", "building"), ("plage", "Plages", "waves"), ("nature", "Nature & parcs", "leaf"),
-    ("bar", "Bars", "glass"), ("cafe", "Cafés & brunch", "coffee"), ("activite", "Activités & loisirs", "ticket"),
-    ("culture", "Culture & art", "palette"), ("club", "Clubs", "music"), ("evenement", "Événements", "calendar"),
-]
 AMBIANCES = [("calme", "Calme"), ("romantique", "Romantique"), ("festif", "Festif"), ("entre-amis", "Entre amis"),
              ("famille", "En famille"), ("decouverte", "Découverte"), ("plein-air", "Plein air")]
 CITIES = {
@@ -50,6 +45,10 @@ CITIES = {
         "angre": ("Angré", 5.3950, -3.9900), "zone-4": ("Zone 4", 5.2950, -3.9900), "marcory": ("Marcory", 5.3030, -3.9770),
         "treichville": ("Treichville", 5.2930, -4.0080), "yopougon": ("Yopougon", 5.3450, -4.0750),
         "port-bouet": ("Port-Bouët", 5.2560, -3.9400), "bingerville": ("Bingerville", 5.3550, -3.8850),
+        "bietry": ("Biétry", 5.2830, -3.9690), "koumassi": ("Koumassi", 5.2990, -3.9480),
+        "palmeraie": ("Palmeraie", 5.3720, -3.9440), "adjame": ("Adjamé", 5.3570, -4.0230),
+        "abobo": ("Abobo", 5.4190, -4.0200), "attecoube": ("Attécoubé", 5.3360, -4.0420),
+        "songon": ("Songon", 5.3080, -4.2540), "anyama": ("Anyama", 5.4950, -4.0520),
     }),
     "grand-bassam": ("Grand-Bassam", (5.2010, -3.7380), {
         "quartier-france": ("Quartier France", 5.1960, -3.7380), "mockeyville": ("Mockeyville", 5.2050, -3.7300),
@@ -58,8 +57,8 @@ CITIES = {
 }
 PLANS = [
     ("free", "Découverte", 0, 3, 2, False, ["Découverte et recherche multicritère", "Carte et fiches complètes", "Favoris et collections", "Concierge en mode découverte (3/jour)"], 0),
-    ("plus", "Plus", None, 30, 4, False, ["Tout Découverte", "Concierge 30 demandes/jour", "Soirées jusqu'à 4 étapes", "Alertes de découverte (bientôt)"], 1),
-    ("insider", "Insider", None, 100, 5, True, ["Tout Plus", "Pépites et lieux cachés", "Collections exclusives", "Soirées jusqu'à 5 étapes"], 2),
+    ("plus", "Plus", None, 30, 4, False, ["Tout Découverte", "Concierge 30 demandes/jour", "Soirées jusqu'à 4 étapes"], 1),
+    ("insider", "Insider", None, 100, 5, True, ["Tout Plus", "Pépites et lieux cachés", "Soirées jusqu'à 5 étapes"], 2),
 ]
 GRADIENTS = {
     "restaurant": ["#5A2E1C", "#120C0A"], "maquis": ["#6B3A12", "#140D07"], "lounge": ["#3A2350", "#0F0B16"],
@@ -132,13 +131,16 @@ DEMO_PASSWORD = "Demo-2026!"
 def seed_reference(db) -> None:
     db.execute(
         insert(Category)
-        .values([{"slug": s, "name": n, "icon": i, "sort": k} for k, (s, n, i) in enumerate(CATEGORIES)])
+        .values(
+            [{"slug": s, "name": n, "icon": i, "sort": k, "group_slug": g} for k, (s, n, i, g) in enumerate(CATEGORIES)]
+        )
         .on_conflict_do_update(
             index_elements=["slug"],
             set_={
                 "name": insert(Category).excluded.name,
                 "icon": insert(Category).excluded.icon,
                 "sort": insert(Category).excluded.sort,
+                "group_slug": insert(Category).excluded.group_slug,
             },
         )
     )

@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/Icon";
 import { PlaceRow } from "@/components/PlaceCard";
 import { UpsellCard } from "@/components/Premium";
-import { Button, Chip, Pill, PressableScale, Txt } from "@/components/ui";
+import { Button, Chip, PressableScale, Txt } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { useMeta } from "@/context/MetaContext";
 import { useSettings } from "@/context/SettingsContext";
@@ -24,10 +24,11 @@ type Msg = {
 };
 
 const SUGGESTIONS = [
-  "Un rooftop calme ce soir pour un date",
-  "Où manger un bon garba pas cher à Cocody ?",
-  "Une sortie en famille ce week-end en plein air",
-  "Un lounge festif entre amis, 20 000 FCFA max",
+  "Un bar avec vue pour un afterwork",
+  "Où manger un bon garba à Cocody ?",
+  "Une activité pour les enfants ce week-end",
+  "Un bowling ou un karting entre amis",
+  "Une plage à Bassam dimanche",
 ];
 
 function Dot({ delay }: { delay: number }) {
@@ -138,13 +139,6 @@ export default function Concierge() {
             {meta ? `${meta.quota.used}/${meta.quota.limit} demandes aujourd'hui` : "Réponses basées sur les lieux de la base"}
           </Txt>
         </View>
-        {meta ? (
-          <Pill
-            label={meta.provider === "anthropic" ? "IA" : "Mode règles"}
-            tone={meta.provider === "anthropic" ? "accent" : "info"}
-            icon={meta.provider === "anthropic" ? "sparkles" : "settings"}
-          />
-        ) : null}
       </View>
 
       <ScrollView

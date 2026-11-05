@@ -38,7 +38,7 @@ def _handler(req: httpx.Request) -> httpx.Response:
 def test_wikidata_import_keeps_only_outing_types():
     api = Polite(httpx.Client(transport=httpx.MockTransport(_handler)), pause=0)
     items = fetch_entities(api, search_ids(api, 5.33, -4.02, 20))
-    assert [i["name"] for i in items] == ["Musée Test Wikidata"] and items[0]["categories"] == ["culture"]
+    assert [i["name"] for i in items] == ["Musée Test Wikidata"] and items[0]["categories"] == ["musee"]
     images = {
         "Musee test.jpg": {
             "url": "https://upload.wikimedia.org/m.jpg",

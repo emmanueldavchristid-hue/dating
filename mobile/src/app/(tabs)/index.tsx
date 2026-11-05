@@ -10,20 +10,22 @@ import { LocationPicker } from "@/components/LocationPicker";
 import { PlaceTile } from "@/components/PlaceCard";
 import { SearchBar } from "@/components/SearchBar";
 import { Sheet } from "@/components/Sheet";
-import { Chip, PressableScale, SectionTitle, Txt } from "@/components/ui";
+import { PressableScale, SectionTitle, Txt } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { useMeta } from "@/context/MetaContext";
 import { useSettings } from "@/context/SettingsContext";
 import { api } from "@/lib/api";
-import { initials, isNaturalQuery } from "@/lib/format";
+import { initials } from "@/lib/format";
 import { useAsync } from "@/lib/useAsync";
 import { colors, fonts, GUTTER, radius, space } from "@/theme/tokens";
 
 /** « Tout voir » : ouvre une recherche équivalente à la section. */
 const SECTION_SEARCH: Record<string, Record<string, string>> = {
   open_now: { open_now: "true" },
-  outdoor: { categories: "plage,nature" },
-  night: { categories: "lounge,rooftop,bar" },
+  outdoor: { categories: "plage,piscine,nature,parc-loisirs" },
+  night: { categories: "lounge,rooftop,bar,club" },
+  friends: { categories: "bowling,karting,paintball,escape-game,karaoke,jeux,sport-loisir" },
+  relax: { categories: "spa" },
   popular: { sort: "popularity" },
 };
 
@@ -38,7 +40,8 @@ function greeting(): string {
 export default function Discover() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { categories, catName, capabilities } = useMeta();
+  const { groups, catName, capabilities, cities } = useMeta();
+  const escapades = cities.filter((c) => c.slug !== "abidjan");
   const { apiOrigin, searchOrigin, originLabel, choice, gpsState } = useSettings();
   const [q, setQ] = useState("");
   const [locOpen, setLocOpen] = useState(false);
@@ -52,8 +55,7 @@ export default function Discover() {
   const submit = () => {
     const t = q.trim();
     if (!t) return router.push("/search");
-    if (isNaturalQuery(t)) router.push({ pathname: "/concierge", params: { q: t } });
-    else router.push({ pathname: "/search", params: { q: t } });
+    router.push({ pathname: "/search", params: { q: t } });
     setQ("");
   };
 
@@ -118,28 +120,53 @@ export default function Discover() {
             onChangeText={setQ}
             onSubmitEditing={submit}
             onClear={() => setQ("")}
-            placeholder="Un lieu, une envie…"
+            placeholder="Bowling, maquis, plage à Bassam…"
             right={
               <PressableScale onPress={() => router.push("/search")} accessibilityRole="button" accessibilityLabel="Filtres de recherche" style={s.filterBtn}>
                 <Icon name="sliders" size={18} color={colors.onAccent} />
               </PressableScale>
             }
           />
-          <Txt variant="caption" color={colors.textSubtle} style={{ marginTop: 8 }}>
-            Une phrase complète part au concierge, quelques mots à la recherche.
-          </Txt>
         </View>
 
-        <FlatList
-          horizontal
-          data={categories}
-          keyExtractor={(c) => c.slug}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: GUTTER, gap: 8, marginTop: space[4] }}
-          renderItem={({ item }) => (
-            <Chip label={item.name} icon={categoryIcon(item.icon || item.slug)} onPress={() => router.push({ pathname: "/search", params: { categories: item.slug } })} />
-          )}
-        />
+        {/* Envies : ce que l'on veut faire, puis le type de lieu */}
+        <View style={{ paddingHorizontal: GUTTER, marginTop: space[5], gap: space[3] }}>
+          <SectionTitle title="Tu as envie de…" />
+          <View style={s.envies}>
+            {groups.map((g) => (
+              <PressableScale
+                key={g.slug}
+                onPress={() => router.push({ pathname: "/search", params: { categories: g.categories.join(",") } })}
+                accessibilityRole="button"
+                accessibilityLabel={g.name}
+                style={s.envie}
+              >
+                <View style={s.envieIcon}>
+                  <Icon name={categoryIcon(g.icon)} size={20} color={colors.accent} />
+                </View>
+                <Txt variant="label" numberOfLines={2} style={{ flex: 1 }}>
+                  {g.name}
+                </Txt>
+              </PressableScale>
+            ))}
+            {escapades.map((c) => (
+              <PressableScale
+                key={c.slug}
+                onPress={() => router.push({ pathname: "/search", params: { q: c.name } })}
+                accessibilityRole="button"
+                accessibilityLabel={`Escapade à ${c.name}`}
+                style={s.envie}
+              >
+                <View style={s.envieIcon}>
+                  <Icon name="sun" size={20} color={colors.accent} />
+                </View>
+                <Txt variant="label" numberOfLines={2} style={{ flex: 1 }}>
+                  Escapade à {c.name}
+                </Txt>
+              </PressableScale>
+            ))}
+          </View>
+        </View>
 
         {choice.kind === "gps" && gpsState === "error" ? (
           <View style={{ paddingHorizontal: GUTTER, marginTop: space[4] }}>
@@ -278,6 +305,20 @@ const s = StyleSheet.create({
     borderColor: "rgba(255,138,61,0.28)",
   },
   soireeIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
+  envies: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  envie: {
+    width: "48.5%",
+    flexGrow: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface1,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  envieIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center" },
   gems: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.goldBorder },
   gemIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: "rgba(233,196,106,0.12)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.goldBorder },
 });

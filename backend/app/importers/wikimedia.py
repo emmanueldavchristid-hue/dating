@@ -79,6 +79,12 @@ def file_info(client: httpx.Client, filenames: list[str]) -> dict[str, dict]:
     return out
 
 
+def stable_url(url: str) -> str:
+    """URL directe et stable du fichier : l'hôte historique upload.wikimedia.org, sans paramètres de suivi."""
+    url = url.split("?")[0]
+    return url.replace("https://thumb.wikimedia.org/", "https://upload.wikimedia.org/")
+
+
 def images_from_pages(pages: dict, norm: dict | None = None) -> dict[str, dict]:
     """Pages Commons (prop=imageinfo) -> {nom de fichier: infos}, licences libres uniquement."""
     out = {}
@@ -92,7 +98,7 @@ def images_from_pages(pages: dict, norm: dict | None = None) -> dict[str, dict]:
             continue
         title = (norm or {}).get(page["title"], page["title"]).removeprefix("File:")
         out[title] = {
-            "url": info.get("thumburl") or info["url"],
+            "url": stable_url(info.get("thumburl") or info["url"]),
             "license": lic[:80],
             "artist": (_strip_html((meta.get("Artist") or {}).get("value")) or "Auteur inconnu")[:120],
             "width": info.get("thumbwidth") or info.get("width"),

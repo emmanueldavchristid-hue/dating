@@ -23,11 +23,11 @@ from app.services.places import set_taxonomy, slugify
 API = "https://www.wikidata.org/w/api.php"
 UA = {"User-Agent": "SortieImporter/0.2 (https://github.com/emmanueldavchristid-hue/dating) python-httpx"}
 TYPES = {
-    "Q33506": "culture",
-    "Q207694": "culture",
-    "Q1007870": "culture",
-    "Q24354": "culture",
-    "Q41253": "culture",
+    "Q33506": "musee",
+    "Q207694": "musee",
+    "Q1007870": "musee",
+    "Q24354": "spectacle",
+    "Q41253": "cinema",
     "Q1329623": "culture",
     "Q22698": "nature",
     "Q22746": "nature",
@@ -39,7 +39,7 @@ TYPES = {
     "Q11707": "restaurant",
     "Q187456": "bar",
     "Q622425": "club",
-    "Q194195": "activite",
+    "Q194195": "parc-loisirs",
     "Q570116": "activite",
 }
 
@@ -154,17 +154,9 @@ def find_twin(db, it: dict) -> Place | None:
 
 
 def osm_generic_descriptions() -> set[str]:
-    return {
-        "Lieu culturel",
-        "Espace naturel",
-        "Plage",
-        "Activité de loisirs",
-        "Restaurant",
-        "Bar",
-        "Café",
-        "Club",
-        "Lieu",
-    }
+    from app.importers.osm import LABELS, LEGACY_LABELS
+
+    return set(LABELS.values()) | LEGACY_LABELS
 
 
 def attach_photo(db, place: Place, info: dict | None) -> None:

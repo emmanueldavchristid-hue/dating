@@ -72,6 +72,7 @@ class Category(Base):
     name: Mapped[str] = mapped_column(String(120))
     icon: Mapped[str] = mapped_column(String(64))
     sort: Mapped[int] = mapped_column(SmallInteger, default=0)
+    group_slug: Mapped[str | None] = mapped_column(String(32))  # envie (voir services/vocab.GROUPS)
 
 
 class Ambiance(Base):

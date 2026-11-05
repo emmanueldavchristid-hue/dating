@@ -114,7 +114,7 @@ export function pluralize(n: number, singular: string, plural?: string): string 
 }
 
 /** En dessous, l'affinité n'est pas mise en avant (une pastille « 9 % pour toi » n'aide personne). */
-export const MATCH_MIN = 50;
+export const MATCH_MIN = 75;
 
 /** "92 % pour toi" — uniquement si le serveur fournit une affinité (jamais calculée côté client). */
 export function matchLabel(match: number | null | undefined): string | null {

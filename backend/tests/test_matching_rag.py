@@ -87,7 +87,7 @@ def test_concierge_follow_up_inherits_context(client, insider_h):
         },
     ).json()
     assert "maquis" in r["parsed"]["categories"] and r["parsed"]["budget_max_fcfa"] == 10000
-    assert all(p["budget_min_fcfa"] <= 10000 for p in r["places"])
+    assert r["places"] and all(p["budget_min_fcfa"] is None or p["budget_min_fcfa"] <= 10000 for p in r["places"])
 
 
 def test_concierge_history_is_bounded(client, insider_h):
@@ -98,27 +98,24 @@ def test_concierge_history_is_bounded(client, insider_h):
     )
 
 
+def _fake_llm(reply_text: str):
+    import json as _json
+
+    def fake(request: httpx.Request) -> httpx.Response:
+        body = request.read().decode()
+        if "Dernier message" in body:
+            text = _json.dumps({"categories": ["plage"], "ambiances": [], "open_now": False})
+            return httpx.Response(200, json={"content": [{"type": "text", "text": text}]})
+        return httpx.Response(200, json={"content": [{"type": "text", "text": reply_text}]})
+
+    return AnthropicProvider("k", "m", httpx.Client(transport=httpx.MockTransport(fake)))
+
+
 def test_llm_reply_citing_unselected_place_is_rejected(client, insider_h, monkeypatch):
     """Si le LLM invente ou cite un lieu hors sélection, on revient au mode règles."""
     from app.routers import concierge as mod
 
-    def fake(request: httpx.Request) -> httpx.Response:
-        body = request.read().decode()
-        if "set_filters" in body:
-            return httpx.Response(
-                200,
-                json={
-                    "content": [
-                        {"type": "tool_use", "input": {"categories": ["plage"], "ambiances": [], "open_now": False}}
-                    ]
-                },
-            )
-        return httpx.Response(
-            200, json={"content": [{"type": "text", "text": "Allez plutôt au Club Orbite, c'est génial !"}]}
-        )
-
-    llm = AnthropicProvider("k", "m", httpx.Client(transport=httpx.MockTransport(fake)))
-    monkeypatch.setattr(mod, "get_llm", lambda: llm)
+    monkeypatch.setattr(mod, "get_llm", lambda: _fake_llm("Allez plutôt au Club Orbite, c'est génial !"))
     r = client.post(f"{API}/concierge", headers=insider_h, json={"message": "une plage"}).json()
     assert r["provider"] == "rules" and "Club Orbite" not in r["reply"]
     assert all("plage" in p["categories"] for p in r["places"])
@@ -127,23 +124,8 @@ def test_llm_reply_citing_unselected_place_is_rejected(client, insider_h, monkey
 def test_llm_grounded_reply_is_kept(client, insider_h, monkeypatch):
     from app.routers import concierge as mod
 
-    def fake(request: httpx.Request) -> httpx.Response:
-        body = request.read().decode()
-        if "set_filters" in body:
-            return httpx.Response(
-                200,
-                json={
-                    "content": [
-                        {"type": "tool_use", "input": {"categories": ["plage"], "ambiances": [], "open_now": False}}
-                    ]
-                },
-            )
-        return httpx.Response(
-            200, json={"content": [{"type": "text", "text": "Je te conseille ces plages, parfaites pour se détendre."}]}
-        )
-
     monkeypatch.setattr(
-        mod, "get_llm", lambda: AnthropicProvider("k", "m", httpx.Client(transport=httpx.MockTransport(fake)))
+        mod, "get_llm", lambda: _fake_llm("Je te conseille ces plages, parfaites pour se détendre en plein air.")
     )
     r = client.post(f"{API}/concierge", headers=insider_h, json={"message": "une plage"}).json()
     assert r["provider"] == "anthropic" and r["reply"].startswith("Je te conseille")

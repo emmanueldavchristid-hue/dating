@@ -6,6 +6,7 @@ import type {
   BillingPlan,
   Capabilities,
   Category,
+  CategoryGroup,
   ChatTurn,
   City,
   CityRaw,
@@ -302,6 +303,7 @@ export const api = {
 
   meta: {
     categories: () => request<Category[]>("/meta/categories", { auth: false }),
+    groups: () => request<CategoryGroup[]>("/meta/groups", { auth: false }),
     ambiances: () => request<Ambiance[]>("/meta/ambiances", { auth: false }),
     cities: () => request<CityRaw[]>("/meta/cities", { auth: false }).then((list) => list.map(normalizeCity)),
     capabilities: () => request<Capabilities>("/meta/capabilities", { auth: false }),

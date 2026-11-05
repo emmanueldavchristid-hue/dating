@@ -44,9 +44,10 @@ describe("PlaceCard — règles d'honnêteté", () => {
     expect(screen.queryByText("Démo")).toBeNull();
   });
 
-  it("distance étiquetée « à vol d'oiseau » et aucun temps de trajet si travel=null", async () => {
+  it("distance seule sur la carte (« à vol d'oiseau » dans l'accessibilité) et aucun temps de trajet si travel=null", async () => {
     await render(<PlaceRow p={base} catName={names} />);
-    expect(screen.getByTestId("distance")).toHaveTextContent(text("1,9 km à vol d'oiseau"));
+    expect(screen.getByTestId("distance")).toHaveTextContent(text("1,9 km"));
+    expect(screen.getByTestId("place-row").props.accessibilityLabel).toMatch(/vol d'oiseau/);
     expect(screen.queryByTestId("travel")).toBeNull();
     expect(screen.queryByText(/min en voiture|à pied/)).toBeNull();
   });
@@ -65,10 +66,11 @@ describe("PlaceCard — règles d'honnêteté", () => {
     expect(screen.getByText(text("92 % pour toi"))).toBeTruthy();
   });
 
-  it("sans avis → « Pas encore d'avis » ; horaires inconnus → « Horaires non vérifiés »", async () => {
+  it("sans avis ni horaires : rien d'inventé ni de répété sur la carte (dit seulement à l'accessibilité)", async () => {
     await render(<PlaceRow p={{ ...base, rating_avg: null, rating_count: 0, open_status: "unknown", closes_at: null }} catName={names} />);
-    expect(screen.getByTestId("rating")).toHaveTextContent("Pas encore d'avis");
-    expect(screen.getByText("Horaires non vérifiés")).toBeTruthy();
+    expect(screen.queryByTestId("rating")).toBeNull();
+    expect(screen.queryByText("Horaires non vérifiés")).toBeNull();
+    expect(screen.getByTestId("place-row").props.accessibilityLabel).toMatch(/Pas encore d'avis.*Horaires non vérifiés/);
   });
 
   it("pépite verrouillée : ni nom ni position, style Insider", async () => {

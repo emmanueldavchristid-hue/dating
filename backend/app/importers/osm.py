@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 TAG_MAP = {
     ("amenity", "restaurant"): "restaurant",
-    ("amenity", "fast_food"): "maquis",
+    ("amenity", "fast_food"): "maquis",  # affiné par osm_categories : chaînes et burgers → fast-food
     ("amenity", "food_court"): "maquis",
     ("amenity", "bar"): "bar",
     ("amenity", "pub"): "bar",
@@ -37,23 +37,101 @@ TAG_MAP = {
     ("amenity", "ice_cream"): "cafe",
     ("shop", "pastry"): "cafe",
     ("amenity", "nightclub"): "club",
-    ("amenity", "cinema"): "culture",
-    ("amenity", "theatre"): "culture",
+    ("amenity", "hookah_lounge"): "lounge",
+    ("amenity", "karaoke_box"): "karaoke",
+    ("amenity", "cinema"): "cinema",
+    ("amenity", "theatre"): "spectacle",
     ("amenity", "arts_centre"): "culture",
-    ("tourism", "museum"): "culture",
-    ("tourism", "gallery"): "culture",
+    ("tourism", "museum"): "musee",
+    ("tourism", "gallery"): "musee",
     ("tourism", "attraction"): "activite",
     ("tourism", "zoo"): "nature",
+    ("tourism", "theme_park"): "parc-loisirs",
     ("leisure", "park"): "nature",
     ("leisure", "garden"): "nature",
     ("leisure", "nature_reserve"): "nature",
     ("natural", "beach"): "plage",
     ("leisure", "beach_resort"): "plage",
-    ("leisure", "bowling_alley"): "activite",
-    ("leisure", "amusement_arcade"): "activite",
-    ("leisure", "water_park"): "activite",
-    ("leisure", "escape_game"): "activite",
+    ("leisure", "bowling_alley"): "bowling",
+    ("leisure", "amusement_arcade"): "jeux",
+    ("leisure", "adult_gaming_centre"): "jeux",
+    ("leisure", "miniature_golf"): "jeux",
+    ("leisure", "water_park"): "parc-loisirs",
+    ("leisure", "trampoline_park"): "parc-loisirs",
+    ("leisure", "escape_game"): "escape-game",
+    ("leisure", "swimming_pool"): "piscine",
+    ("leisure", "sauna"): "spa",
+    ("leisure", "golf_course"): "sport-loisir",
+    ("leisure", "horse_riding"): "sport-loisir",
+    ("leisure", "sports_centre"): "",  # retenu seulement pour les sports de loisir (voir SPORTS)
+    ("shop", "massage"): "spa",
+    ("amenity", "spa"): "spa",
 }
+# Centres sportifs : seuls les loisirs qu'on « sort » faire sont retenus (pas le football, l'athlétisme…).
+SPORTS = {
+    "10pin": "bowling",
+    "9pin": "bowling",
+    "bowling": "bowling",
+    "karting": "karting",
+    "motorsport": "karting",
+    "paintball": "paintball",
+    "laser_tag": "paintball",
+    "swimming": "piscine",
+    "padel": "sport-loisir",
+    "sailing": "sport-loisir",
+    "canoe": "sport-loisir",
+    "golf": "sport-loisir",
+    "equestrian": "sport-loisir",
+    "billiards": "jeux",
+    "escape_game": "escape-game",
+}
+# Mots du nom qui précisent un loisir (« International Club and Paintball Park », « Splash Park »…).
+LEISURE_NAME_WORDS = {
+    "bowling": "bowling",
+    "bowl": "bowling",
+    "kart": "karting",
+    "karting": "karting",
+    "superkart": "karting",
+    "paintball": "paintball",
+    "laser": "paintball",
+    "piscine": "piscine",
+    "splash": "parc-loisirs",
+    "aqua": "parc-loisirs",
+    "aquapark": "parc-loisirs",
+    "enfants": "parc-loisirs",
+    "kids": "parc-loisirs",
+    "padel": "sport-loisir",
+    "karaoke": "karaoke",
+    "billard": "jeux",
+    "escape": "escape-game",
+    "spa": "spa",
+    "massage": "spa",
+}
+FAST_FOOD_CUISINES = {"burger", "pizza", "chicken", "sandwich", "kebab", "fried_chicken", "hot_dog", "tacos"}
+
+
+def osm_categories(tags: dict, name: str) -> list[str]:
+    """Catégories d'un objet OSM, uniquement à partir de ses tags et des mots explicites de son nom."""
+    cats = {c for (k, v), c in TAG_MAP.items() if c and tags.get(k) == v}
+    toks = set(_tokens(name))
+    if tags.get("shop") == "beauty" and tags.get("beauty") == "spa":
+        cats.add("spa")
+    if tags.get("leisure") == "swimming_pool" and tags.get("access") in ("private", "no", "residents"):
+        cats.discard("piscine")
+    if tags.get("amenity") == "fast_food" and (
+        tags.get("brand") or FAST_FOOD_CUISINES & {c.strip() for c in (tags.get("cuisine") or "").split(";")}
+    ):
+        cats.discard("maquis")
+        cats.add("fast-food")
+    if tags.get("leisure") == "sports_centre" or cats & {"activite", "jeux", "parc-loisirs"}:
+        sports = {s.strip() for s in (tags.get("sport") or "").split(";")}
+        cats |= {SPORTS[s] for s in sports if s in SPORTS}
+        cats |= {c for w, c in LEISURE_NAME_WORDS.items() if w in toks}
+        if len(cats) > 1:
+            cats.discard("activite")
+    return sorted(cats)
+
+
 GRADIENTS = {
     "restaurant": ["#5A2E1C", "#120C0A"],
     "maquis": ["#6B3A12", "#140D07"],
@@ -64,6 +142,22 @@ GRADIENTS = {
     "nature": ["#1F4A32", "#0A140E"],
     "plage": ["#0F4C5C", "#08161B"],
     "activite": ["#2C3E6B", "#0B0F19"],
+    "fast-food": ["#6B3A12", "#140D07"],
+    "lounge": ["#3A2350", "#0F0B16"],
+    "rooftop": ["#1E3A4C", "#0B1117"],
+    "piscine": ["#0F4C5C", "#08161B"],
+    "spa": ["#2E4A3F", "#0B1310"],
+    "bowling": ["#2C3E6B", "#0B0F19"],
+    "karting": ["#4A2C1E", "#130C08"],
+    "paintball": ["#2F4A1F", "#0C130A"],
+    "escape-game": ["#3A2350", "#0F0B16"],
+    "karaoke": ["#5A1E3C", "#140810"],
+    "jeux": ["#2C3E6B", "#0B0F19"],
+    "sport-loisir": ["#1F3F4A", "#0A1215"],
+    "parc-loisirs": ["#1F4A32", "#0A140E"],
+    "cinema": ["#4A1E1E", "#130909"],
+    "musee": ["#4A3A1A", "#120F08"],
+    "spectacle": ["#5A1E3C", "#140810"],
 }
 DAYS = {"Mo": 0, "Tu": 1, "We": 2, "Th": 3, "Fr": 4, "Sa": 5, "Su": 6}
 
@@ -107,7 +201,6 @@ EXCLUDED_WORDS = {
     "lycee",
     "college",
     "universite",
-    "institut",
     "eglise",
     "church",
     "mosquee",
@@ -125,12 +218,25 @@ EXCLUDED_WORDS = {
     "station",
     "residence",
     "cite",
+    "presidentiel",
+    "presidence",
+    "communal",
+    "agora",
+    "achat",
 }
 
 
-def is_excluded(name: str, tags: dict) -> bool:
+# Catégories « fortes » : un maquis nommé « L'Ambassade » ou une cave « La Station » restent des lieux de sortie.
+WORD_CHECK_CATEGORIES = {"nature", "activite", "culture", "piscine", "spa", "parc-loisirs", "jeux", "sport-loisir"}
+
+
+def is_excluded(name: str, tags: dict, categories: list[str] | None = None) -> bool:
     if EXCLUDED_KEYS & set(tags) or tags.get("amenity") in EXCLUDED_AMENITIES:
         return True
+    if any(k.startswith(("disused:", "abandoned:", "was:")) for k in tags) or re.match(r"(?i)(ex[- ]|ancien )", name):
+        return True  # lieu fermé (« Ex-cinéma Benin »)
+    if categories is not None and not set(categories) <= WORD_CHECK_CATEGORIES:
+        return False
     toks = re.findall(r"[a-z0-9]+", unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode().lower())
     return bool(EXCLUDED_WORDS & set(toks))
 
@@ -142,11 +248,11 @@ def parse_elements(data: dict) -> list[OsmPlace]:
         name = (tags.get("name") or tags.get("name:fr") or "").strip()
         lat = el.get("lat") or (el.get("center") or {}).get("lat")
         lng = el.get("lon") or (el.get("center") or {}).get("lon")
-        cats = sorted({c for (k, v), c in TAG_MAP.items() if tags.get(k) == v})
+        cats = osm_categories(tags, name) if name else []
         ref = f"{el.get('type')}/{el.get('id')}"
         if name and lat is not None and lng is not None and cats and ref not in seen:
             seen.add(ref)
-            out.append(OsmPlace(ref, name, float(lat), float(lng), cats, tags, is_excluded(name, tags)))
+            out.append(OsmPlace(ref, name, float(lat), float(lng), cats, tags, is_excluded(name, tags, cats)))
     return out
 
 
@@ -183,9 +289,15 @@ NAME_CATEGORIES = {
     "rooftop": "rooftop",
     "plage": "plage",
     "beach": "plage",
-    "club": "club",
     "night": "club",
+    "nightclub": "club",
+    "discotheque": "club",
     "cave": "bar",
+    "chicha": "lounge",
+    "toit": "rooftop",
+    "shisha": "lounge",
+    "karaoke": "karaoke",
+    "cinema": "cinema",
 }
 CUISINES_FR = {
     "african": "africaine",
@@ -243,29 +355,72 @@ def tidy_name(name: str) -> str:
     return name[:1].upper() + name[1:] if name == name.lower() else name
 
 
+NAME_PATTERNS = [
+    (r"\b(cinema|cine|pathe|majestic|canal olympia)\b", "cinema"),
+    (r"\b(musee|museum|galerie|gallery)\b|art contemporain", "musee"),
+    (r"\b(theatre|ki yi|palais de la culture)\b", "spectacle"),
+    (r"\b(kids park|aire de jeux|parc d attractions?)\b", "parc-loisirs"),
+]
+GENERIC_CATEGORIES = {"culture", "activite", "nature"}
+
+
 def name_categories(name: str) -> set[str]:
     toks = set(_tokens(name))
-    return {
+    flat = " ".join(_tokens(name))
+    found = {
         cat
         for word, cat in NAME_CATEGORIES.items()
         if word in toks or any(t.startswith(word) for t in toks if len(word) > 4)
     }
+    return found | {cat for pattern, cat in NAME_PATTERNS if re.search(pattern, flat)}
+
+
+def refine_categories(categories: list[str] | set[str], name: str) -> list[str]:
+    """Ajoute les catégories précises lisibles dans le nom ; retire alors la catégorie générique."""
+    added = name_categories(name) - set(categories)
+    cats = set(categories) | added
+    if added - GENERIC_CATEGORIES:
+        cats -= GENERIC_CATEGORIES
+    return sorted(cats)
+
+
+LABELS = {
+    "restaurant": "Restaurant",
+    "maquis": "Maquis",
+    "fast-food": "Fast-food",
+    "bar": "Bar",
+    "cafe": "Café",
+    "club": "Boîte de nuit",
+    "lounge": "Lounge",
+    "rooftop": "Rooftop",
+    "culture": "Lieu culturel",
+    "nature": "Espace naturel",
+    "plage": "Plage",
+    "activite": "Activité de loisirs",
+    "piscine": "Piscine",
+    "spa": "Spa et massage",
+    "bowling": "Bowling",
+    "karting": "Karting",
+    "paintball": "Paintball",
+    "escape-game": "Escape game",
+    "karaoke": "Karaoké",
+    "jeux": "Salle de jeux",
+    "sport-loisir": "Sport loisir",
+    "parc-loisirs": "Parc de loisirs",
+    "cinema": "Cinéma",
+    "musee": "Musée ou galerie",
+    "spectacle": "Salle de spectacle",
+    "evenement": "Événement",
+}
+# anciennes accroches génériques (à remplacer par une meilleure description quand elle existe)
+LEGACY_LABELS = {"Restauration rapide / maquis", "Club", "Lieu"}
 
 
 def describe(cats: list[str], tags: dict) -> tuple[str, str]:
     """Description factuelle construite uniquement à partir des tags présents."""
-    labels = {
-        "restaurant": "Restaurant",
-        "maquis": "Restauration rapide / maquis",
-        "bar": "Bar",
-        "cafe": "Café",
-        "club": "Club",
-        "culture": "Lieu culturel",
-        "nature": "Espace naturel",
-        "plage": "Plage",
-        "activite": "Activité de loisirs",
-    }
-    short = labels.get(cats[0], "Lieu")
+    order = [c for c in LABELS if c in cats]  # le plus précis d'abord (« Bowling » plutôt que « Activité »)
+    specific = [c for c in order if c not in ("activite", "culture", "nature")] or order
+    short = LABELS.get(specific[0], "Lieu") if specific else "Lieu"
     if tags.get("cuisine"):
         raw = [c.strip().lower() for c in tags["cuisine"].split(";") if c.strip()]
         fr = list(dict.fromkeys(CUISINES_FR.get(c, c.replace("_", " ")) for c in raw))[:4]
@@ -304,7 +459,7 @@ def _upsert(db, city: City, source, it: OsmPlace, publish: bool) -> tuple[Place,
     place = db.get(Place, ext.place_id) if ext else None
     t = it.tags
     short, long = describe(it.categories, t)
-    cats = sorted(set(it.categories) | name_categories(it.name))
+    cats = refine_categories(it.categories, it.name)
     generic = is_generic_name(it.name)
     if it.excluded:
         if place is not None and place.verified_at is None:
@@ -330,6 +485,8 @@ def _upsert(db, city: City, source, it: OsmPlace, publish: bool) -> tuple[Place,
     place.name, place.short_description, place.description = tidy_name(it.name), short, long
     if generic and place.verified_at is None:
         place.status = "draft"  # sans vrai nom : à nommer par la curation avant publication
+    elif publish and place.status == "archived" and place.verified_at is None:
+        place.status = "published"  # écarté à tort par une ancienne règle d'import : remis en ligne
     place.location = f"SRID=4326;POINT({it.lng} {it.lat})"
     district = _nearest_district(db, city, it.lat, it.lng)
     place.district_id = district.id if district else None

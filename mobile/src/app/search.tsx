@@ -14,8 +14,8 @@ import { useMeta } from "@/context/MetaContext";
 import { useSettings } from "@/context/SettingsContext";
 import { api } from "@/lib/api";
 import { activeFilterChips, countActiveFilters, EMPTY_FILTERS, filtersToApiQuery, SORTS, type SearchFilters } from "@/lib/filters";
-import { isNaturalQuery, pluralize } from "@/lib/format";
-import type { PlaceCard } from "@/lib/types";
+import { pluralize } from "@/lib/format";
+import type { PlaceCard, SearchResponse } from "@/lib/types";
 import { colors, GUTTER, space } from "@/theme/tokens";
 
 const PAGE_SIZE = 20;
@@ -30,7 +30,11 @@ function initialFilters(params: Record<string, string | string[] | undefined>): 
 export default function Search() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
-  const { catName, ambName } = useMeta();
+  const { catName, ambName, cities } = useMeta();
+  const districtName = useMemo(
+    () => Object.fromEntries(cities.flatMap((c) => [[c.slug, c.name], ...c.districts.map((d) => [d.slug, d.name])])),
+    [cities],
+  );
   const { searchOrigin, originLabel, setCity } = useSettings();
   const [filters, setFilters] = useState<SearchFilters>(() => initialFilters(params));
   const [text, setText] = useState(filters.q);
@@ -45,6 +49,7 @@ export default function Search() {
   }
   const [items, setItems] = useState<PlaceCard[]>([]);
   const [total, setTotal] = useState<number | null>(null);
+  const [understoodRaw, setUnderstood] = useState<SearchResponse["understood"]>(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [more, setMore] = useState(false);
@@ -68,6 +73,7 @@ export default function Search() {
         setItems((prev) => (p === 1 ? res.items : [...prev, ...res.items.filter((x) => !prev.some((y) => y.id === x.id))]));
         setTotal(res.total);
         setPage(p);
+        if (p === 1) setUnderstood(res.understood ?? null);
       } catch (e) {
         if ((e as { name?: string })?.name !== "AbortError") setError(e);
       } finally {
@@ -92,14 +98,10 @@ export default function Search() {
   const nActive = countActiveFilters(filters);
   const hasMore = total != null && items.length < total;
 
-  const submit = () => {
-    const t = text.trim();
-    if (isNaturalQuery(t)) {
-      router.push({ pathname: "/concierge", params: { q: t } });
-      return;
-    }
-    setFilters((f) => ({ ...f, q: t }));
-  };
+  const understood = describeUnderstood(understoodRaw, catName, districtName);
+  const submit = () => setFilters((f) => ({ ...f, q: text.trim() }));
+  const askConcierge = () => router.push({ pathname: "/concierge", params: { q: filters.q || text.trim() } });
+  const wanted = filters.q || filters.categories.map((c) => catName[c] ?? c).join(", ");
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -115,7 +117,7 @@ export default function Search() {
                 setText("");
                 setFilters((f) => ({ ...f, q: "" }));
               }}
-              placeholder="Rechercher un lieu"
+              placeholder="Bowling, maquis, plage à Bassam…"
               autoFocus={!filters.q && !filters.categories.length && !filters.openNow && filters.sort === "relevance"}
             />
           </View>
@@ -151,9 +153,16 @@ export default function Search() {
           contentContainerStyle={{ paddingHorizontal: GUTTER, paddingBottom: insets.bottom + space[6], gap: 12 }}
           ListHeaderComponent={
             total != null ? (
-              <Txt variant="label" color={colors.textMuted} style={{ marginBottom: 4 }}>
-                {pluralize(total, "lieu", "lieux")} · {originLabel}
-              </Txt>
+              <View style={{ gap: 4, marginBottom: 4 }}>
+                <Txt variant="label" color={colors.textMuted}>
+                  {pluralize(total, "lieu", "lieux")} · {originLabel} · distances à vol d&apos;oiseau
+                </Txt>
+                {understood && items.length ? (
+                  <Txt variant="caption" color={colors.accentSoft}>
+                    Recherche comprise : {understood}
+                  </Txt>
+                ) : null}
+              </View>
             ) : undefined
           }
           renderItem={({ item, index }) => (
@@ -165,7 +174,19 @@ export default function Search() {
           onEndReached={() => {
             if (hasMore && !more && !loading) void fetchPage(page + 1, "more");
           }}
-          ListFooterComponent={more ? <ActivityIndicator color={colors.accent} style={{ marginVertical: space[4] }} /> : undefined}
+          ListFooterComponent={
+            more ? (
+              <ActivityIndicator color={colors.accent} style={{ marginVertical: space[4] }} />
+            ) : items.length && filters.q && !hasMore ? (
+              <PressableScale onPress={askConcierge} accessibilityRole="button" style={s.askRow}>
+                <Icon name="sparkles" size={18} color={colors.accent} />
+                <Txt variant="bodySm" color={colors.textMuted} style={{ flex: 1 }}>
+                  Pas trouvé ? Demande au concierge
+                </Txt>
+                <Icon name="chevronRight" size={18} color={colors.textMuted} />
+              </PressableScale>
+            ) : undefined
+          }
           ListEmptyComponent={
             searchOrigin.kind === "city" && searchOrigin.district ? (
               <EmptyState
@@ -177,19 +198,25 @@ export default function Search() {
             ) : (
               <EmptyState
                 icon="search"
-                title="Aucun lieu ne correspond"
-                body="Essaie d'élargir la distance, le budget ou de retirer un filtre."
+                title={wanted ? `Pas encore de « ${wanted} » ici` : "Aucun lieu ne correspond"}
+                body={
+                  wanted
+                    ? "On complète la base chaque semaine. Le concierge peut te proposer des idées proches."
+                    : "Essaie d'élargir la distance ou de retirer un filtre."
+                }
                 action={
-                  nActive || filters.q
-                    ? {
-                        label: "Réinitialiser",
-                        icon: "refresh",
-                        onPress: () => {
-                          setText("");
-                          setFilters(EMPTY_FILTERS);
-                        },
-                      }
-                    : undefined
+                  wanted
+                    ? { label: "Demander au concierge", icon: "sparkles", onPress: askConcierge }
+                    : nActive
+                      ? {
+                          label: "Réinitialiser",
+                          icon: "refresh",
+                          onPress: () => {
+                            setText("");
+                            setFilters(EMPTY_FILTERS);
+                          },
+                        }
+                      : undefined
                 }
               />
             )
@@ -205,7 +232,30 @@ export default function Search() {
   );
 }
 
+/** « Bowling · Marcory » : ce que le serveur a compris de la recherche tapée. */
+function describeUnderstood(
+  u: { categories?: string[]; district?: string; city?: string } | null | undefined,
+  catName: Record<string, string>,
+  placeName: Record<string, string>,
+): string | null {
+  if (!u) return null;
+  const parts = [...(u.categories ?? []).map((c) => catName[c] ?? c), u.district ? placeName[u.district] ?? u.district : null, u.city ? placeName[u.city] ?? u.city : null];
+  const out = parts.filter(Boolean).join(" · ");
+  return out || null;
+}
+
 const s = StyleSheet.create({
+  askRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 14,
+    marginTop: space[2],
+    borderRadius: 16,
+    backgroundColor: colors.surface1,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   header: { paddingHorizontal: GUTTER, paddingBottom: space[3], borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, marginBottom: space[3] },
   bar: { flexDirection: "row", alignItems: "center", gap: 10 },
   filterBtn: {

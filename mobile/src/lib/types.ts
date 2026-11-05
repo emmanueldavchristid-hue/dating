@@ -122,10 +122,21 @@ export interface Category {
   slug: string;
   name: string;
   icon: string;
+  /** Envie à laquelle appartient la catégorie (manger, boire, danser…). */
+  group?: string | null;
+  /** Nombre de lieux publiés : l'app masque ce qui est vide. */
+  count?: number;
+}
+export interface CategoryGroup {
+  slug: string;
+  name: string;
+  icon: string;
+  categories: string[];
 }
 export interface Ambiance {
   slug: string;
   name: string;
+  count?: number;
 }
 export interface District {
   slug: string;
@@ -147,9 +158,12 @@ export interface City {
 export interface Capabilities {
   map: "osm" | "none";
   routing: "none" | "osrm";
-  ai: "rules" | "anthropic";
+  /** « rules » sans IA, sinon les fournisseurs configurés (« groq,gemini »). */
+  ai: string;
   payments: "none" | string;
   demo_data: boolean;
+  /** Nombre de lieux qui renseignent chaque filtre (les filtres sans données sont masqués). */
+  coverage?: { budget: number; rating: number; parking: number; wheelchair: number; hours: number };
 }
 
 // Recherche
@@ -161,6 +175,8 @@ export interface SearchResponse {
   page: number;
   page_size: number;
   origin: { lat: number; lng: number; source: "gps" | "city" };
+  /** Ce que la recherche tapée a compris (« bowling » → catégorie, « Marcory » → quartier). */
+  understood?: { categories?: string[]; district?: string; city?: string } | null;
 }
 
 export interface HomeSection {

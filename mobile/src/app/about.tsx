@@ -72,7 +72,7 @@ export default function About() {
             Paiement Mobile Money (Orange Money, Wave, MTN MoMo) : pas encore activé.
           </Txt>
           <Txt variant="caption" color={colors.textSubtle}>
-            Serveur : {API_URL} · IA : {capabilities?.ai === "anthropic" ? "activée" : "mode règles"} · Itinéraires : {capabilities?.routing === "osrm" ? "OSRM" : "non configurés"}
+            Serveur : {API_URL} · IA : {capabilities && capabilities.ai !== "rules" ? "activée" : "mode règles"} · Itinéraires : {capabilities?.routing === "osrm" ? "OSRM" : "non configurés"}
           </Txt>
         </Card>
       </ScrollView>

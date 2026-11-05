@@ -67,6 +67,14 @@ TIMEZONE=Africa/Abidjan
 DEFAULT_CITY=abidjan
 "@ | Set-Content -Path $envFile -Encoding ASCII
 Write-Host "backend\.env écrit (adresse publique des photos : http://${Ip}:8000)."
+# Clés d'IA (concierge) : gardées hors du dépôt, dans Documents\sortie-data\cles-ia.env
+$cles = Join-Path (Split-Path $Dump -Parent) "cles-ia.env"
+if (Test-Path $cles) {
+    Get-Content $cles | Where-Object { $_ -match "^[A-Z_]+=" } | Add-Content -Path $envFile -Encoding ASCII
+    Write-Host "Concierge IA activé (clés lues dans $cles)."
+} else {
+    Write-Host "Pas de fichier $cles : concierge en mode règles (sans IA)." -ForegroundColor Yellow
+}
 
 # 4. Base de données -----------------------------------------------------------
 Etape "Démarrage de la base de données (le premier lancement télécharge et construit les images : quelques minutes)"
@@ -83,12 +91,21 @@ Write-Host "Base prête."
 
 $demo = $false
 $existe = (docker compose exec -T db psql -U sortie -d sortie -tAc "select to_regclass('public.places') is not null") | Out-String
+# Une version plus récente de la base (fournie avec les mises à jour) remplace l'ancienne.
+$marque = Join-Path (Split-Path $Dump -Parent) ".base-restauree"
+if ($existe.Trim() -eq "t" -and (Test-Path $Dump) -and ((-not (Test-Path $marque)) -or ((Get-Item $Dump).LastWriteTime -gt (Get-Item $marque).LastWriteTime))) {
+    Etape "Nouvelle version des lieux trouvée : remplacement de la base"
+    docker compose exec -T db psql -U sortie -d postgres -c "DROP DATABASE sortie WITH (FORCE);" | Out-Null
+    docker compose exec -T db psql -U sortie -d postgres -c "CREATE DATABASE sortie OWNER sortie;" | Out-Null
+    $existe = "f"
+}
 if ($existe.Trim() -ne "t") {
     if (Test-Path $Dump) {
         Etape "Restauration des vrais lieux depuis $Dump"
         docker compose cp "$Dump" db:/tmp/sortie.dump
         docker compose exec -T db pg_restore --no-owner --no-privileges -U sortie -d sortie /tmp/sortie.dump
         if ($LASTEXITCODE -ne 0) { Echec "La restauration de la base a échoué." }
+        Set-Content -Path $marque -Value (Get-Date -Format o)
         Write-Host "Lieux restaurés."
     } else {
         Write-Host "Aucun fichier de base trouvé ($Dump) : démarrage avec les lieux de démonstration." -ForegroundColor Yellow

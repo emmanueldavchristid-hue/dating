@@ -124,6 +124,7 @@ class SearchResult(BaseModel):
     page: int
     page_size: int
     origin: Origin
+    understood: dict | None = None  # ce que la recherche tapée a compris (catégories, quartier, ville)
 
 
 class HomeSection(BaseModel):

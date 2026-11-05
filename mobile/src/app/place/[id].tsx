@@ -1,7 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { FlatList, StyleSheet, View, useWindowDimensions } from "react-native";
+import { FlatList, Linking, StyleSheet, View, useWindowDimensions } from "react-native";
 import Animated, { FadeInDown, interpolate, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, Extrapolation } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Cover } from "@/components/Cover";
@@ -9,6 +9,7 @@ import { EmptyState, ErrorState, Skeleton, useToast } from "@/components/feedbac
 import { categoryIcon, Icon, type IconName } from "@/components/Icon";
 import { categoriesLabel, openColor, PlaceTile } from "@/components/PlaceCard";
 import { AddPhotoSheet, PhotoActionsSheet, PhotoCredit, PlaceGallery } from "@/components/PlacePhotos";
+import { PlaceMiniMap, MINI_MAP_SUPPORTED } from "@/components/PlaceMiniMap";
 import { CollectionSheet, ReportSheet, ReviewSheet } from "@/components/PlaceSheets";
 import { UpsellCard } from "@/components/Premium";
 import { goBack } from "@/components/Screen";
@@ -17,10 +18,10 @@ import { useAuth } from "@/context/AuthContext";
 import { useMeta } from "@/context/MetaContext";
 import { useSettings } from "@/context/SettingsContext";
 import { api, ApiError, errorMessage, isUnsupported } from "@/lib/api";
+import { APP_NAME } from "@/lib/config";
 import { track } from "@/lib/events";
 import {
   aboutText,
-  confidenceLabel,
   distanceLabel,
   formatBudgetRange,
   formatDate,
@@ -31,7 +32,7 @@ import {
   travelLabel,
   WEEKDAYS,
 } from "@/lib/format";
-import { callPhone, openDirections, sharePlace } from "@/lib/links";
+import { callPhone, goThere, sharePlace, whatsappUrl } from "@/lib/links";
 import { canManagePhotos, isCoverPhoto, realPhotos } from "@/lib/photos";
 import type { Amenities, PlaceCard, PlaceDetail, PlacePhoto } from "@/lib/types";
 import { colors, fonts, GUTTER, radius, space } from "@/theme/tokens";
@@ -46,13 +47,6 @@ const AMENITIES: { key: keyof Amenities; yes: string; no: string; icon: IconName
   { key: "mobile_money", yes: "Mobile Money", no: "Pas de Mobile Money", icon: "smartphone" },
   { key: "outdoor", yes: "Espace extérieur", no: "Pas d'extérieur", icon: "sun" },
 ];
-
-const SOURCE_LABEL: Record<string, string> = {
-  demo: "Données de démonstration",
-  osm: "OpenStreetMap",
-  partner: "Partenaire",
-  curated: "Équipe de curation",
-};
 
 function Section({ title, children, right }: { title: string; children: ReactNode; right?: ReactNode }) {
   return (
@@ -253,11 +247,15 @@ export default function PlaceScreen() {
   const travel = travelLabel(p.travel);
   const budget = formatBudgetRange(p.budget_min_fcfa, p.budget_max_fcfa);
   const level = priceLevelLabel(p.price_level);
-  const conf = confidenceLabel(p.confidence);
   const known = AMENITIES.filter((a) => p.amenities?.[a.key] != null);
   const today = (new Date().getDay() + 6) % 7;
   const photos = realPhotos(p.photos);
   const credits = photos.filter((ph) => ph.credit);
+  const whatsapp = p.phone ? whatsappUrl(p.phone, `Bonjour, je vous ai trouvé sur ${APP_NAME}. `) : null;
+  const showOnMap = () => {
+    if (!p.location) return;
+    router.push({ pathname: "/map", params: { focus: p.id, lat: String(p.location.lat), lng: String(p.location.lng) } });
+  };
   // Photo du héros : celle choisie dans la galerie, sinon la couverture, sinon la première.
   const hero = (heroUrl ? photos.find((ph) => ph.url === heroUrl) : null) ?? photos.find((ph) => isCoverPhoto(ph, p.cover)) ?? (p.cover.url ? null : photos[0]) ?? null;
   const catLabels = p.categories.map((c) => catName[c] ?? c);
@@ -307,14 +305,11 @@ export default function PlaceScreen() {
             {hasRating ? (
               <Fact icon="star" label="Note" value={`${p.rating_avg!.toFixed(1).replace(".", ",")} · ${p.rating_count} avis`} color={colors.gold} />
             ) : null}
-            <Fact
-              icon="clock"
-              label="Horaires"
-              value={hoursKnown ? openStatusLabel(p.open_status, p.closes_at) : "Non communiqués"}
-              color={hoursKnown ? openColor(p.open_status) : colors.textSubtle}
-            />
-            {dist ? (
-              <Fact icon="pin" label={fromCenter ? "Depuis le centre-ville" : "Distance"} value={travel ? `${dist}\n${travel} · ${p.travel?.source}` : dist} />
+            {hoursKnown ? (
+              <Fact icon="clock" label="Horaires" value={openStatusLabel(p.open_status, p.closes_at)} color={openColor(p.open_status)} />
+            ) : null}
+            {dist && !fromCenter ? (
+              <Fact icon="pin" label="Distance" value={travel ? `${dist}\n${travel} · ${p.travel?.source}` : dist} />
             ) : null}
             {budget || level ? <Fact icon="card" label={budget && level ? `Budget / pers. · ${level}` : "Budget / pers."} value={budget ?? level!} /> : null}
           </View>
@@ -323,8 +318,36 @@ export default function PlaceScreen() {
             <ActionTile icon="heart" label={fav ? "Enregistré" : "Favori"} onPress={toggleFav} active={fav} />
             <ActionTile icon="bookmark" label="Collection" onPress={() => requireAuth() && setSheet("collection")} />
             <ActionTile icon="share" label="Partager" onPress={share} />
-            <ActionTile icon="flag" label="Signaler" onPress={() => requireAuth() && setSheet("report")} />
+            {whatsapp ? (
+              <ActionTile
+                icon="send"
+                label="WhatsApp"
+                onPress={() => {
+                  track("call", p.id);
+                  void Linking.openURL(whatsapp);
+                }}
+              />
+            ) : (
+              <ActionTile icon="map" label="Carte" onPress={showOnMap} />
+            )}
           </View>
+
+          {p.location ? (
+            <Section title="Où c'est">
+              <PressableScale onPress={showOnMap} accessibilityRole="button" accessibilityLabel="Voir sur la carte de l'app" scaleTo={0.98}>
+                {MINI_MAP_SUPPORTED ? <PlaceMiniMap lat={p.location.lat} lng={p.location.lng} category={p.categories[0]} /> : null}
+                <View style={s.whereRow}>
+                  <Icon name="pin" size={17} color={colors.accentSoft} />
+                  <Txt variant="label" style={{ flex: 1 }} numberOfLines={2}>
+                    {[p.address, p.district, p.city].filter(Boolean).join(", ")}
+                  </Txt>
+                  <Txt variant="label" color={colors.accent}>
+                    Voir sur la carte
+                  </Txt>
+                </View>
+              </PressableScale>
+            </Section>
+          ) : null}
 
           <PlaceGallery
             photos={p.photos}
@@ -475,15 +498,19 @@ export default function PlaceScreen() {
             </View>
           ) : null}
 
-          <Section title="Fiabilité de la fiche">
+          <Section title="Infos pratiques">
             <View style={s.reliability}>
-              <Row label="Source" value={p.source.attribution ?? SOURCE_LABEL[p.source.kind] ?? p.source.kind} />
-              <Row label="Dernière vérification" value={formatDate(p.verified_at) ?? "Jamais vérifiée sur le terrain"} />
-              <Row label="Confiance" value={`${conf.label} (${Math.round(p.confidence * 100)} %)`} color={conf.level === "high" ? colors.success : conf.level === "medium" ? colors.warning : colors.danger} />
-              {p.address ? <Row label="Adresse" value={p.address} /> : null}
+              {p.verified_at ? <Row label="Vérifié par l'équipe" value={formatDate(p.verified_at) ?? ""} color={colors.success} /> : null}
+              {p.phone ? <Row label="Téléphone" value={p.phone} /> : null}
+              {p.website ? <Row label="Site web" value={p.website.replace(/^https?:\/\//, "")} /> : null}
               {credits.map((ph, i) => (
                 <Row key={i} label="Photo" value={`© ${ph.credit}`} />
               ))}
+              {!p.verified_at ? (
+                <Txt variant="caption" color={colors.textSubtle}>
+                  Une info a changé ? Dis-le nous, on met la fiche à jour.
+                </Txt>
+              ) : null}
             </View>
             <Button label="Signaler une erreur" icon="flag" variant="ghost" size="md" onPress={() => requireAuth() && setSheet("report")} />
           </Section>
@@ -547,15 +574,15 @@ export default function PlaceScreen() {
           />
         ) : null}
         <Button
-          label="Itinéraire"
+          label="Y aller"
           icon="navigation"
           style={{ flex: 1 }}
           disabled={!p.location}
-          accessibilityHint="Ouvre l'application de cartes du téléphone"
+          accessibilityHint="Voir le lieu sur la carte de l'app ou lancer le guidage"
           onPress={() => {
             if (!p.location) return;
             track("directions", p.id);
-            openDirections(p.location.lat, p.location.lng, p.name);
+            goThere(p.location.lat, p.location.lng, p.name, showOnMap);
           }}
         />
       </View>
@@ -587,6 +614,7 @@ function Row({ label, value, color }: { label: string; value: string; color?: st
 }
 
 const s = StyleSheet.create({
+  whereRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 10 },
   screen: { flex: 1, backgroundColor: colors.bg },
   hero: { position: "absolute", top: 0, left: 0, right: 0, height: HERO },
   heroCredit: { position: "absolute", right: 12, bottom: 64 + 12 },

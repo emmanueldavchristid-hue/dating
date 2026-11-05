@@ -72,27 +72,75 @@ def test_osrm_adapter_parses_and_degrades():
 
 
 def test_llm_extract_only_allowed_values_and_fails_safely():
-    body = {
-        "content": [
-            {
-                "type": "tool_use",
-                "name": "set_filters",
-                "input": {
-                    "categories": ["plage", "inventee"],
-                    "ambiances": ["calme"],
-                    "open_now": True,
-                    "budget_max_fcfa": 9000,
-                },
-            }
-        ]
-    }
+    import json as _json
+
+    text = _json.dumps(
+        {"categories": ["plage", "inventee"], "ambiances": ["calme"], "open_now": True, "budget_max_fcfa": 9000}
+    )
+    body = {"content": [{"type": "text", "text": text}]}
     llm = AnthropicProvider(
         "k", "m", httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json=body)))
     )
-    p = llm.extract("...", ["plage", "bar"], ["calme"])
+    p = llm.extract("...", {"plage": "Plages", "bar": "Bars"}, ["calme"])
     assert p.categories == ["plage"] and p.budget_max_fcfa == 9000 and p.open_now
     down = AnthropicProvider("k", "m", httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(503))))
-    assert down.extract("...", ["plage"], []) is None and down.compose("...", []) is None
+    assert down.extract("...", {"plage": "Plages"}, []) is None and down.compose("...", []) is None
+
+
+def test_openai_compatible_chain_falls_back_to_next_provider():
+    from app.adapters.llm import ChainProvider, OpenAICompatibleProvider
+
+    ok_body = {"choices": [{"message": {"content": '{"categories": ["bowling"], "ambiances": [], "open_now": false}'}}]}
+    seen = []
+
+    def groq(r):
+        seen.append(("groq", r.url.host))
+        return httpx.Response(429)
+
+    def gemini(r):
+        seen.append(("gemini", r.url.host))
+        assert r.headers["authorization"] == "Bearer g-key"
+        return httpx.Response(200, json=ok_body)
+
+    chain = ChainProvider(
+        [
+            OpenAICompatibleProvider(
+                "groq", "https://api.groq.com/openai/v1", "k", "m", httpx.Client(transport=httpx.MockTransport(groq))
+            ),
+            OpenAICompatibleProvider(
+                "gemini", "https://gemini.test/v1", "g-key", "m", httpx.Client(transport=httpx.MockTransport(gemini))
+            ),
+        ]
+    )
+    p = chain.extract("un booling", {"bowling": "Bowling"}, [])
+    assert p.categories == ["bowling"] and chain.name == "gemini" and [s[0] for s in seen] == ["groq", "gemini"]
+
+
+def test_intent_understands_local_words_and_typos():
+    from app.services.intent import parse
+
+    assert parse("un booling entre amis").categories == ["bowling"]
+    assert parse("karoke ce soir").categories == ["karaoke"]
+    assert parse("où y a gbê ce soir ?").categories == ["club"]
+    assert parse("chicha sympa").categories == ["lounge"]
+    assert parse("moins cher").categories == []
+    assert parse("nightclub").categories == ["club"]
+
+
+def test_osm_leisure_centres_are_kept_and_sports_grounds_are_not():
+    from app.importers.osm import is_excluded, osm_categories
+
+    assert osm_categories({"leisure": "sports_centre", "sport": "10pin"}, "Strike Bowl") == ["bowling"]
+    assert osm_categories({"leisure": "sports_centre", "sport": "karting"}, "SuperKart") == ["karting"]
+    assert osm_categories({"leisure": "sports_centre", "sport": "multi"}, "International Club and Paintball Park") == [
+        "paintball"
+    ]
+    assert osm_categories({"leisure": "sports_centre", "sport": "soccer"}, "Le Temple du Foot") == []
+    assert osm_categories({"amenity": "fast_food", "brand": "KFC"}, "KFC Yopougon") == ["fast-food"]
+    assert osm_categories({"amenity": "fast_food"}, "Garba chez Tantie") == ["maquis"]
+    assert not is_excluded("Maquis L'Ambassade", {"amenity": "bar"}, ["bar", "maquis"])
+    assert is_excluded("Ambassade de France", {"leisure": "garden"}, ["nature"])
+    assert is_excluded("Ex-cinema Benin", {"amenity": "cinema"}, ["cinema"])
 
 
 def test_find_city_in_message():

@@ -124,7 +124,8 @@ def build_conditions(p: SearchParams, origin: Origin, city, district, point, now
     if p.ambiances:
         conds.append(Place.ambiance_slugs.op("&&")(arr(p.ambiances)))
     if p.budget_max is not None:
-        conds.append(Place.budget_min_fcfa <= p.budget_max)  # budget inconnu exclu : on ne suppose rien
+        # seuls les lieux connus pour dépasser le budget sont écartés ; un prix inconnu reste « inconnu »
+        conds.append(or_(Place.budget_min_fcfa.is_(None), Place.budget_min_fcfa <= p.budget_max))
     if p.open_now:
         conds.append(_open_now_clause(now))
     if p.parking:
@@ -141,6 +142,35 @@ def build_conditions(p: SearchParams, origin: Origin, city, district, point, now
         text_rank = func.ts_rank(Place.search_vector, tsq) + func.similarity(Place.name, q)
 
     return conds, text_rank
+
+
+def interpret_query(db: Session, p: SearchParams) -> dict | None:
+    """Comprend la recherche tapée (« bowling », « boîte Marcory », « plage Bassam ») au lieu de chercher
+    seulement dans les noms. Modifie `p` et retourne ce qui a été compris (affiché par l'app)."""
+    from app.services import intent
+
+    if not p.q or not p.q.strip():
+        return None
+    cities = {c.name: c.slug for c in db.scalars(select(City))}
+    city_slug = intent.find_city(p.q, cities)
+    city_for_districts = city_slug or p.city or get_settings().default_city
+    districts = {d.name: d.slug for d in db.scalars(select(District).join(City).where(City.slug == city_for_districts))}
+    parsed = intent.parse(p.q, districts)
+    understood: dict = {}
+    if parsed.categories and not p.categories:
+        p.categories = parsed.categories
+        understood["categories"] = parsed.categories
+    if city_slug and city_slug != (p.city or None):
+        p.city, p.lat, p.lng, p.district = city_slug, None, None, None
+        understood["city"] = city_slug
+    if parsed.district and not p.district:
+        p.district = parsed.district
+        p.city = p.city or city_for_districts
+        understood["district"] = parsed.district
+    if understood:
+        p.q = None  # les mots compris deviennent des filtres ; le reste (« chic », « sympa ») ne filtre pas
+        return understood
+    return None
 
 
 def run_search(
@@ -233,7 +263,7 @@ def run_search(
                 "fresh": r.c_fresh,
                 "budget": r.c_budget,
             },
-            "prefs_used": bool(pref_cats or pref_ambs),
+            "prefs_used": bool(prefs and ((prefs.get("categories") or []) or (prefs.get("ambiances") or []))),
             "budget_used": bool(pref_budget),
         }
         for r in rows

@@ -32,6 +32,18 @@ def max_itinerary_steps(db: Session, user: User | None) -> int:
     return plan.itinerary_max_steps if plan else FREE_DEFAULTS["itinerary_max_steps"]
 
 
+def concierge_usage(db: Session, user: User, today: date) -> tuple[int, int]:
+    """(demandes utilisées aujourd'hui, limite) ; lève quota_exceeded si la limite est atteinte."""
+    limit = user.plan.concierge_per_day
+    used = (
+        db.scalar(select(ConciergeUsage.count).where(ConciergeUsage.user_id == user.id, ConciergeUsage.day == today))
+        or 0
+    )
+    if used >= limit:
+        raise ApiError(429, "quota_exceeded", f"Quota du concierge atteint ({limit} demandes par jour avec ton offre)")
+    return used, limit
+
+
 def consume_concierge(db: Session, user: User, today: date) -> tuple[int, int]:
     """Incrémente atomiquement l'usage du jour ; lève quota_exceeded si la limite est atteinte."""
     limit = user.plan.concierge_per_day

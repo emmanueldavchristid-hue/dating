@@ -4,48 +4,10 @@ import re
 import unicodedata
 
 from app.schemas import Parsed
+from app.services import vocab
 
-CATEGORY_WORDS = {
-    "restaurant": ["restaurant", "resto", "diner", "dejeuner", "manger", "gastronom"],
-    "maquis": ["maquis", "garba", "alloco", "braise", "poisson braise", "attieke"],
-    "lounge": ["lounge", "chicha"],
-    "rooftop": [
-        "rooftop",
-        "terrasse en hauteur",
-        "en hauteur",
-        "toit",
-        "vue panoramique",
-        "belle vue",
-        "vue sur la ville",
-        "skyline",
-    ],
-    "plage": ["plage", "mer", "sable", "baignade", "bord de mer", "bord de la mer", "ocean", "vagues"],
-    "nature": ["nature", "parc", "foret", "jardin", "lagune", "randonnee", "vert"],
-    "bar": ["bar", "verre", "cocktail", "cocktails", "biere", "apero", "boire"],
-    "cafe": ["cafe", "coffee", "brunch", "the ", "patisserie"],
-    "activite": ["activite", "jeu", "bowling", "karting", "escape", "sport", "loisir"],
-    "culture": ["culture", "musee", "galerie", "expo", "art", "theatre", "cinema", "concert", "jazz", "musique"],
-    "club": ["club", "boite", "danser", "soiree dansante", "nightclub"],
-}
-AMBIANCE_WORDS = {
-    "calme": ["calme", "tranquille", "pose", "chill", "detente", "se detendre", "paisible"],
-    "romantique": [
-        "romantique",
-        "en amoureux",
-        "date",
-        "couple",
-        "a deux",
-        "ma copine",
-        "mon copain",
-        "ma femme",
-        "mon mari",
-    ],
-    "festif": ["festif", "fete", "ambiance", "danser", "faire la fete", "bouger"],
-    "entre-amis": ["entre amis", "entre potes", "avec des amis", "les gars", "groupe", "anniversaire"],
-    "famille": ["famille", "enfants", "enfant", "kids", "parents"],
-    "decouverte": ["decouvrir", "decouverte", "original", "insolite", "cache", "secret", "nouveau"],
-    "plein-air": ["plein air", "dehors", "exterieur", "en plein air", "terrasse", "bord de l'eau", "au bord de l'eau"],
-}
+CATEGORY_WORDS = vocab.CATEGORY_WORDS
+AMBIANCE_WORDS = vocab.AMBIANCE_WORDS
 CHEAP_WORDS = ["pas cher", "moins cher", "petit budget", "economique", "abordable", "bon marche", "petit prix"]
 NOW_WORDS = ["maintenant", "en ce moment", "tout de suite", "ouvert"]
 
@@ -77,9 +39,41 @@ def parse_budget(text: str) -> int | None:
     return value
 
 
+def _distance(a: str, b: str, limit: int) -> int:
+    """Distance d'édition (insertions, suppressions, substitutions, inversions), arrêtée au-delà de `limit`."""
+    if abs(len(a) - len(b)) > limit:
+        return limit + 1
+    prev2, prev = None, list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i] + [0] * len(b)
+        for j, cb in enumerate(b, 1):
+            cur[j] = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb))
+            if prev2 is not None and i > 1 and j > 1 and ca == b[j - 2] and a[i - 2] == cb:
+                cur[j] = min(cur[j], prev2[j - 2] + 1)
+        if min(cur) > limit:
+            return limit + 1
+        prev2, prev = prev, cur
+    return prev[-1]
+
+
+def fuzzy_categories(text: str) -> list[str]:
+    """Fautes de frappe sur les mots-clés d'une seule partie (« boling », « karoke », « restaurent »)."""
+    found = []
+    tokens = [t for t in text.split() if len(t) >= 6]
+    for cat, words in CATEGORY_WORDS.items():
+        singles = [normalize(w).strip() for w in words if " " not in w.strip() and len(w.strip()) >= 6]
+        for tok in tokens:
+            if any(_distance(tok, w, 2 if len(w) >= 8 else 1) <= (2 if len(w) >= 8 else 1) for w in singles):
+                found.append(cat)
+                break
+    return found
+
+
 def parse(message: str, districts: dict[str, str] | None = None) -> Parsed:
     t = normalize(message)
     cats = [c for c, words in CATEGORY_WORDS.items() if any(_has(t, w) for w in words)]
+    if not cats:
+        cats = fuzzy_categories(t)
     ambs = [a for a, words in AMBIANCE_WORDS.items() if any(_has(t, w) for w in words)]
     budget = parse_budget(t)
     if budget is None and any(_has(t, w) for w in CHEAP_WORDS):

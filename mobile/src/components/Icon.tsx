@@ -375,6 +375,61 @@ const ICONS = {
       <Line x1={3} y1={10} x2={21} y2={10} />
     </>
   ),
+  burger: (
+    <>
+      {P("M4 11a8 6 0 0 1 16 0z")}
+      {P("M3 15h18M4 19h16a1 1 0 0 0 1-1v-1H3v1a1 1 0 0 0 1 1z")}
+    </>
+  ),
+  droplet: P("M12 2.7 6.3 8.4a8 8 0 1 0 11.4 0z"),
+  spa: (
+    <>
+      {P("M12 21c-4.4 0-8-3.1-8-7 2.8 0 5.6 1.4 8 4 2.4-2.6 5.2-4 8-4 0 3.9-3.6 7-8 7z")}
+      {P("M12 18c-1.8-2-2.6-4.2-2.6-6.5S10.6 6.9 12 4c1.4 2.9 2.6 5.2 2.6 7.5S13.8 16 12 18z")}
+    </>
+  ),
+  bowling: (
+    <>
+      <Circle cx={12} cy={12} r={9} />
+      <Circle cx={9.5} cy={9} r={1} />
+      <Circle cx={13} cy={8} r={1} />
+      <Circle cx={12} cy={11.5} r={1} />
+    </>
+  ),
+  target: (
+    <>
+      <Circle cx={12} cy={12} r={9} />
+      <Circle cx={12} cy={12} r={5} />
+      <Circle cx={12} cy={12} r={1} />
+    </>
+  ),
+  key: (
+    <>
+      <Circle cx={7.5} cy={15.5} r={4.5} />
+      {P("m10.7 12.3 9.8-9.8M17 6l3 3M14.5 8.5l2 2")}
+    </>
+  ),
+  mic: (
+    <>
+      <Rect x={9} y={2} width={6} height={12} rx={3} />
+      {P("M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8")}
+    </>
+  ),
+  gamepad: (
+    <>
+      <Rect x={2} y={6} width={20} height={12} rx={6} />
+      {P("M6 12h4M8 10v4")}
+      <Circle cx={15.5} cy={11} r={0.8} />
+      <Circle cx={18} cy={13} r={0.8} />
+    </>
+  ),
+  activity: P("M22 12h-4l-3 9L9 3l-3 9H2"),
+  film: (
+    <>
+      <Rect x={2} y={3} width={20} height={18} rx={2.5} />
+      {P("M7 3v18M17 3v18M2 8h5M2 16h5M17 8h5M17 16h5M2 12h20")}
+    </>
+  ),
 } satisfies Record<string, ReactElement>;
 
 export type IconName = keyof typeof ICONS;
@@ -435,6 +490,30 @@ const CATEGORY_ICONS: Record<string, IconName> = {
   culture: "palette",
   club: "music",
   evenement: "calendar",
+  burger: "burger",
+  droplet: "droplet",
+  spa: "spa",
+  bowling: "bowling",
+  car: "car",
+  target: "target",
+  key: "key",
+  mic: "mic",
+  gamepad: "gamepad",
+  activity: "activity",
+  film: "film",
+  sparkles: "sparkles",
+  "fast-food": "burger",
+  piscine: "droplet",
+  karting: "car",
+  paintball: "target",
+  "escape-game": "key",
+  karaoke: "mic",
+  jeux: "gamepad",
+  "sport-loisir": "activity",
+  "parc-loisirs": "sparkles",
+  cinema: "film",
+  musee: "palette",
+  spectacle: "mic",
 };
 
 export function categoryIcon(slugOrIcon: string | null | undefined): IconName {

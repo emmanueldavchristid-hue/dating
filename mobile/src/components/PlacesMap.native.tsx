@@ -24,8 +24,9 @@ const DARK: MapStyleElement[] = [
 
 const DELTA = { latitudeDelta: 0.09, longitudeDelta: 0.09 };
 
-export function PlacesMap({ places, selectedId, onSelect, center, user, recenterKey, bottomInset }: PlacesMapProps) {
+export function PlacesMap({ places, selectedId, onSelect, center, user, recenterKey, bottomInset, onRegionChange }: PlacesMapProps) {
   const ref = useRef<MapView>(null);
+  const start = user ?? center;
 
   useEffect(() => {
     const p = places.find((x) => x.id === selectedId);
@@ -42,7 +43,12 @@ export function PlacesMap({ places, selectedId, onSelect, center, user, recenter
     <MapView
       ref={ref}
       style={StyleSheet.absoluteFill}
-      initialRegion={{ latitude: center.lat, longitude: center.lng, ...DELTA }}
+      initialRegion={{ latitude: start.lat, longitude: start.lng, ...DELTA }}
+      onRegionChangeComplete={(r, details) => {
+        if (details && details.isGesture === false) return; // seulement les déplacements faits par l'utilisateur
+        // rayon ≈ demi-hauteur visible (1° de latitude ≈ 111 km)
+        onRegionChange?.({ lat: r.latitude, lng: r.longitude, km: Math.max(1, (r.latitudeDelta * 111) / 2) });
+      }}
       customMapStyle={DARK}
       userInterfaceStyle="dark"
       showsUserLocation={!!user}

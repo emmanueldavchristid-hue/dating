@@ -1,6 +1,6 @@
-# État du projet — v0.3
+# État du projet — v0.4
 
-Dernière mise à jour : 29 octobre 2026 · Branche `mvp` · Pull request #1
+Dernière mise à jour : 5 novembre 2026 (détail et suite du travail : `docs/REPRISE.md`) · Branche `mvp` · Pull request #1
 
 ## Prêt à être donné à un client ?
 
@@ -8,9 +8,15 @@ Dernière mise à jour : 29 octobre 2026 · Branche `mvp` · Pull request #1
 Restent : photos (Wikimedia, collecte à faire depuis une machine non limitée), modèle sémantique, validation des
 pépites par l'équipe, test sur de vrais téléphones, hébergement.
 
-## Données réelles (base de développement, 29/10/2026)
+## Nouveautés v0.4 (5/11/2026)
 
-- **2 852 lieux publiés** (Abidjan, Grand-Bassam, Assinie) depuis l'extrait OpenStreetMap Geofabrik.
+Après l'audit client : catégories par envies, lieux de loisirs réintégrés, recherche qui comprend les activités
+(français, nouchi, anglais, fautes de frappe), concierge corrigé et prêt pour l'IA (Groq, Gemini, NVIDIA en relais),
+fiche sans mention technique avec mini-carte et WhatsApp, carte centrée sur ma position. Voir `docs/REPRISE.md`.
+
+## Données réelles (base de développement, 5/11/2026 : 2 874 lieux publiés)
+
+- **2 852 lieux publiés** (29/10) (Abidjan, Grand-Bassam, Assinie) depuis l'extrait OpenStreetMap Geofabrik.
 - 3 700 entrées sans vrai nom (« Maquis », « Kiosque »…) gardées en **brouillon** pour la curation ; 83 lieux hors sujet archivés
   (ambassades, écoles, terrains de sport…).
 - **60 pépites candidates** proposées dans l'administration (onglet Curation) : à valider par l'équipe.

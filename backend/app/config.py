@@ -23,9 +23,18 @@ class Settings(BaseSettings):
     # Adaptateurs (vides = désactivés, l'app fonctionne sans)
     routing_provider: str = "none"  # none | osrm
     osrm_url: str = ""  # ex. https://router.project-osrm.org (respecter ses conditions d'usage)
-    llm_provider: str = "none"  # none | anthropic
+    llm_provider: str = "none"  # ancien réglage (un seul fournisseur) ; préférer llm_providers
+    llm_providers: str = ""  # ordre de repli, ex. « groq,gemini » (groq | gemini | openrouter | nvidia | anthropic)
     anthropic_api_key: str = ""
     llm_model: str = "claude-haiku-5-5"
+    groq_api_key: str = ""
+    groq_model: str = ""  # vide = modèle par défaut (adapters/llm.py)
+    gemini_api_key: str = ""
+    gemini_model: str = ""
+    openrouter_api_key: str = ""
+    openrouter_model: str = ""
+    nvidia_api_key: str = ""
+    nvidia_model: str = ""
     payments_provider: str = "none"  # none | (agrégateur Mobile Money à intégrer)
     map_provider: str = "osm"
     media_base_url: str = ""  # URL publique du bucket S3 / CDN (sinon : PUBLIC_BASE_URL/media)

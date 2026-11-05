@@ -152,7 +152,7 @@ export interface City {
 export interface Capabilities {
   map: "osm" | "none";
   routing: "none" | "osrm";
-  ai: "rules" | "anthropic";
+  ai: string; // "rules" ou fournisseurs configurés (ex. "groq,gemini")
   payments: "none" | string;
   demo_data: boolean;
 }

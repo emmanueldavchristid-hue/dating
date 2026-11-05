@@ -9,4 +9,6 @@ export interface PlacesMapProps {
   /** Incrémenter pour recentrer la carte. */
   recenterKey: number;
   bottomInset: number;
+  /** Appelé quand l'utilisateur a fini de déplacer la carte (centre + rayon visible approximatif). */
+  onRegionChange?: (r: { lat: number; lng: number; km: number }) => void;
 }

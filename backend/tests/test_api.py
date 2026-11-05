@@ -257,6 +257,42 @@ def test_concierge_never_invents_when_nothing_matches(client, insider_h):
         assert p["city"] == "Assinie"
 
 
+def test_concierge_greeting_and_nonsense_do_not_use_quota(client, new_user):
+    h, _ = new_user
+    r = client.post(f"{API}/concierge", headers=h, json={"message": "Bonjour !"}).json()
+    assert r["places"] == [] and r["quota"]["used"] == 0 and "Salut" in r["reply"]
+    r = client.post(f"{API}/concierge", headers=h, json={"message": "xyzzy plop"}).json()
+    assert r["places"] == [] and r["quota"]["used"] == 0 and "pas bien compris" in r["reply"]
+
+
+def test_concierge_is_honest_when_a_type_is_missing(client, insider_h):
+    """Pas de karaoké dans la démo : il le dit, et ne propose que des alternatives annoncées comme telles."""
+    r = client.post(f"{API}/concierge", headers=insider_h, json={"message": "un karaoké entre amis"}).json()
+    assert "karaoke" in r["parsed"]["categories"]
+    assert "pas encore" in r["reply"]
+    assert all("karaoke" not in p["categories"] for p in r["places"])
+
+
+def test_concierge_new_request_ignores_previous_filters(client, insider_h):
+    history = [{"role": "user", "content": "un maquis pas cher"}, {"role": "assistant", "content": "…"}]
+    r = client.post(
+        f"{API}/concierge", headers=insider_h, json={"message": "un rooftop pour un afterwork", "history": history}
+    ).json()
+    assert "rooftop" in r["parsed"]["categories"] and r["parsed"]["budget_max_fcfa"] is None and r["places"]
+
+
+def test_search_understands_activity_words_and_districts(client):
+    r = client.get(f"{API}/places/search", params={"q": "booling"}).json()
+    assert r["understood"] == {"categories": ["bowling"]}
+    r = client.get(f"{API}/places/search", params={"q": "maquis Yopougon"}).json()
+    assert r["understood"]["district"] == "yopougon" and r["items"]
+    assert all(i["district"] == "Yopougon" and "maquis" in i["categories"] for i in r["items"])
+    cats = client.get(f"{API}/meta/categories").json()
+    assert {"slug", "group", "count"} <= set(cats[0]) and any(c["count"] == 0 for c in cats)
+    groups = client.get(f"{API}/meta/groups").json()
+    assert groups and all(g["categories"] for g in groups)
+
+
 def test_billing_is_honest(client, free_h):
     plans = client.get(f"{API}/billing/plans").json()
     assert [p["code"] for p in plans] == ["free", "plus", "insider"]

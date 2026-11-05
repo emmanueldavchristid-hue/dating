@@ -40,7 +40,7 @@ function Chat() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [quota, setQuota] = useState<{ used: number; limit: number } | null>(null);
-  const [provider, setProvider] = useState<"rules" | "anthropic" | null>(null);
+  const [provider, setProvider] = useState<string | null>(null);
   const seq = useRef(0);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -80,14 +80,14 @@ function Chat() {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [msgs, busy]);
 
-  const mode = provider ?? (capabilities?.ai === "anthropic" ? "anthropic" : capabilities?.ai === "rules" ? "rules" : null);
+  const mode = provider ?? (capabilities?.ai ? (capabilities.ai === "rules" ? "rules" : "ia") : null);
   const exhausted = quota != null && quota.used >= quota.limit;
 
   return (
     <div className={styles.chat}>
       <div className={styles.status}>
         {mode ? (
-          <span className={`badge ${mode === "anthropic" ? "badge-accent" : ""}`} title={mode === "rules" ? "Réponses construites par des règles à partir de votre demande" : "Réponses rédigées par une IA, lieux toujours issus de notre base"}>
+          <span className={`badge ${mode && mode !== "rules" ? "badge-accent" : ""}`} title={mode === "rules" ? "Réponses construites par des règles à partir de votre demande" : "Réponses rédigées par une IA, lieux toujours issus de notre base"}>
             <IconSparkle /> {mode === "rules" ? "Mode règles" : "IA"}
           </span>
         ) : null}

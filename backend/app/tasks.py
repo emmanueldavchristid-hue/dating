@@ -4,6 +4,9 @@ python -m app.tasks purge-history     # vie privée : supprime l'historique de r
 python -m app.tasks flag-for-review   # curation : lieux à re-vérifier (anciens, signalés, contradictoires)
 python -m app.tasks flag-gem-candidates          # curation : propose des pépites potentielles (validées par un humain)
 python -m app.tasks index-embeddings [--rebuild]   # RAG : indexe les lieux publiés (fiches + avis)
+python -m app.tasks refine-categories  # données : catégories précises lisibles dans le nom (cinéma, musée…)
+python -m app.tasks dedupe             # données : archive les doublons (même nom à moins de 150 m)
+python -m app.tasks reset-popularity   # données : remet à zéro les vues gonflées par les tests automatiques
 """
 
 import sys
@@ -131,6 +134,63 @@ def secure_demo_staff(db) -> int:
     return len(users)
 
 
+def refine_categories(db) -> int:
+    """Lieux publiés non vérifiés : ajoute les catégories précises lisibles dans le nom (« Pathé » → cinéma)."""
+    from app.importers.osm import refine_categories as refine
+    from app.services.places import set_taxonomy
+
+    n = 0
+    for p in db.scalars(select(Place).where(Place.status == "published", Place.verified_at.is_(None))):
+        cats = refine(p.category_slugs, p.name)
+        if cats != sorted(p.category_slugs):
+            set_taxonomy(db, p, cats, None)
+            n += 1
+    db.commit()
+    return n
+
+
+def dedupe(db) -> int:
+    """Doublons (même nom à moins de 150 m, souvent deux points OSM) : on garde la fiche la plus complète."""
+    from sqlalchemy import text
+
+    rows = db.execute(
+        text(
+            """
+            select a.id, b.id from places a join places b
+              on a.id < b.id and lower(f_unaccent(a.name)) = lower(f_unaccent(b.name))
+             and ST_DWithin(a.location, b.location, 150)
+            where a.status = 'published' and b.status = 'published'
+            """
+        )
+    ).all()
+    archived = set()
+    for a_id, b_id in rows:
+        if a_id in archived or b_id in archived:
+            continue
+        a, b = db.get(Place, a_id), db.get(Place, b_id)
+        richness = lambda p: (  # noqa: E731
+            bool(p.verified_at),
+            bool(p.cover_url or p.cover_key),
+            bool(p.phone),
+            len(p.hours),
+            len(p.description or ""),
+        )
+        loser = b if richness(a) >= richness(b) else a
+        loser.status = "archived"
+        archived.add(loser.id)
+    db.commit()
+    return len(archived)
+
+
+def reset_popularity(db) -> int:
+    """Sans avis ni vrais utilisateurs, la popularité ne vient que des tests : on la remet à zéro."""
+    from sqlalchemy import update
+
+    n = db.execute(update(Place).where(Place.popularity > 0, Place.rating_count == 0).values(popularity=0)).rowcount
+    db.commit()
+    return n
+
+
 def main() -> None:
     from app.services.rag import index_places
 
@@ -139,6 +199,9 @@ def main() -> None:
         "flag-for-review": flag_for_review,
         "flag-gem-candidates": flag_gem_candidates,
         "secure-demo-staff": secure_demo_staff,
+        "refine-categories": refine_categories,
+        "reset-popularity": reset_popularity,
+        "dedupe": dedupe,
         "index-embeddings": lambda db: index_places(db, rebuild="--rebuild" in sys.argv),
     }
     if len(sys.argv) < 2 or sys.argv[1] not in jobs:
