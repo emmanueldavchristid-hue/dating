@@ -18,6 +18,7 @@ class Cover(BaseModel):
     url: str | None
     gradient: list[str]
     alt: str
+    credit: str | None = None  # ex. « Google » pour une photo Google Places
 
 
 class TravelOut(BaseModel):

@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     public_base_url: str = "http://localhost:8000"  # adresse publique de l'API (ex. IP du PC sur le Wi-Fi)
     embeddings_provider: str = "hashing"  # hashing (hors ligne) | fastembed (modèle multilingue)
     google_places_api_key: str = ""  # optionnel : photos via l'API officielle Google Places (jamais stockées)
+    google_photos_daily_cap: int = 1000  # appels Google par jour au maximum (évite toute dépense surprise)
 
     # Vie privée & abus
     search_history_retention_days: int = 30

@@ -5,6 +5,7 @@ python -m app.tasks flag-for-review   # curation : lieux à re-vérifier (ancien
 python -m app.tasks flag-gem-candidates          # curation : propose des pépites potentielles (validées par un humain)
 python -m app.tasks index-embeddings [--rebuild]   # RAG : indexe les lieux publiés (fiches + avis)
 python -m app.tasks refine-categories  # données : catégories précises lisibles dans le nom (cinéma, musée…)
+python -m app.tasks link-google        # photos : relie les lieux à Google Places (clé requise, une fois)
 python -m app.tasks dedupe             # données : archive les doublons (même nom à moins de 150 m)
 python -m app.tasks reset-popularity   # données : remet à zéro les vues gonflées par les tests automatiques
 """
@@ -182,6 +183,41 @@ def dedupe(db) -> int:
     return len(archived)
 
 
+def link_google(db, limit: int = 4500) -> int:
+    """Retrouve le place_id Google des lieux publiés (une fois par lieu ; ~5 000 recherches gratuites par mois).
+    Seul cet identifiant est conservé. Un lieu dont le nom ne correspond pas n'est pas relié."""
+    from geoalchemy2 import Geometry
+    from sqlalchemy import cast, func
+
+    from app.adapters.google_places import get_google
+    from app.models import PlaceExternalId
+
+    google = get_google()
+    if google is None:
+        print("GOOGLE_PLACES_API_KEY absente : rien à faire.")
+        return 0
+    linked = select(PlaceExternalId.place_id).where(PlaceExternalId.provider == "google")
+    geom = cast(Place.location, Geometry)
+    rows = db.execute(
+        select(Place, func.ST_Y(geom), func.ST_X(geom))
+        .where(Place.status == "published", Place.tier == "free", Place.id.not_in(linked))
+        .order_by(Place.popularity.desc(), Place.name)
+        .limit(limit)
+    ).all()
+    n = 0
+    for place, lat, lng in rows:
+        gid = google.find_place_id(place.name, lat, lng, place.city.name)
+        if gid and not db.scalar(
+            select(PlaceExternalId.id).where(PlaceExternalId.provider == "google", PlaceExternalId.external_id == gid)
+        ):
+            db.add(PlaceExternalId(place_id=place.id, provider="google", external_id=gid))
+            n += 1
+            if n % 50 == 0:
+                db.commit()
+    db.commit()
+    return n
+
+
 def reset_popularity(db) -> int:
     """Sans avis ni vrais utilisateurs, la popularité ne vient que des tests : on la remet à zéro."""
     from sqlalchemy import update
@@ -202,6 +238,7 @@ def main() -> None:
         "refine-categories": refine_categories,
         "reset-popularity": reset_popularity,
         "dedupe": dedupe,
+        "link-google": link_google,
         "index-embeddings": lambda db: index_places(db, rebuild="--rebuild" in sys.argv),
     }
     if len(sys.argv) < 2 or sys.argv[1] not in jobs:

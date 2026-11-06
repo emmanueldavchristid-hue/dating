@@ -106,6 +106,7 @@ if ($existe.Trim() -ne "t") {
         docker compose exec -T db pg_restore --no-owner --no-privileges -U sortie -d sortie /tmp/sortie.dump
         if ($LASTEXITCODE -ne 0) { Echec "La restauration de la base a échoué." }
         Set-Content -Path $marque -Value (Get-Date -Format o)
+        Remove-Item (Join-Path (Split-Path $Dump -Parent) ".google-relie") -ErrorAction SilentlyContinue
         Write-Host "Lieux restaurés."
     } else {
         Write-Host "Aucun fichier de base trouvé ($Dump) : démarrage avec les lieux de démonstration." -ForegroundColor Yellow
@@ -161,6 +162,13 @@ for ($i = 0; $i -lt 90; $i++) {
 }
 if (-not $ok) { docker compose logs --tail 40 api; Echec "Le serveur ne répond pas (voir les lignes ci-dessus)." }
 if ($demo) { docker compose exec -T api python -m app.seed --demo }
+# Photos Google : chaque lieu est relié une seule fois à sa fiche Google (recherches gratuites dans la limite mensuelle)
+$googleFait = Join-Path (Split-Path $Dump -Parent) ".google-relie"
+if ((Select-String -Path $envFile -Pattern "^GOOGLE_PLACES_API_KEY=.+" -Quiet) -and -not (Test-Path $googleFait)) {
+    Etape "Photos Google : recherche des lieux sur Google (une seule fois, quelques minutes)"
+    docker compose exec -T api python -m app.tasks link-google
+    if ($LASTEXITCODE -eq 0) { Set-Content -Path $googleFait -Value (Get-Date -Format o) }
+}
 Write-Host "Serveur prêt : http://${Ip}:8000/api/docs"
 
 # 6. Pare-feu Windows (les téléphones doivent joindre le PC) -----------------------

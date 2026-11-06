@@ -14,6 +14,8 @@ export interface Cover {
   url: string | null;
   gradient: [string, string];
   alt: string;
+  /** « Google » quand la photo vient de Google Places (crédit obligatoire). */
+  credit?: string | null;
 }
 
 export interface Travel {

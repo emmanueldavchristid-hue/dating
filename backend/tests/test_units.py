@@ -177,3 +177,31 @@ def test_osrm_route_returns_path_and_fails_safely():
     assert "/route/v1/driving/-4.0,5.3;-3.98,5.32" in seen[0]
     ko = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(500)))
     assert OsrmRouting("http://osrm", ko).route((5.3, -4.0), (5.32, -3.98)) is None
+
+
+def test_google_places_links_only_matching_names_and_caps_daily_calls():
+    from app.adapters.google_places import GooglePlaces, same_place
+
+    assert same_place("Strike Bowl", "Strike Bowl Abidjan") and same_place("Maquis Chez Ambroise", "Chez Ambroise")
+    assert not same_place("Maquis Le Baobab", "Restaurant Le Wafou")
+
+    def handler(r: httpx.Request) -> httpx.Response:
+        assert r.headers["x-goog-api-key"] == "k"
+        if r.url.path.endswith(":searchText"):
+            return httpx.Response(200, json={"places": [{"id": "G1", "displayName": {"text": "Strike Bowl"}}]})
+        if r.url.path.endswith("/media"):
+            return httpx.Response(200, json={"photoUri": "https://lh3.googleusercontent.com/x"})
+        return httpx.Response(
+            200,
+            json={"photos": [{"name": "places/G1/photos/P1", "authorAttributions": [{"displayName": "Awa"}]}]},
+        )
+
+    g = GooglePlaces("k", daily_cap=2, client=httpx.Client(transport=httpx.MockTransport(handler)))
+    assert g.find_place_id("Strike Bowl", 5.3, -4.0, "Abidjan") == "G1"
+    assert g.find_place_id("Le Wafou", 5.3, -4.0, "Abidjan") is None
+    photos = g.photos("G1")
+    assert photos[0].credit == "Photo : Awa · Google"
+    assert g.photo_uri(photos[0].name) == "https://lh3.googleusercontent.com/x"
+    assert g.photos("G1") == photos  # en cache, pas de nouvel appel
+    g._uris.clear()
+    assert g.photo_uri(photos[0].name) is None  # plafond quotidien atteint (2 appels)

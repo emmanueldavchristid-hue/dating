@@ -312,6 +312,52 @@ def test_route_unavailable_without_provider_then_drawn_with_osrm(client, monkeyp
     assert r["minutes"] == 18 and r["traffic"] is False and r["path"][0] == {"lat": 5.30, "lng": -4.00}
 
 
+def test_google_photos_fill_places_without_photos(client, monkeypatch):
+    from sqlalchemy import select
+
+    import app.adapters.google_places as gp
+    from app.adapters.google_places import GooglePhoto
+    from app.db import SessionLocal
+    from app.models import Media, Place, PlaceExternalId
+    from app.routers import places as places_router
+
+    class FakeGoogle:
+        api_key = "k"
+
+        def photos(self, gid):
+            return [GooglePhoto("places/G/photos/1", "Photo : Awa · Google")]
+
+        def photo_uri(self, name, max_width=1200):
+            return "https://lh3.googleusercontent.com/photo"
+
+    with SessionLocal() as db:
+        place = db.scalar(
+            select(Place).where(
+                Place.cover_url.is_(None), Place.cover_key.is_(None), Place.tier == "free", Place.status == "published"
+            )
+        )
+        for m in db.scalars(select(Media).where(Media.place_id == place.id)):
+            m.moderation_status = "pending"  # sans photo à nous : Google prend le relais
+        db.add(PlaceExternalId(place_id=place.id, provider="google", external_id="G-test"))
+        db.commit()
+        pid, slug = place.id, place.slug
+    monkeypatch.setattr(gp, "get_google", lambda: FakeGoogle())
+    monkeypatch.setattr(places_router, "get_google", lambda: FakeGoogle())
+    try:
+        d = client.get(f"{API}/places/{slug}").json()
+        assert d["cover"]["credit"] == "Google" and d["cover"]["url"].endswith(f"/places/{pid}/google-photos/0")
+        assert d["photos"][0]["credit"] == "Photo : Awa · Google"
+        r = client.get(f"{API}/places/{pid}/google-photos/0", follow_redirects=False)
+        assert r.status_code == 302 and r.headers["location"] == "https://lh3.googleusercontent.com/photo"
+        assert client.get(f"{API}/places/{pid}/google-photos/5", follow_redirects=False).status_code == 404
+    finally:
+        with SessionLocal() as db:
+            db.query(PlaceExternalId).filter_by(external_id="G-test").delete()
+            for m in db.scalars(select(Media).where(Media.place_id == pid)):
+                m.moderation_status = "approved"
+            db.commit()
+
+
 def test_billing_is_honest(client, free_h):
     plans = client.get(f"{API}/billing/plans").json()
     assert [p["code"] for p in plans] == ["free", "plus", "insider"]

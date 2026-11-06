@@ -2,9 +2,11 @@ import uuid
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.adapters.google_places import get_google
 from app.adapters.storage import public_url
 from app.deps import DB, CurrentUser, OptionalUser
 from app.errors import ApiError, not_found
@@ -28,7 +30,16 @@ from app.schemas import (
 from app.services.entitlements import can_see_premium, require_premium
 from app.services.places import refresh_rating
 from app.services.rag import index_places
-from app.services.search import Origin, SearchParams, cards_for_places, interpret_query, run_search, to_cards
+from app.services.search import (
+    Origin,
+    SearchParams,
+    cards_for_places,
+    google_ids,
+    google_photo_url,
+    interpret_query,
+    run_search,
+    to_cards,
+)
 from app.services.taste import compute_taste
 
 router = APIRouter(tags=["places"])
@@ -251,17 +262,7 @@ def detail(
             mobile_money=place.mobile_money,
             outdoor=place.outdoor,
         ),
-        photos=[
-            PhotoOut(
-                id=str(m.id),
-                url=public_url(m.storage_key) or m.source_url,
-                gradient=m.gradient or place.cover_gradient,
-                alt=m.alt,
-                credit=m.credit,
-            )
-            for m in place.media
-            if m.moderation_status == "approved"
-        ],
+        photos=_photos(db, place),
         reviews_summary=place.reviews_summary,
         reviews=[
             ReviewOut(
@@ -277,6 +278,53 @@ def detail(
         events=[EventOut(id=str(e.id), title=e.title, starts_at=e.starts_at, price_fcfa=e.price_fcfa) for e in events],
         is_favorite=is_fav,
     )
+
+
+def _photos(db, place) -> list[PhotoOut]:
+    """Nos photos d'abord ; à défaut, celles de Google Places (créditées, jamais copiées)."""
+    own = [
+        PhotoOut(
+            id=str(m.id),
+            url=public_url(m.storage_key) or m.source_url,
+            gradient=m.gradient or place.cover_gradient,
+            alt=m.alt,
+            credit=m.credit,
+        )
+        for m in place.media
+        if m.moderation_status == "approved"
+    ]
+    google = get_google()
+    if own or google is None or place.tier == "premium":
+        return own
+    gid = google_ids(db, [place]).get(place.id)
+    if not gid:
+        return own
+    return [
+        PhotoOut(
+            url=google_photo_url(place.id, gid, i),
+            gradient=place.cover_gradient or ["#1E3A4C", "#0E0F13"],
+            alt=f"Photo de {place.name}",
+            credit=ph.credit,
+        )
+        for i, ph in enumerate(google.photos(gid))
+    ]
+
+
+@router.get("/places/{place_id}/google-photos/{index}", include_in_schema=False)
+def google_photo(place_id: str, index: int, db: DB, w: int = 1200):
+    """Redirige vers l'image temporaire fournie par Google (la clé ne quitte jamais le serveur)."""
+    google = get_google()
+    place = _get_place(db, place_id)
+    gid = google_ids(db, [place]).get(place.id) if google else None
+    if not gid or place.tier == "premium" or index < 0:
+        raise ApiError(404, "not_found", "Photo introuvable")
+    photos = google.photos(gid)
+    if index >= len(photos):
+        raise ApiError(404, "not_found", "Photo introuvable")
+    uri = google.photo_uri(photos[index].name, max(200, min(w, 1600)))
+    if not uri:
+        raise ApiError(404, "not_found", "Photo indisponible pour le moment")
+    return RedirectResponse(uri, status_code=302, headers={"Cache-Control": "public, max-age=1800"})
 
 
 @router.post("/places/{place_id}/reports", status_code=201, dependencies=[Depends(limit("write", 20))])

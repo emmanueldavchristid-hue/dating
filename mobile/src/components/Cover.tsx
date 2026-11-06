@@ -3,6 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useState, type ReactNode } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { colors } from "@/theme/tokens";
+import { Txt } from "./ui";
 import { Icon, type IconName } from "./Icon";
 
 const FALLBACK: [string, string] = ["#232634", "#0E0F13"];
@@ -27,6 +28,7 @@ export function Cover({
   children,
   shade = true,
   centered,
+  credit,
 }: {
   url: string | null | undefined;
   gradient: unknown;
@@ -39,6 +41,8 @@ export function Cover({
   shade?: boolean;
   /** Glyphe centré (petites vignettes) plutôt que débordant en bas à droite. */
   centered?: boolean;
+  /** Crédit court affiché sur l'image (ex. « Google » pour une photo Google Places). */
+  credit?: string | null;
 }) {
   const [a, b] = locked ? (["#3A2F17", "#14110A"] as [string, string]) : safeGradient(gradient);
   // Image injoignable (réseau, lien mort) : on retombe sur la couverture générée plutôt qu'un aplat vide.
@@ -86,11 +90,19 @@ export function Cover({
         />
       ) : null}
       {children}
+      {showImage && credit ? (
+        <View style={s.credit} pointerEvents="none">
+          <Txt variant="caption" color="rgba(244,241,234,0.85)" style={{ fontSize: 10 }}>
+            {credit}
+          </Txt>
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const s = StyleSheet.create({
+  credit: { position: "absolute", left: 6, bottom: 4, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, backgroundColor: "rgba(14,15,19,0.55)" },
   wrap: { overflow: "hidden", backgroundColor: colors.surface2 },
   glyph: { position: "absolute" },
 });

@@ -273,6 +273,7 @@ export default function PlaceScreen() {
       <Animated.View style={[s.hero, heroStyle]}>
         <Cover
           url={hero?.url ?? p.cover.url}
+          credit={hero?.credit?.includes("Google") ? "Google" : hero ? null : p.cover.credit}
           gradient={p.cover.gradient}
           alt={hero?.alt ?? p.cover.alt}
           glyph={categoryIcon(p.categories[0])}
@@ -504,7 +505,7 @@ export default function PlaceScreen() {
               {p.phone ? <Row label="Téléphone" value={p.phone} /> : null}
               {p.website ? <Row label="Site web" value={p.website.replace(/^https?:\/\//, "")} /> : null}
               {credits.map((ph, i) => (
-                <Row key={i} label="Photo" value={`© ${ph.credit}`} />
+                <Row key={i} label="Photo" value={ph.credit?.startsWith("Photo") ? ph.credit.replace(/^Photo : /, "") : `© ${ph.credit}`} />
               ))}
               {!p.verified_at ? (
                 <Txt variant="caption" color={colors.textSubtle}>

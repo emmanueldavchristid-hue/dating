@@ -35,7 +35,13 @@ Ordre de travail : semaine 1 corrections rapides → carte → vrai concierge IA
       les noms de modèles disponibles (`/models`) et ajuster `GROQ_MODEL` / `GEMINI_MODEL` / `NVIDIA_MODEL`
 - [x] Trajet tracé dans l'app (OSRM auto-hébergé sur le PC, préparé une fois par le script depuis l'extrait
       OpenStreetMap ; `GET /routes`) et durée calculée « sans trafic » — à vérifier sur le PC au prochain lancement
-- [ ] Photos et nouveaux lieux : Jason repère pépites et nouveaux endroits sur TikTok/Instagram. Proposition
+- [x] Photos Google Places (code prêt et testé avec réponses simulées) : place_id seul conservé, photos jamais
+      copiées (redirection via le serveur), crédit « Google », plafond quotidien. Il manque la clé de Jason
+      (`GOOGLE_PLACES_API_KEY` dans `Documents\sortie-data\cles-ia.env`) et le domaine `places.googleapis.com`.
+      Le script relie les lieux à Google une fois (`python -m app.tasks link-google`).
+- [ ] Ajout rapide de lieu dans l'admin (pépites vues sur TikTok) — PAS de bouton « Proposer un lieu » côté
+      utilisateurs (décision de Jason du 6/11)
+- [ ] (ancien) Photos et nouveaux lieux : Jason repère pépites et nouveaux endroits sur TikTok/Instagram. Proposition
       (en attente de son accord) : coller un lien TikTok/Instagram dans l'admin → lieu créé + vidéo officielle
       intégrée sur la fiche (lecteur officiel, crédit au créateur, pas de copie) ; photos des lieux partenaires ;
       bouton « Proposer un lieu » pour les utilisateurs. Pas d'aspiration (interdit par leurs conditions).

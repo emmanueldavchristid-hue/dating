@@ -305,6 +305,28 @@ def place_location(db: Session, places: list[Place]) -> dict[uuid.UUID, tuple[fl
     return {r[0]: (r[1], r[2]) for r in rows}
 
 
+def google_ids(db: Session, places: list[Place]) -> dict[uuid.UUID, str]:
+    """place_id Google des lieux (seulement si une clé Google est configurée)."""
+    from app.adapters.google_places import get_google
+    from app.models import PlaceExternalId
+
+    if not places or get_google() is None:
+        return {}
+    rows = db.execute(
+        select(PlaceExternalId.place_id, PlaceExternalId.external_id).where(
+            PlaceExternalId.provider == "google", PlaceExternalId.place_id.in_([p.id for p in places])
+        )
+    )
+    return {r[0]: r[1] for r in rows}
+
+
+def google_photo_url(place_id: uuid.UUID, google_id: str | None, index: int = 0) -> str | None:
+    if not google_id:
+        return None
+    base = get_settings().public_base_url.rstrip("/")
+    return f"{base}/api/v1/places/{place_id}/google-photos/{index}"
+
+
 def to_cards(
     db: Session, items: list[dict], user: User | None, origin: Origin | None, with_travel: bool = True
 ) -> list[PlaceCard]:
@@ -318,6 +340,7 @@ def to_cards(
     if with_travel and origin is not None:
         unlocked = [locs[p.id] for p in places]
         travel = get_routing().durations((origin.lat, origin.lng), unlocked)
+    google = google_ids(db, [p for p in places if not (p.cover_key or p.cover_url)])
     cards = []
     for item, place, tr in zip(items, places, travel, strict=True):
         st, closes = open_status(slots[place.id], now)
@@ -338,9 +361,10 @@ def to_cards(
             rating_avg=round(place.rating_avg, 1) if place.rating_avg is not None else None,
             rating_count=place.rating_count,
             cover=Cover(
-                url=public_url(place.cover_key) or place.cover_url,
+                url=public_url(place.cover_key) or place.cover_url or google_photo_url(place.id, google.get(place.id)),
                 gradient=place.cover_gradient or ["#1E3A4C", "#0E0F13"],
                 alt=f"Ambiance de {place.name}",
+                credit="Google" if not (place.cover_key or place.cover_url) and google.get(place.id) else None,
             ),
             location=LatLng(lat=lat, lng=lng),
             distance_km=round(item["dist_m"] / 1000, 1) if item.get("dist_m") is not None else None,
