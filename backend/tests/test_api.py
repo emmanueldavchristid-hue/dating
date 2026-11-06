@@ -380,6 +380,21 @@ def test_admin_routes_are_protected(client, free_h):
     assert client.get(f"{API}/admin/users", headers=ch).status_code == 403
 
 
+def test_admin_quick_add_deduces_district_and_keeps_whatsapp(client, admin_h):
+    body = {
+        "name": "Pépite TikTok Test",
+        "city": "abidjan",
+        "lat": 5.3600,
+        "lng": -3.9960,
+        "categories": ["lounge"],
+        "phone": "+225 07 00 00 00 00",
+    }
+    p = client.post(f"{API}/admin/places", headers=admin_h, json=body)
+    assert p.status_code == 201, p.text
+    d = client.get(f"{API}/places/{p.json()['slug']}").json()
+    assert d["district"] in ("Cocody", "Deux Plateaux") and d["phone"] == "+225 07 00 00 00 00"
+
+
 def test_admin_place_lifecycle_and_audit(client, admin_h):
     body = {
         "name": "Nouveau Spot Test",
@@ -394,6 +409,8 @@ def test_admin_place_lifecycle_and_audit(client, admin_h):
     }
     p = client.post(f"{API}/admin/places", headers=admin_h, json=body)
     assert p.status_code == 201 and p.json()["is_demo"] is False
+    twin = client.post(f"{API}/admin/places", headers=admin_h, json=body)  # même nom ailleurs : slug + quartier
+    assert twin.status_code == 201 and twin.json()["slug"] == "nouveau-spot-test-cocody"
     assert client.post(f"{API}/admin/places", headers=admin_h, json=body).status_code == 409
     bad = client.patch(f"{API}/admin/places/{p.json()['id']}", headers=admin_h, json={"budget_min_fcfa": 99999})
     assert bad.status_code == 400

@@ -91,7 +91,13 @@ def create_place(body: AdminPlaceIn, db: DB, admin: AdminUser):
         if body.district
         else None
     )
+    if district is None:
+        from app.importers.osm import _nearest_district
+
+        district = _nearest_district(db, city, body.lat, body.lng)  # quartier déduit de la position
     slug = body.slug or slugify(body.name)
+    if db.scalar(select(Place).where(Place.slug == slug)) and not body.slug:
+        slug = f"{slug}-{(district.slug if district else city.slug)}"[:160]  # « le-baobab-marcory »
     if db.scalar(select(Place).where(Place.slug == slug)):
         raise ApiError(409, "conflict", "Ce slug existe déjà")
     if (
@@ -126,7 +132,24 @@ def create_place(body: AdminPlaceIn, db: DB, admin: AdminUser):
     audit(db, admin, "place.created", "place", str(place.id), name=place.name)
     db.commit()
     index_places(db, [place.id])
+    _link_google(db, place, body.lat, body.lng, city.name)
     return _place_row(db)(place)
+
+
+def _link_google(db, place: Place, lat: float, lng: float, city_name: str) -> None:
+    """Nouveau lieu : relié tout de suite à sa fiche Google (photos), si une clé Google est configurée."""
+    from app.adapters.google_places import get_google
+    from app.models import PlaceExternalId
+
+    google = get_google()
+    if google is None or place.tier == "premium":
+        return
+    gid = google.find_place_id(place.name, lat, lng, city_name)
+    if gid and not db.scalar(
+        select(PlaceExternalId.id).where(PlaceExternalId.provider == "google", PlaceExternalId.external_id == gid)
+    ):
+        db.add(PlaceExternalId(place_id=place.id, provider="google", external_id=gid))
+        db.commit()
 
 
 @router.patch("/places/{pid}")

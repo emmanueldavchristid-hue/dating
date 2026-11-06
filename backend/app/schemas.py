@@ -381,6 +381,9 @@ class AdminPlacePatch(BaseModel):
     price_level: int | None = Field(default=None, ge=1, le=4)
     lat: float | None = Field(default=None, ge=-90, le=90)
     lng: float | None = Field(default=None, ge=-180, le=180)
+    address: str | None = Field(default=None, max_length=300)
+    phone: str | None = Field(default=None, max_length=40)
+    website: str | None = Field(default=None, max_length=300)
     mark_verified: bool = False
 
 

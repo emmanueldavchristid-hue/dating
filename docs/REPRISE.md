@@ -39,7 +39,8 @@ Ordre de travail : semaine 1 corrections rapides → carte → vrai concierge IA
       copiées (redirection via le serveur), crédit « Google », plafond quotidien. Il manque la clé de Jason
       (`GOOGLE_PLACES_API_KEY` dans `Documents\sortie-data\cles-ia.env`) et le domaine `places.googleapis.com`.
       Le script relie les lieux à Google une fois (`python -m app.tasks link-google`).
-- [ ] Ajout rapide de lieu dans l'admin (pépites vues sur TikTok) — PAS de bouton « Proposer un lieu » côté
+- [x] Ajout rapide de lieu dans l'admin (pépites vues sur TikTok) : coller le lien Google Maps → position,
+      quartier déduit, téléphone/WhatsApp, Instagram/TikTok du lieu, relié à Google pour les photos — PAS de bouton « Proposer un lieu » côté
       utilisateurs (décision de Jason du 6/11)
 - [ ] (ancien) Photos et nouveaux lieux : Jason repère pépites et nouveaux endroits sur TikTok/Instagram. Proposition
       (en attente de son accord) : coller un lien TikTok/Instagram dans l'admin → lieu créé + vidéo officielle

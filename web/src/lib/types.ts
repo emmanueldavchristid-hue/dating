@@ -312,6 +312,9 @@ export interface AdminPlaceInput {
   description: string;
   short_description?: string;
   status?: "draft" | "published" | "closed" | "archived";
+  phone?: string | null;
+  address?: string | null;
+  website?: string | null;
 }
 export interface AdminUser {
   id: string;

@@ -25,6 +25,9 @@ interface FormState {
   status: NonNullable<AdminPlaceInput["status"]>;
   shortDescription: string;
   description: string;
+  phone: string;
+  address: string;
+  website: string;
 }
 
 const EMPTY: FormState = {
@@ -42,7 +45,29 @@ const EMPTY: FormState = {
   status: "published",
   shortDescription: "",
   description: "",
+  phone: "",
+  address: "",
+  website: "",
 };
+
+/**
+ * Coordonnées depuis ce qu'on colle : un lien Google Maps complet (…/@5.33,-4.02,17z ou …!3d5.33!4d-4.02),
+ * un lien avec ?q=5.33,-4.02, ou simplement « 5.33, -4.02 ». Les liens courts (maps.app.goo.gl) ne contiennent
+ * pas la position : il faut d'abord les ouvrir puis copier l'adresse complète.
+ */
+export function parseLocation(text: string): { lat: number; lng: number } | null {
+  const t = text.trim();
+  const pats = [/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/, /@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/, /[?&](?:q|query|ll|destination)=(-?\d+(?:\.\d+)?)(?:,|%2C)\s*(-?\d+(?:\.\d+)?)/i, /^(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)$/];
+  for (const re of pats) {
+    const m = t.match(re);
+    if (m) {
+      const lat = Number(m[1].replace(",", "."));
+      const lng = Number(m[2].replace(",", "."));
+      if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng };
+    }
+  }
+  return null;
+}
 
 function slugify(s: string): string {
   return s
@@ -64,6 +89,7 @@ export function PlaceForm({ open, onClose, place, onSaved }: { open: boolean; on
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paste, setPaste] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -105,6 +131,9 @@ export function PlaceForm({ open, onClose, place, onSaved }: { open: boolean; on
           lat: cur.lat || (d.location ? String(d.location.lat) : ""),
           lng: cur.lng || (d.location ? String(d.location.lng) : ""),
           description: cur.description || d.description || "",
+          phone: cur.phone || d.phone || "",
+          address: cur.address || d.address || "",
+          website: cur.website || d.website || "",
         })),
       )
       .catch(() => undefined)
@@ -142,6 +171,9 @@ export function PlaceForm({ open, onClose, place, onSaved }: { open: boolean; on
       status: f.status,
       short_description: f.shortDescription.trim(),
       description: f.description.trim(),
+      phone: f.phone.trim() || null,
+      address: f.address.trim() || null,
+      website: f.website.trim() || null,
     };
     try {
       if (place) {
@@ -229,6 +261,25 @@ export function PlaceForm({ open, onClose, place, onSaved }: { open: boolean; on
             </select>
           </label>
         </div>
+        <label className="field">
+          <span className="label">Position (lien Google Maps ou « latitude, longitude »)</span>
+          <input
+            className="input"
+            value={paste}
+            placeholder="Colle ici le lien Google Maps du lieu"
+            onChange={(e) => {
+              setPaste(e.target.value);
+              const loc = parseLocation(e.target.value);
+              if (loc) setF((s) => ({ ...s, lat: String(loc.lat), lng: String(loc.lng) }));
+            }}
+            aria-invalid={paste !== "" && !parseLocation(paste)}
+          />
+          <span className="hint">
+            {paste && !parseLocation(paste)
+              ? "Position introuvable : ouvre le lien dans le navigateur puis copie l'adresse complète (avec @…)."
+              : "Le quartier est déduit de la position s'il n'est pas choisi."}
+          </span>
+        </label>
         <div className={styles.two}>
           <label className="field">
             <span className="label">Latitude {place ? "" : "*"}</span>
@@ -289,6 +340,20 @@ export function PlaceForm({ open, onClose, place, onSaved }: { open: boolean; on
             </select>
           </label>
         </div>
+        <div className={styles.two}>
+          <label className="field">
+            <span className="label">Téléphone / WhatsApp</span>
+            <input className="input" inputMode="tel" maxLength={40} value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+225 07 00 00 00 00" />
+          </label>
+          <label className="field">
+            <span className="label">Site, Instagram ou TikTok du lieu</span>
+            <input className="input" maxLength={300} value={f.website} onChange={(e) => set("website", e.target.value)} />
+          </label>
+        </div>
+        <label className="field">
+          <span className="label">Adresse ou repère</span>
+          <input className="input" maxLength={300} value={f.address} onChange={(e) => set("address", e.target.value)} placeholder="Rue des Jardins, face à la pharmacie…" />
+        </label>
         <label className="field">
           <span className="label">Accroche</span>
           <input className="input" maxLength={280} value={f.shortDescription} onChange={(e) => set("shortDescription", e.target.value)} />
