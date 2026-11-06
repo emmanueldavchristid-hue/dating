@@ -503,6 +503,8 @@ const CATEGORY_ICONS: Record<string, IconName> = {
   film: "film",
   sparkles: "sparkles",
   "fast-food": "burger",
+  heart: "heart",
+  sun: "sun",
   piscine: "droplet",
   karting: "car",
   paintball: "target",

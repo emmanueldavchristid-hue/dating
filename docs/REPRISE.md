@@ -50,7 +50,8 @@ Ordre de travail : semaine 1 corrections rapides → carte → vrai concierge IA
 - [ ] Partage avec lien (page web publique par lieu et par soirée), WhatsApp en premier — après le choix de
       l'hébergement (décision du 5/11 : plus tard)
 - [ ] Mot de passe oublié par e-mail (décision du 5/11 : connexion par e-mail seulement pour l'instant, pas de SMS)
-- [ ] Soirée : modèles (date, afterwork, anniversaire, Bassam) avec ordre logique et heures
+- [x] Soirée : modèles en un toucher (date romantique, afterwork, anniversaire, dimanche à Bassam, famille),
+      étapes dans un ordre logique, proches les unes des autres, heures suggérées (`GET /itineraries/templates`)
 - [ ] Pépites : 30 vraies pépites visitées avant le premium ; prix ; paiement Mobile Money
 - [ ] Nom définitif, icône, CGU et confidentialité, hébergement, builds stores
 

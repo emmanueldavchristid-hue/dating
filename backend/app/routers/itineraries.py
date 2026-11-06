@@ -18,6 +18,7 @@ from app.schemas import (
     SuggestStep,
 )
 from app.services.entitlements import can_see_premium, max_itinerary_steps
+from app.services.outings import BY_SLUG, TEMPLATES
 from app.services.search import SearchParams, cards_for_places, run_search, to_cards
 
 router = APIRouter(tags=["itineraries"])
@@ -51,8 +52,89 @@ def plan_steps(cards: list[PlaceCard], n: int) -> list[PlaceCard]:
     return chosen
 
 
+@router.get("/itineraries/templates")
+def templates():
+    """Modèles de soirée proposés (date, afterwork, anniversaire, Bassam, famille)."""
+    return [
+        {
+            "slug": t.slug,
+            "name": t.name,
+            "pitch": t.pitch,
+            "icon": t.icon,
+            "stages": [{"label": st.label, "time": st.time} for st in t.stages],
+        }
+        for t in TEMPLATES
+    ]
+
+
+def suggest_from_template(body: SuggestIn, db, user, limit: int) -> SuggestOut:
+    t = BY_SLUG.get(body.template or "")
+    if t is None:
+        raise ApiError(400, "unknown_template", "Modèle de soirée inconnu")
+    tiers = ("free", "premium") if can_see_premium(user) else ("free",)
+    stages = t.stages[:limit]
+    use_gps = body.lat is not None and t.city is None
+    chosen: list[PlaceCard] = []
+    out: list[SuggestStep] = []
+    missing: list[str] = []
+    for st in stages:
+        prev = chosen[-1] if chosen else None
+        anchor = (
+            (prev.location.lat, prev.location.lng)
+            if prev and prev.location
+            else ((body.lat, body.lng) if use_gps else (None, None))
+        )
+        cards: list[PlaceCard] = []
+        for cat in st.categories:  # catégorie préférée d'abord (rooftop avant bar pour un date)
+            p = SearchParams(
+                lat=anchor[0],
+                lng=anchor[1],
+                city=t.city or body.city,
+                categories=[cat],
+                budget_max=body.budget_max_fcfa,
+                tiers=tiers,
+                page_size=15,
+                max_distance_km=(6 if prev else 25) if anchor[0] is not None else None,
+                sort="distance" if prev else "relevance",
+            )
+            items, _, origin = run_search(db, p, user)
+            taken = {x.id for x in chosen}
+            cards = [
+                c
+                for c in to_cards(db, items, user, origin, with_travel=False)
+                if c.id not in taken and not set(c.categories) & set(st.avoid)
+            ]
+            # horaires rarement connus : on écarte seulement ce qui est « fermé maintenant »
+            cards.sort(key=lambda c: c.open_status == "closed")
+            if cards:
+                break
+        if not cards:
+            missing.append(st.label.lower())
+            continue
+        c = cards[0].model_copy(
+            update={"distance_km": None, "travel": None}
+        )  # le trajet entre étapes est affiché à part
+        out.append(SuggestStep(place=c, leg_km=haversine_km(prev, c) if prev else None, label=st.label, time=st.time))
+        chosen.append(c)
+    notes = ["Heures suggérées pour le déroulé : vérifie les horaires des lieux avant d'y aller."]
+    if len(t.stages) > limit:
+        notes.append(f"Ton offre permet {limit} étapes : la suite du modèle est réservée aux offres premium.")
+    if missing:
+        notes.append("Pas de lieu trouvé pour : " + ", ".join(missing) + ".")
+    mins = [s.place.budget_min_fcfa for s in out]
+    maxs = [s.place.budget_max_fcfa for s in out]
+    return SuggestOut(
+        steps=out,
+        total_budget_min_fcfa=sum(mins) if out and None not in mins else None,
+        total_budget_max_fcfa=sum(maxs) if out and None not in maxs else None,
+        notes=notes,
+    )
+
+
 @router.post("/itineraries/suggest", response_model=SuggestOut)
 def suggest(body: SuggestIn, db: DB, user: CurrentUser):
+    if body.template:
+        return suggest_from_template(body, db, user, max_itinerary_steps(db, user))
     if body.steps > max_itinerary_steps(db, user):
         raise premium_required(
             f"Ton offre permet {max_itinerary_steps(db, user)} étapes. Passe premium pour des soirées plus longues."

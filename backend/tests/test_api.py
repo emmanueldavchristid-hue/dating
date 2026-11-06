@@ -358,6 +358,20 @@ def test_google_photos_fill_places_without_photos(client, monkeypatch):
             db.commit()
 
 
+def test_outing_templates_follow_a_logical_order(client, free_h, insider_h):
+    templates = client.get(f"{API}/itineraries/templates").json()
+    assert {"date", "afterwork", "anniversaire", "bassam", "famille"} <= {t["slug"] for t in templates}
+    r = client.post(f"{API}/itineraries/suggest", headers=insider_h, json={"template": "date"}).json()
+    assert [s["time"] for s in r["steps"]] == sorted(s["time"] for s in r["steps"]) and r["steps"]
+    assert r["steps"][0]["label"] == "Un verre pour commencer"
+    assert all("maquis" not in s["place"]["categories"] for s in r["steps"])
+    assert len({s["place"]["id"] for s in r["steps"]}) == len(r["steps"])
+    free = client.post(f"{API}/itineraries/suggest", headers=free_h, json={"template": "date"}).json()
+    assert len(free["steps"]) <= 2 and any("offre" in n for n in free["notes"])
+    bad = client.post(f"{API}/itineraries/suggest", headers=free_h, json={"template": "inconnu"})
+    assert bad.status_code == 400
+
+
 def test_billing_is_honest(client, free_h):
     plans = client.get(f"{API}/billing/plans").json()
     assert [p["code"] for p in plans] == ["free", "plus", "insider"]

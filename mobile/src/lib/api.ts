@@ -7,6 +7,7 @@ import type {
   Capabilities,
   Category,
   CategoryGroup,
+  OutingTemplate,
   LatLng,
   RouteResult,
   ChatTurn,
@@ -378,6 +379,7 @@ export const api = {
 
   itineraries: {
     suggest: (body: SuggestRequest) => request<SuggestResponse>("/itineraries/suggest", { method: "POST", body }),
+    templates: () => request<OutingTemplate[]>("/itineraries/templates", { auth: false }),
     list: () => request<ItinerarySummary[]>("/me/itineraries"),
     create: (title: string, steps: ItineraryStepInput[], date?: string) =>
       request<Itinerary>("/me/itineraries", { method: "POST", body: date ? { title, date, steps } : { title, steps } }),

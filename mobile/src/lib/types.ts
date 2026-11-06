@@ -215,10 +215,19 @@ export interface SuggestRequest {
   categories?: string[];
   ambiances?: string[];
   budget_max_fcfa?: number;
-  steps: number;
+  steps?: number;
+  /** Modèle de soirée (date, afterwork, anniversaire, bassam, famille). */
+  template?: string;
+}
+export interface OutingTemplate {
+  slug: string;
+  name: string;
+  pitch: string;
+  icon: string;
+  stages: { label: string; time: string }[];
 }
 export interface SuggestResponse {
-  steps: { place: PlaceCard; leg_km: number | null }[];
+  steps: { place: PlaceCard; leg_km: number | null; label?: string | null; time?: string | null }[];
   total_budget_min_fcfa: number | null;
   total_budget_max_fcfa: number | null;
   notes: string[];

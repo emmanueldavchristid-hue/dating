@@ -282,11 +282,14 @@ class SuggestIn(BaseModel):
     ambiances: list[str] = []
     budget_max_fcfa: int | None = Field(default=None, ge=0)
     steps: int = Field(default=2, ge=2, le=5)
+    template: str | None = Field(default=None, max_length=32)  # modèle de soirée (voir GET /itineraries/templates)
 
 
 class SuggestStep(BaseModel):
     place: PlaceCard
     leg_km: float | None
+    label: str | None = None  # « Le dîner »
+    time: str | None = None  # heure suggérée « 20:30 »
 
 
 class SuggestOut(BaseModel):
