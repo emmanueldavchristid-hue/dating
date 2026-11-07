@@ -6,6 +6,8 @@ interface AuthValue {
   user: User | null;
   ready: boolean;
   login: (email: string, password: string) => Promise<User>;
+  /** Nouveau mot de passe avec le code reçu par e-mail ; connecte directement. */
+  resetPassword: (email: string, code: string, password: string) => Promise<User>;
   register: (email: string, password: string, name: string) => Promise<User>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -50,6 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return res.user;
   }, []);
 
+  const resetPassword = useCallback(async (email: string, code: string, password: string) => {
+    const res = await api.auth.reset(email.trim(), code.trim(), password);
+    await setToken(res.access_token);
+    setUser(res.user);
+    return res.user;
+  }, []);
+
   const register = useCallback(async (email: string, password: string, name: string) => {
     const res = await api.auth.register(email.trim(), password, name.trim());
     await setToken(res.access_token);
@@ -57,7 +66,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return res.user;
   }, []);
 
-  const value = useMemo(() => ({ user, ready, login, register, logout, refresh, setUser }), [user, ready, login, register, logout, refresh]);
+  const value = useMemo(
+    () => ({ user, ready, login, resetPassword, register, logout, refresh, setUser }),
+    [user, ready, login, resetPassword, register, logout, refresh],
+  );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

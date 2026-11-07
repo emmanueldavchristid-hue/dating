@@ -47,6 +47,15 @@ export default function Login() {
         <Field label="E-mail" icon="mail" value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="emailAddress" placeholder="toi@exemple.com" returnKeyType="next" />
         <Field label="Mot de passe" icon="lock" value={password} onChangeText={setPassword} secureTextEntry autoComplete="password" textContentType="password" placeholder="••••••••" onSubmitEditing={submit} returnKeyType="go" />
         {error ? <Notice icon="info">{error}</Notice> : null}
+        <PressableScale
+          onPress={() => router.push({ pathname: "/forgot", params: { email: email.trim() } })}
+          accessibilityRole="link"
+          style={{ alignSelf: "flex-end", paddingVertical: 4 }}
+        >
+          <Txt variant="label" color={colors.accent}>
+            Mot de passe oublié ?
+          </Txt>
+        </PressableScale>
         <Button label="Se connecter" onPress={submit} loading={busy} disabled={!valid} />
         <PressableScale onPress={() => router.replace("/register")} accessibilityRole="link" accessibilityLabel="Créer un compte" style={{ alignSelf: "center", padding: 10 }}>
           <Txt variant="label" color={colors.textMuted}>

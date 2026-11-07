@@ -56,7 +56,9 @@ Ordre de travail : semaine 1 corrections rapides → carte → vrai concierge IA
       compris). Contenu à saisir chaque semaine par l'équipe.
 - [ ] Partage avec lien (page web publique par lieu et par soirée), WhatsApp en premier — après le choix de
       l'hébergement (décision du 5/11 : plus tard)
-- [ ] Mot de passe oublié par e-mail (décision du 5/11 : connexion par e-mail seulement pour l'instant, pas de SMS)
+- [x] Mot de passe oublié par e-mail : code à 6 chiffres (empreinte seule, 15 min, 5 essais), même réponse que
+      le compte existe ou non. Envoi réel à activer avec l'hébergement (MAIL_PROVIDER=smtp + SMTP_*) ; sans ça
+      l'app le dit honnêtement. Écran mobile seulement (web à faire si besoin).
 - [x] Soirée : modèles en un toucher (date romantique, afterwork, anniversaire, dimanche à Bassam, famille),
       étapes dans un ordre logique, proches les unes des autres, heures suggérées (`GET /itineraries/templates`)
 - [ ] Pépites : 30 vraies pépites visitées avant le premium ; prix ; paiement Mobile Money

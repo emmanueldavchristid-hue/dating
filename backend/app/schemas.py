@@ -222,6 +222,21 @@ class TokenOut(BaseModel):
     user: UserOut
 
 
+class ForgotIn(BaseModel):
+    email: EmailStr
+
+
+class ForgotOut(BaseModel):
+    # même réponse que le compte existe ou non ; « none » = l'envoi d'e-mails n'est pas activé sur ce serveur
+    delivery: Literal["email", "none"]
+
+
+class ResetIn(BaseModel):
+    email: EmailStr
+    code: str = Field(pattern=r"^\d{6}$")
+    password: str = Field(min_length=8, max_length=128)
+
+
 class ConsentIn(BaseModel):
     location: bool
 

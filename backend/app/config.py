@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     media_dir: str = "media"  # stockage local des photos envoyées
     public_base_url: str = "http://localhost:8000"  # adresse publique de l'API (ex. IP du PC sur le Wi-Fi)
     embeddings_provider: str = "hashing"  # hashing (hors ligne) | fastembed (modèle multilingue)
+    # E-mails (mot de passe oublié) : none = aucun envoi (le code est seulement écrit dans les journaux en
+    # développement) | smtp = serveur SMTP (Brevo, Mailjet, Gmail…)
+    mail_provider: str = "none"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    mail_from: str = "Sortie <no-reply@sortie.app>"
     google_places_api_key: str = ""  # optionnel : photos via l'API officielle Google Places (jamais stockées)
     google_photos_daily_cap: int = 1000  # appels Google par jour au maximum (évite toute dépense surprise)
 

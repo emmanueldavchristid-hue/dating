@@ -345,6 +345,11 @@ export const api = {
       request<AuthResponse>("/auth/register", { method: "POST", body: { email, password, display_name }, auth: false }),
     login: (email: string, password: string) =>
       request<AuthResponse>("/auth/login", { method: "POST", body: { email, password }, auth: false }),
+    /** Envoie un code à 6 chiffres par e-mail ; « none » = l'envoi d'e-mails n'est pas activé sur ce serveur. */
+    forgot: (email: string) =>
+      request<{ delivery: "email" | "none" }>("/auth/password/forgot", { method: "POST", body: { email }, auth: false }),
+    reset: (email: string, code: string, password: string) =>
+      request<AuthResponse>("/auth/password/reset", { method: "POST", body: { email, code, password }, auth: false }),
   },
 
   me: {

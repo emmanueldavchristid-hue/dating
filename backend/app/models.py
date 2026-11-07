@@ -572,3 +572,17 @@ class PlaceExternalId(Base):
     provider: Mapped[str] = mapped_column(String(20))  # osm | wikidata | google
     external_id: Mapped[str] = mapped_column(String(160))
     created_at: Mapped[datetime] = created()
+
+
+class PasswordReset(Base):
+    """Code à 6 chiffres envoyé par e-mail (seule son empreinte est gardée), valable 15 minutes, 5 essais."""
+
+    __tablename__ = "password_resets"
+    __table_args__ = (Index("ix_password_resets_user", "user_id", "created_at"),)
+    id: Mapped[uuid.UUID] = uid()
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    code_hash: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

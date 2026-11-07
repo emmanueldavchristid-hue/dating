@@ -1,3 +1,5 @@
+import uuid
+
 """Tests d'intégration de l'API (base réelle)."""
 
 API = "/api/v1"
@@ -415,6 +417,52 @@ def test_agenda_admin_creates_event_shown_on_home(client, admin_h, free_h):
     finally:
         assert client.delete(f"{API}/admin/events/{eid}", headers=admin_h).status_code == 204
     assert all(i["id"] != eid for i in client.get(f"{API}/events", params={"city": "abidjan"}).json()["items"])
+
+
+def test_forgot_password_with_emailed_code(client, monkeypatch):
+    import re
+
+    from app.adapters import mail
+
+    sent = []
+    monkeypatch.setattr(mail, "send", lambda to, subject, text: sent.append((to, text)) or True)
+    email = f"oubli-{uuid.uuid4().hex[:8]}@example.com"
+    client.post(f"{API}/auth/register", json={"email": email, "password": "Ancien-2026!", "display_name": "Awa"})
+
+    r = client.post(f"{API}/auth/password/forgot", json={"email": email.upper()})
+    assert r.status_code == 202 and r.json()["delivery"] == "none"  # aucun service d'e-mail configuré en test
+    unknown = client.post(f"{API}/auth/password/forgot", json={"email": "personne@example.com"})
+    assert unknown.status_code == 202 and unknown.json() == r.json()  # même réponse : pas de fuite
+    assert len(sent) == 1 and sent[0][0] == email
+    code = re.search(r"\b(\d{6})\b", sent[0][1]).group(1)
+    wrong = "000000" if code != "000000" else "111111"
+
+    bad = client.post(f"{API}/auth/password/reset", json={"email": email, "code": wrong, "password": "Nouveau-2026!"})
+    assert bad.status_code == 400 and bad.json()["code"] == "invalid_code"
+    ok = client.post(f"{API}/auth/password/reset", json={"email": email, "code": code, "password": "Nouveau-2026!"})
+    assert ok.status_code == 200 and ok.json()["access_token"]
+    again = client.post(f"{API}/auth/password/reset", json={"email": email, "code": code, "password": "Encore-2026!"})
+    assert again.status_code == 400  # code déjà utilisé
+    assert client.post(f"{API}/auth/login", json={"email": email, "password": "Nouveau-2026!"}).status_code == 200
+    assert client.post(f"{API}/auth/login", json={"email": email, "password": "Ancien-2026!"}).status_code == 401
+
+
+def test_forgot_password_code_locks_after_five_wrong_tries(client, monkeypatch):
+    import re
+
+    from app.adapters import mail
+
+    sent = []
+    monkeypatch.setattr(mail, "send", lambda to, subject, text: sent.append(text) or True)
+    email = f"oubli-{uuid.uuid4().hex[:8]}@example.com"
+    client.post(f"{API}/auth/register", json={"email": email, "password": "Ancien-2026!", "display_name": "Kofi"})
+    client.post(f"{API}/auth/password/forgot", json={"email": email})
+    code = re.search(r"\b(\d{6})\b", sent[0]).group(1)
+    wrong = "000000" if code != "000000" else "111111"
+    for _ in range(5):
+        client.post(f"{API}/auth/password/reset", json={"email": email, "code": wrong, "password": "Nouveau-2026!"})
+    r = client.post(f"{API}/auth/password/reset", json={"email": email, "code": code, "password": "Nouveau-2026!"})
+    assert r.status_code == 400  # trop d'essais : il faut redemander un code
 
 
 def test_billing_is_honest(client, free_h):
