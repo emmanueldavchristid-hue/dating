@@ -92,7 +92,7 @@ export interface PlaceDetail extends PlaceCard {
   reviews_summary: string | null;
   reviews: Review[];
   source: { kind: "demo" | "osm" | "partner" | "curated"; attribution: string | null };
-  events: { id: string; title: string; starts_at: string; price_fcfa: number | null }[];
+  events: { id: string; title: string; starts_at: string; price_fcfa: number | null; kind_label?: string; description?: string; link?: string | null }[];
   is_favorite: boolean;
 }
 
@@ -187,8 +187,27 @@ export interface HomeSection {
   subtitle: string;
   items: PlaceCard[];
 }
+export interface EventCard {
+  id: string;
+  title: string;
+  kind: string;
+  kind_label: string;
+  starts_at: string;
+  ends_at: string | null;
+  price_fcfa: number | null;
+  description: string;
+  link: string | null;
+  place: PlaceCard;
+}
+/** Sorties à venir : « Ce week-end » (jeudi → dimanche) ou « Cette semaine ». */
+export interface Agenda {
+  title: string;
+  items: EventCard[];
+}
+
 export interface HomeResponse {
   sections: HomeSection[];
+  agenda?: Agenda | null;
 }
 
 export type ReportKind = "closed" | "wrong_hours" | "wrong_location" | "wrong_price" | "other";

@@ -359,3 +359,27 @@ export interface AuditEntry {
   created_at: string;
   [key: string]: unknown;
 }
+
+/** Événement de l'agenda (admin). */
+export interface AdminEvent {
+  id: string;
+  place_id: string;
+  place_name: string;
+  title: string;
+  kind: string;
+  starts_at: string;
+  ends_at: string | null;
+  price_fcfa: number | null;
+  description: string;
+  link: string | null;
+}
+export interface AdminEventInput {
+  place_id?: string;
+  title: string;
+  kind: string;
+  starts_at: string;
+  ends_at?: string | null;
+  price_fcfa?: number | null;
+  description?: string;
+  link?: string | null;
+}

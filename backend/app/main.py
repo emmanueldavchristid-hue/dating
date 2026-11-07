@@ -10,7 +10,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import get_settings
 from app.errors import ApiError
-from app.routers import admin, auth, billing, concierge, itineraries, matching, me, meta, places
+from app.routers import admin, agenda, auth, billing, concierge, itineraries, matching, me, meta, places
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("app")
@@ -83,5 +83,6 @@ for r in (
     billing.router,
     admin.router,
     matching.router,
+    agenda.router,
 ):
     app.include_router(r, prefix="/api/v1")

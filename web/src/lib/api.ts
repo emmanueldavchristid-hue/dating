@@ -1,6 +1,8 @@
 import { API_URL, STORAGE_KEYS } from "./config";
 import { readStorage, writeStorage } from "./storage";
 import type {
+  AdminEvent,
+  AdminEventInput,
   AdminPlace,
   AdminPlaceInput,
   AdminReport,
@@ -347,6 +349,11 @@ export const api = {
       request<Paginated<AdminReport> | AdminReport[]>("/admin/reports", { query: { status } }),
     updateReport: (id: string, status: ReportStatus) =>
       request<AdminReport>(`/admin/reports/${encodeURIComponent(id)}`, { method: "PATCH", body: { status } }),
+    events: (past = false) => request<{ items: AdminEvent[] }>("/admin/events", { query: { past: past ? "true" : undefined } }),
+    createEvent: (body: AdminEventInput) => request<AdminEvent>("/admin/events", { method: "POST", body }),
+    updateEvent: (id: string, body: Partial<AdminEventInput>) =>
+      request<AdminEvent>(`/admin/events/${encodeURIComponent(id)}`, { method: "PATCH", body }),
+    deleteEvent: (id: string) => request<void>(`/admin/events/${encodeURIComponent(id)}`, { method: "DELETE" }),
     curation: () => request<Paginated<CurationItem> | CurationItem[]>("/admin/curation"),
     decide: (id: string, decision: "approved" | "rejected", note?: string) =>
       request<unknown>(`/admin/curation/${encodeURIComponent(id)}`, {

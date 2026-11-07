@@ -6,6 +6,7 @@ import type {
   BillingPlan,
   Capabilities,
   Category,
+  Agenda,
   CategoryGroup,
   OutingTemplate,
   LatLng,
@@ -325,6 +326,10 @@ export const api = {
       request<unknown>(`/places/${encodeURIComponent(id)}/reports`, { method: "POST", body: { kind, message } }),
     review: (id: string, rating: number, text: string) =>
       request<unknown>(`/places/${encodeURIComponent(id)}/reviews`, { method: "POST", body: { rating, text } }),
+  },
+
+  events: {
+    list: (origin: Origin, signal?: AbortSignal) => request<Agenda>("/events", { query: origin, signal }),
   },
 
   recommendations: {

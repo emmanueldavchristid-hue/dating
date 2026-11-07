@@ -248,3 +248,28 @@ export function aboutText(description: string | null | undefined, short: string 
   if (parseTagline(short, categoryNames).generic) return null;
   return cleanSentence(short) || null;
 }
+
+/** « Aujourd'hui », « Demain », « Samedi 8 novembre » (fuseau du téléphone). */
+export function dayLabel(iso: string, now: Date = new Date()): string {
+  const d = new Date(iso);
+  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(d) - day(now)) / 86_400_000);
+  if (diff === 0) return "Aujourd'hui";
+  if (diff === 1) return "Demain";
+  const s = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" }).format(d);
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** « 22 h » ou « 22 h 30 ». */
+export function hourLabel(iso: string): string {
+  const d = new Date(iso);
+  const m = d.getMinutes();
+  return `${d.getHours()}${NBSP}h${m ? `${NBSP}${String(m).padStart(2, "0")}` : ""}`;
+}
+
+/** « Sam. 22 h » : jour court et heure, pour une vignette. */
+export function shortWhen(iso: string, now: Date = new Date()): string {
+  const label = dayLabel(iso, now);
+  const short = label === "Aujourd'hui" || label === "Demain" ? label : label.split(" ")[0]!.slice(0, 3) + ".";
+  return `${short} ${hourLabel(iso)}`;
+}

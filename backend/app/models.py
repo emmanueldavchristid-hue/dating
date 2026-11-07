@@ -279,6 +279,11 @@ class Event(Base):
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     price_fcfa: Mapped[int | None] = mapped_column(Integer)
+    kind: Mapped[str] = mapped_column(String(24), default="soiree", server_default="soiree")  # voir services/agenda
+    description: Mapped[str] = mapped_column(Text, default="", server_default="")
+    link: Mapped[str | None] = mapped_column(String(300))  # billetterie, publication Instagram/TikTok du lieu
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    place: Mapped["Place"] = relationship()
 
 
 # ---------- Utilisateurs, droits, abonnements ----------

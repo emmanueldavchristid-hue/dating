@@ -22,9 +22,11 @@ import { APP_NAME } from "@/lib/config";
 import { track } from "@/lib/events";
 import {
   aboutText,
+  dayLabel,
   distanceLabel,
   formatBudgetRange,
   formatDate,
+  hourLabel,
   matchLabel,
   openStatusLabel,
   parseTagline,
@@ -426,16 +428,26 @@ export default function PlaceScreen() {
           ) : null}
 
           {p.events.length ? (
-            <Section title="Événements">
+            <Section title="À venir ici">
               {p.events.map((ev) => (
                 <View key={ev.id} style={s.event}>
                   <Icon name="calendar" size={18} color={colors.accentSoft} />
-                  <View style={{ flex: 1 }}>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    {ev.kind_label ? (
+                      <Txt variant="overline" color={colors.accentSoft}>
+                        {ev.kind_label.toUpperCase()}
+                      </Txt>
+                    ) : null}
                     <Txt variant="title">{ev.title}</Txt>
                     <Txt variant="caption" color={colors.textMuted}>
-                      {formatDate(ev.starts_at, true)}
-                      {ev.price_fcfa != null ? ` · ${formatBudgetRange(ev.price_fcfa, ev.price_fcfa)}` : ""}
+                      {dayLabel(ev.starts_at)} · {hourLabel(ev.starts_at)}
+                      {ev.price_fcfa != null ? ` · ${ev.price_fcfa === 0 ? "Entrée libre" : formatBudgetRange(ev.price_fcfa, ev.price_fcfa)}` : ""}
                     </Txt>
+                    {ev.description ? (
+                      <Txt variant="bodySm" color={colors.textMuted}>
+                        {ev.description}
+                      </Txt>
+                    ) : null}
                   </View>
                 </View>
               ))}

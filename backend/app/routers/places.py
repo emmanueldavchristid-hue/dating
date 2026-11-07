@@ -1,9 +1,10 @@
 import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.adapters.google_places import get_google
@@ -27,6 +28,7 @@ from app.schemas import (
     SearchResult,
     SourceOut,
 )
+from app.services.agenda import KINDS
 from app.services.entitlements import can_see_premium, require_premium
 from app.services.places import refresh_rating
 from app.services.rag import index_places
@@ -198,7 +200,10 @@ def home(
         # Ce qui donne envie d'abord : un lieu fermé en ce moment ne fait jamais la une, une photo passe devant.
         cards.sort(key=lambda c: (c.open_status == "closed", c.cover.url is None))
         sections.append(HomeSection(key=key, title=title, subtitle=subtitle, items=cards))
-    return HomeOut(sections=sections)
+    from app.routers.agenda import build_agenda
+
+    agenda = build_agenda(db, user, city, lat, lng)
+    return HomeOut(sections=sections, agenda=agenda if agenda.items else None)
 
 
 def _get_place(db: Session, id_or_slug: str) -> Place:
@@ -239,7 +244,15 @@ def detail(
             .limit(20)
         )
     )
-    events = list(db.scalars(select(Event).where(Event.place_id == place.id).order_by(Event.starts_at).limit(10)))
+    soon = datetime.now(UTC) - timedelta(hours=3)  # seulement ce qui est à venir (ou commencé il y a peu)
+    events = list(
+        db.scalars(
+            select(Event)
+            .where(Event.place_id == place.id, or_(Event.starts_at >= soon, Event.ends_at >= datetime.now(UTC)))
+            .order_by(Event.starts_at)
+            .limit(10)
+        )
+    )
     is_fav = bool(user and db.get(Favorite, (user.id, place.id)))
     place.popularity += 1
     db.commit()
@@ -275,7 +288,18 @@ def detail(
             for r in reviews
         ],
         source=SourceOut(kind=src.kind if src else "curated", attribution=src.attribution if src else None),
-        events=[EventOut(id=str(e.id), title=e.title, starts_at=e.starts_at, price_fcfa=e.price_fcfa) for e in events],
+        events=[
+            EventOut(
+                id=str(e.id),
+                title=e.title,
+                starts_at=e.starts_at,
+                price_fcfa=e.price_fcfa,
+                kind_label=KINDS.get(e.kind, "Sortie"),
+                description=e.description,
+                link=e.link,
+            )
+            for e in events
+        ],
         is_favorite=is_fav,
     )
 

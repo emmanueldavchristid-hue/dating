@@ -51,7 +51,9 @@ Ordre de travail : semaine 1 corrections rapides → carte → vrai concierge IA
       (en attente de son accord) : coller un lien TikTok/Instagram dans l'admin → lieu créé + vidéo officielle
       intégrée sur la fiche (lecteur officiel, crédit au créateur, pas de copie) ; photos des lieux partenaires ;
       bouton « Proposer un lieu » pour les utilisateurs. Pas d'aspiration (interdit par leurs conditions).
-- [ ] Accueil éditorialisé « Ce week-end » + agenda d'événements
+- [x] Agenda « Ce week-end » (jeudi → dimanche, sinon « Cette semaine ») : en tête de l'accueil, écran Agenda
+      par jour, « À venir ici » sur la fiche ; onglet Agenda dans l'admin (ajout/modif/suppression, curateurs
+      compris). Contenu à saisir chaque semaine par l'équipe.
 - [ ] Partage avec lien (page web publique par lieu et par soirée), WhatsApp en premier — après le choix de
       l'hébergement (décision du 5/11 : plus tard)
 - [ ] Mot de passe oublié par e-mail (décision du 5/11 : connexion par e-mail seulement pour l'instant, pas de SMS)

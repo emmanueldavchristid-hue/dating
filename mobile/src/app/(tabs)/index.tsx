@@ -10,6 +10,7 @@ import { LocationPicker } from "@/components/LocationPicker";
 import { PlaceTile } from "@/components/PlaceCard";
 import { SearchBar } from "@/components/SearchBar";
 import { Sheet } from "@/components/Sheet";
+import { EventTile } from "@/components/EventCard";
 import { PressableScale, SectionTitle, Txt } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { useMeta } from "@/context/MetaContext";
@@ -128,6 +129,35 @@ export default function Discover() {
             }
           />
         </View>
+
+        {/* Agenda : ce qui se passe ce week-end (soirées, concerts, brunchs…) */}
+        {home.data?.agenda?.items.length ? (
+          <Animated.View entering={FadeInDown.duration(420)} style={{ marginTop: space[5], gap: space[3] }}>
+            <View style={{ paddingHorizontal: GUTTER }}>
+              <SectionTitle
+                title={home.data.agenda.title}
+                subtitle="Soirées, concerts, brunchs…"
+                action={
+                  <PressableScale onPress={() => router.push("/events")} accessibilityRole="button" accessibilityLabel="Voir tout l'agenda" hitSlop={8}>
+                    <Txt variant="label" color={colors.accent}>
+                      Tout voir
+                    </Txt>
+                  </PressableScale>
+                }
+              />
+            </View>
+            <FlatList
+              horizontal
+              data={home.data.agenda.items}
+              keyExtractor={(e) => e.id}
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={264 + 14}
+              decelerationRate="fast"
+              contentContainerStyle={{ paddingHorizontal: GUTTER, gap: 14 }}
+              renderItem={({ item }) => <EventTile e={item} />}
+            />
+          </Animated.View>
+        ) : null}
 
         {/* Envies : ce que l'on veut faire, puis le type de lieu */}
         <View style={{ paddingHorizontal: GUTTER, marginTop: space[5], gap: space[3] }}>

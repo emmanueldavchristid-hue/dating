@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AgendaTab } from "@/components/admin/AgendaTab";
 import { AuditTab, CurationTab, PlacesTab, ReportsTab, UsersTab } from "@/components/admin/Tabs";
-import { IconChart, IconFlag, IconGem, IconHistory, IconLock, IconMap, IconUsers } from "@/components/icons";
+import { IconCalendar, IconChart, IconFlag, IconGem, IconHistory, IconLock, IconMap, IconUsers } from "@/components/icons";
 import { RequireAuth } from "@/components/ui/RequireAuth";
 import { EmptyState } from "@/components/ui/States";
 import { useAuth } from "@/context/AuthContext";
@@ -11,10 +12,11 @@ import { groupThousands } from "@/lib/format";
 import type { AdminStats } from "@/lib/types";
 import styles from "./adminPage.module.css";
 
-type TabKey = "places" | "users" | "reports" | "curation" | "audit";
+type TabKey = "places" | "agenda" | "users" | "reports" | "curation" | "audit";
 
 const TABS: { key: TabKey; label: string; Icon: (p: { size?: number }) => React.JSX.Element; adminOnly: boolean }[] = [
   { key: "places", label: "Lieux", Icon: IconMap, adminOnly: true },
+  { key: "agenda", label: "Agenda", Icon: IconCalendar, adminOnly: false },
   { key: "users", label: "Utilisateurs", Icon: IconUsers, adminOnly: true },
   { key: "reports", label: "Signalements", Icon: IconFlag, adminOnly: true },
   { key: "curation", label: "Curation", Icon: IconGem, adminOnly: false },
@@ -83,7 +85,7 @@ function Console() {
       </div>
 
       <div role="tabpanel" aria-label={tabs.find((t) => t.key === tab)?.label}>
-        {tab === "places" ? <PlacesTab /> : tab === "users" ? <UsersTab /> : tab === "reports" ? <ReportsTab /> : tab === "curation" ? <CurationTab /> : <AuditTab />}
+        {tab === "places" ? <PlacesTab /> : tab === "agenda" ? <AgendaTab /> : tab === "users" ? <UsersTab /> : tab === "reports" ? <ReportsTab /> : tab === "curation" ? <CurationTab /> : <AuditTab />}
       </div>
     </>
   );

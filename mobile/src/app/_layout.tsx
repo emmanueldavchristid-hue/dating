@@ -63,6 +63,7 @@ function RootStack() {
         <Stack.Screen name="search" />
         <Stack.Screen name="place/[id]" />
         <Stack.Screen name="favorites" />
+        <Stack.Screen name="events" />
         <Stack.Screen name="collections" />
         <Stack.Screen name="collection/[id]" />
         <Stack.Screen name="soiree/index" />

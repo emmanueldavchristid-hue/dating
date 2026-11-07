@@ -372,6 +372,51 @@ def test_outing_templates_follow_a_logical_order(client, free_h, insider_h):
     assert bad.status_code == 400
 
 
+def test_agenda_window_titles():
+    from datetime import datetime
+
+    from app.services.agenda import window
+
+    _, end, title = window(datetime(2026, 11, 6, 18, 0))  # vendredi
+    assert title == "Ce week-end" and end.weekday() == 0  # jusqu'à la nuit de dimanche à lundi
+    _, end, title = window(datetime(2026, 11, 3, 18, 0))  # mardi
+    assert title == "Cette semaine" and (end - datetime(2026, 11, 3, 18, 0)).days == 7
+
+
+def test_agenda_admin_creates_event_shown_on_home(client, admin_h, free_h):
+    from datetime import UTC, datetime, timedelta
+
+    place = client.get(f"{API}/places/search", params={"city": "abidjan", "page_size": 1}).json()["items"][0]
+    start = (datetime.now(UTC) + timedelta(days=1)).replace(microsecond=0)
+    body = {
+        "place_id": place["id"],
+        "title": "Soirée test coupé-décalé",
+        "kind": "soiree",
+        "starts_at": start.isoformat(),
+        "price_fcfa": 5000,
+        "link": "https://www.instagram.com/p/test",
+    }
+    bad = client.post(f"{API}/admin/events", headers=admin_h, json={**body, "ends_at": start.isoformat()})
+    assert bad.status_code == 422
+    assert client.post(f"{API}/admin/events", headers=free_h, json=body).status_code == 403
+    e = client.post(f"{API}/admin/events", headers=admin_h, json=body)
+    assert e.status_code == 201, e.text
+    eid = e.json()["id"]
+    try:
+        agenda = client.get(f"{API}/events", params={"city": "abidjan"}).json()
+        item = next(i for i in agenda["items"] if i["id"] == eid)
+        assert item["kind_label"] == "Soirée" and item["place"]["id"] == place["id"]
+        assert agenda["title"] in ("Ce week-end", "Cette semaine")
+        home = client.get(f"{API}/recommendations/home", params={"city": "abidjan"}).json()
+        assert any(i["id"] == eid for i in home["agenda"]["items"])
+        r = client.patch(f"{API}/admin/events/{eid}", headers=admin_h, json={"title": "Soirée renommée"})
+        assert r.json()["title"] == "Soirée renommée"
+        assert any(i["id"] == eid for i in client.get(f"{API}/admin/events", headers=admin_h).json()["items"])
+    finally:
+        assert client.delete(f"{API}/admin/events/{eid}", headers=admin_h).status_code == 204
+    assert all(i["id"] != eid for i in client.get(f"{API}/events", params={"city": "abidjan"}).json()["items"])
+
+
 def test_billing_is_honest(client, free_h):
     plans = client.get(f"{API}/billing/plans").json()
     assert [p["code"] for p in plans] == ["free", "plus", "insider"]

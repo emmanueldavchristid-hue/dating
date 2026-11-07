@@ -107,6 +107,9 @@ class EventOut(BaseModel):
     title: str
     starts_at: datetime
     price_fcfa: int | None
+    kind_label: str = "Sortie"
+    description: str = ""
+    link: str | None = None
 
 
 class PlaceDetail(PlaceCard):
@@ -144,8 +147,27 @@ class HomeSection(BaseModel):
     items: list[PlaceCard]
 
 
+class EventCard(BaseModel):
+    id: str
+    title: str
+    kind: str
+    kind_label: str
+    starts_at: datetime
+    ends_at: datetime | None
+    price_fcfa: int | None
+    description: str
+    link: str | None
+    place: PlaceCard
+
+
+class Agenda(BaseModel):
+    title: str  # « Ce week-end » ou « Cette semaine »
+    items: list[EventCard]
+
+
 class HomeOut(BaseModel):
     sections: list[HomeSection]
+    agenda: Agenda | None = None
 
 
 # ---------- Utilisateur ----------
@@ -397,6 +419,31 @@ class AdminUserPatch(BaseModel):
 
 class StatusPatch(BaseModel):
     status: Literal["open", "resolved", "rejected"]
+
+
+class AdminEventIn(BaseModel):
+    place_id: str
+    title: str = Field(min_length=2, max_length=200)
+    kind: Literal["soiree", "concert", "brunch", "afterwork", "spectacle", "famille", "sport", "festival", "autre"] = (
+        "soiree"
+    )
+    starts_at: datetime
+    ends_at: datetime | None = None
+    price_fcfa: int | None = Field(default=None, ge=0, le=10_000_000)
+    description: str = Field(default="", max_length=1000)
+    link: str | None = Field(default=None, max_length=300)
+
+
+class AdminEventPatch(BaseModel):
+    title: str | None = Field(default=None, min_length=2, max_length=200)
+    kind: (
+        Literal["soiree", "concert", "brunch", "afterwork", "spectacle", "famille", "sport", "festival", "autre"] | None
+    ) = None
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    price_fcfa: int | None = Field(default=None, ge=0, le=10_000_000)
+    description: str | None = Field(default=None, max_length=1000)
+    link: str | None = Field(default=None, max_length=300)
 
 
 class CurationDecision(BaseModel):
