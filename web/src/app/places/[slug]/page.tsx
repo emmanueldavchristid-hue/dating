@@ -44,7 +44,6 @@ import { useToast } from "@/context/ToastContext";
 import { api, errorMessage } from "@/lib/api";
 import {
   WEEKDAYS,
-  confidenceLabel,
   directionsUrl,
   formatBudgetRange,
   formatDate,
@@ -63,13 +62,6 @@ const AMENITIES: { key: keyof Amenities; yes: string; no: string; Icon: (p: { si
   { key: "mobile_money", yes: "Mobile Money accepté", no: "Pas de Mobile Money", Icon: IconWallet },
   { key: "outdoor", yes: "Espace extérieur", no: "Pas d'espace extérieur", Icon: IconTree },
 ];
-
-const SOURCE_LABELS: Record<PlaceDetail["source"]["kind"], string> = {
-  demo: "Donnée de démonstration (fictive)",
-  osm: "OpenStreetMap",
-  partner: "Partenaire",
-  curated: "Équipe de curation",
-};
 
 export default function PlacePage() {
   const params = useParams<{ slug: string }>();
@@ -165,7 +157,6 @@ export default function PlacePage() {
 
   const budget = formatBudgetRange(place.budget_min_fcfa, place.budget_max_fcfa);
   const knownAmenities = AMENITIES.filter((a) => place.amenities?.[a.key] != null);
-  const conf = confidenceLabel(place.confidence);
   const mainCat = place.categories[0];
   const today = (new Date().getDay() + 6) % 7; // 0 = lundi
   const photos = realPhotos(place.photos);
@@ -493,26 +484,18 @@ export default function PlacePage() {
           ) : null}
 
           <section className={styles.sideCard}>
-            <h2 className={styles.sideTitle}>Fiabilité</h2>
+            <h2 className={styles.sideTitle}>Infos pratiques</h2>
             <div className={styles.reliability}>
-              <div className={styles.confRow}>
-                <span>Confiance</span>
-                <strong className={styles[`conf_${conf.level}`]}>{conf.label}</strong>
-              </div>
-              <div className={styles.confBar} role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(place.confidence * 100)} aria-label="Indice de confiance">
-                <span className={styles[`confFill_${conf.level}`]} style={{ width: `${Math.round(Math.min(1, Math.max(0, place.confidence)) * 100)}%` }} />
-              </div>
-              <dl className={styles.dl}>
-                <dt>Source</dt>
-                <dd>
-                  {SOURCE_LABELS[place.source.kind] ?? place.source.kind}
-                  {place.source.attribution ? <span className="subtle"> · {place.source.attribution}</span> : null}
-                </dd>
-                <dt>Dernière vérification</dt>
-                <dd>{formatDate(place.verified_at) ?? "Jamais vérifié"}</dd>
-              </dl>
+              {place.verified_at ? (
+                <dl className={styles.dl}>
+                  <dt>Vérifié par l&apos;équipe</dt>
+                  <dd>{formatDate(place.verified_at)}</dd>
+                </dl>
+              ) : (
+                <p className="subtle">Une info a changé ? Dites-le nous, on met la fiche à jour.</p>
+              )}
               <button type="button" className="link" onClick={() => (user ? setReportOpen(true) : requireLogin("signaler une erreur"))}>
-                Une info est fausse ? Signalez-la
+                Signaler une erreur
               </button>
             </div>
           </section>
