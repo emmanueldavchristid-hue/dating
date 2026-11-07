@@ -28,6 +28,11 @@ Ordre de travail : semaine 1 corrections rapides → carte → vrai concierge IA
 - [x] Carte : démarre sur ma position, tri par distance, « Rechercher dans cette zone », ouverte depuis une fiche
 - [x] Nouvelle base (2 874 lieux publiés) copiée sur le PC ; le script la restaure automatiquement
 
+- [x] Thème clair ou sombre au choix (premier écran + profil, ou comme le téléphone) — `themed()` dans tokens.ts
+- [x] Suivi du trajet en direct sur la carte (« Démarrer » : ligne qui se raccourcit, temps et distance restants,
+      nouveau calcul si on quitte la route, « Tu es arrivé ») — à tester sur téléphone (non visible en web)
+- [x] Script PC : mise de côté automatique des fichiers modifiés avant la mise à jour, version affichée
+
 ### À faire, dans l'ordre
 
 - [ ] Tester le vrai concierge IA : Jason doit ajouter `api.groq.com`, `generativelanguage.googleapis.com`,

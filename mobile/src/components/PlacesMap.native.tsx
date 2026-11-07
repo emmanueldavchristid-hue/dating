@@ -24,7 +24,7 @@ const DARK: MapStyleElement[] = [
 
 const DELTA = { latitudeDelta: 0.09, longitudeDelta: 0.09 };
 
-export function PlacesMap({ places, selectedId, onSelect, center, user, recenterKey, bottomInset, onRegionChange, route }: PlacesMapProps) {
+export function PlacesMap({ places, selectedId, onSelect, center, user, recenterKey, bottomInset, onRegionChange, route, routeDoneIndex = 0, follow }: PlacesMapProps) {
   const ref = useRef<MapView>(null);
   const start = user ?? center;
 
@@ -33,13 +33,20 @@ export function PlacesMap({ places, selectedId, onSelect, center, user, recenter
     if (p?.location) ref.current?.animateCamera({ center: { latitude: p.location.lat, longitude: p.location.lng } }, { duration: 350 });
   }, [selectedId, places]);
 
+  // Suivi en direct : la carte suit la position, orientée vers l'avant, en vue rapprochée.
+  useEffect(() => {
+    if (!follow) return;
+    ref.current?.animateCamera({ center: { latitude: follow.lat, longitude: follow.lng }, zoom: 16.5 }, { duration: 600 });
+  }, [follow]);
+
   // Trajet affiché : la carte cadre le départ et l'arrivée.
   useEffect(() => {
-    if (!route || route.length < 2) return;
+    if (!route || route.length < 2 || follow) return;
     ref.current?.fitToCoordinates(
       route.map((p) => ({ latitude: p.lat, longitude: p.lng })),
       { edgePadding: { top: 160, right: 40, bottom: bottomInset + 120, left: 40 }, animated: true },
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recadrer seulement quand le tracé change
   }, [route, bottomInset]);
 
   useEffect(() => {
@@ -60,7 +67,7 @@ export function PlacesMap({ places, selectedId, onSelect, center, user, recenter
       }}
       customMapStyle={themeMode() === "dark" ? DARK : []}
       userInterfaceStyle={themeMode()}
-      showsUserLocation={!!user}
+      showsUserLocation={!!user || !!follow}
       showsMyLocationButton={false}
       showsPointsOfInterests={false}
       toolbarEnabled={false}
@@ -68,8 +75,23 @@ export function PlacesMap({ places, selectedId, onSelect, center, user, recenter
       mapPadding={{ top: 0, right: 0, left: 0, bottom: bottomInset }}
       accessibilityLabel="Carte des lieux"
     >
+      {route && route.length > 1 && routeDoneIndex > 0 ? (
+        <Polyline
+          coordinates={route.slice(0, routeDoneIndex + 1).map((p) => ({ latitude: p.lat, longitude: p.lng }))}
+          strokeColor={colors.textSubtle}
+          strokeWidth={5}
+          lineCap="round"
+          lineJoin="round"
+        />
+      ) : null}
       {route && route.length > 1 ? (
-        <Polyline coordinates={route.map((p) => ({ latitude: p.lat, longitude: p.lng }))} strokeColor={colors.accent} strokeWidth={5} lineCap="round" lineJoin="round" />
+        <Polyline
+          coordinates={route.slice(routeDoneIndex).map((p) => ({ latitude: p.lat, longitude: p.lng }))}
+          strokeColor={colors.accent}
+          strokeWidth={6}
+          lineCap="round"
+          lineJoin="round"
+        />
       ) : null}
       {places.map((p) => {
         if (!p.location) return null;

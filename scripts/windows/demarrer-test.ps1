@@ -26,7 +26,14 @@ function Echec($texte) {
 if (Get-Command git -ErrorAction SilentlyContinue) {
     Etape "Mise à jour du projet"
     git pull --ff-only
-    if ($LASTEXITCODE -ne 0) { Write-Host "Mise à jour impossible (modifications locales ?) : on continue avec la version actuelle." -ForegroundColor Yellow }
+    if ($LASTEXITCODE -ne 0) {
+        # Fichiers modifiés localement (souvent par Expo lui-même) : mis de côté, puis nouvel essai.
+        git stash push -m "mise de cote automatique avant mise a jour" | Out-Null
+        git pull --ff-only
+        if ($LASTEXITCODE -ne 0) { Write-Host "Mise à jour impossible : on continue avec la version actuelle (envoie demarrage.log)." -ForegroundColor Yellow }
+        else { Write-Host "Mise à jour faite (tes modifications locales sont gardées de côté : git stash list)." }
+    }
+    Write-Host ("Version : " + (git log -1 --format="%h %s"))
 }
 
 # 1. Prérequis ---------------------------------------------------------------

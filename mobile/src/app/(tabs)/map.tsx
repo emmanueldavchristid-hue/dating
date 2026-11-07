@@ -1,8 +1,9 @@
+import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, ScrollView, StyleSheet, View, useWindowDimensions, type ListViewToken as ViewTokenT } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ErrorState, Notice, RowSkeleton } from "@/components/feedback";
+import { ErrorState, Notice, RowSkeleton, useToast } from "@/components/feedback";
 import { categoryIcon, Icon } from "@/components/Icon";
 import { PlaceRow } from "@/components/PlaceCard";
 import { MAP_SUPPORTED, PlacesMap } from "@/components/PlacesMap";
@@ -14,6 +15,8 @@ import { api } from "@/lib/api";
 import { DEFAULT_CENTER } from "@/lib/config";
 import { EMPTY_FILTERS, filtersToApiQuery } from "@/lib/filters";
 import { formatDistance, pluralize, travelLabel } from "@/lib/format";
+import { tripProgress } from "@/lib/trip";
+import type { RouteResult } from "@/lib/types";
 import { useAsync } from "@/lib/useAsync";
 import { colors, GUTTER, radius, space, themed } from "@/theme/tokens";
 
@@ -22,6 +25,7 @@ export default function MapTab() {
   const { width } = useWindowDimensions();
   const params = useLocalSearchParams<{ focus?: string; lat?: string; lng?: string }>();
   const { categories, catName } = useMeta();
+  const toast = useToast();
   const { searchOrigin, cityCenter, gps, gpsState, choice, enableGps, originLabel, apiOrigin } = useSettings();
   const [cats, setCats] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -30,6 +34,9 @@ export default function MapTab() {
   const [area, setArea] = useState<{ lat: number; lng: number; km: number } | null>(null);
   const [moved, setMoved] = useState<{ lat: number; lng: number; km: number } | null>(null);
   const listRef = useRef<FlatList>(null);
+  const [liveRoute, setLiveRoute] = useState<RouteResult | null>(null);
+  const [here, setHere] = useState<{ lat: number; lng: number } | null>(null);
+  const [live, setLive] = useState(false);
   const askedGps = useRef(false);
 
   // La carte part de ma position : on la demande une fois (si elle n'a pas été refusée).
@@ -48,6 +55,8 @@ export default function MapTab() {
       setArea({ lat: Number(params.lat), lng: Number(params.lng), km: 3 });
       setSelected(params.focus);
       setMoved(null);
+      setLiveRoute(null); // nouveau lieu : on repart du trajet calculé pour lui
+      setLive(false);
     }
   }
 
@@ -57,6 +66,48 @@ export default function MapTab() {
     () => (routeKey && gps ? api.meta.route(gps, { lat: Number(params.lat), lng: Number(params.lng) }).catch(() => null) : Promise.resolve(null)),
     [routeKey],
   );
+
+  // Suivi en direct : position suivie, ligne qui se raccourcit, temps restant, nouveau calcul si on quitte la route.
+  const lastReroute = useRef(0);
+  const shown = liveRoute ?? trip.data ?? null;
+  const progress = live && here && shown ? tripProgress(shown.path, shown.minutes, here) : null;
+  const shownRef = useRef(shown);
+  const dest = params.lat && params.lng ? { lat: Number(params.lat), lng: Number(params.lng) } : null;
+  const destRef = useRef(dest);
+  useEffect(() => {
+    shownRef.current = shown;
+    destRef.current = dest;
+  });
+  useEffect(() => {
+    if (!live) return;
+    let sub: Location.LocationSubscription | null = null;
+    let cancelled = false;
+    const onPosition = (pos: Location.LocationObject) => {
+      const pt = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      setHere(pt);
+      const r = shownRef.current;
+      if (!r) return;
+      const pr = tripProgress(r.path, r.minutes, pt);
+      if (pr.arrived) {
+        setLive(false);
+        toast("Tu es arrivé, bonne sortie !", "check");
+      } else if (pr.offRouteM > 80 && destRef.current && Date.now() - lastReroute.current > 30_000) {
+        // sorti de la route : nouveau trajet depuis ici (au plus toutes les 30 s)
+        lastReroute.current = Date.now();
+        api.meta.route(pt, destRef.current).then(setLiveRoute).catch(() => {});
+      }
+    };
+    Location.watchPositionAsync({ accuracy: Location.Accuracy.High, distanceInterval: 10, timeInterval: 3000 }, onPosition)
+      .then((s0) => {
+        if (cancelled) s0.remove();
+        else sub = s0;
+      })
+      .catch(() => setLive(false));
+    return () => {
+      cancelled = true;
+      sub?.remove();
+    };
+  }, [live, toast]);
 
   const key = JSON.stringify([searchOrigin, cats, area]);
   const res = useAsync(() => {
@@ -165,7 +216,9 @@ export default function MapTab() {
         recenterKey={recenter}
         bottomInset={140}
         onRegionChange={setMoved}
-        route={trip.data?.path ?? null}
+        route={shown?.path ?? null}
+        routeDoneIndex={progress?.index ?? 0}
+        follow={live ? here : null}
       />
 
       <View style={[s.top, { paddingTop: insets.top + space[2] }]} pointerEvents="box-none">
@@ -194,15 +247,39 @@ export default function MapTab() {
           />
         </View>
         {chips}
-        {trip.data ? (
+        {shown ? (
           <View style={s.tripCard}>
-            <Icon name="car" size={18} color={colors.accent} />
-            <Txt variant="label" style={{ flex: 1 }}>
-              {travelLabel(trip.data)} · {formatDistance(trip.data.distance_km)}
-            </Txt>
-            <Txt variant="caption" color={colors.textMuted}>
-              sans trafic
-            </Txt>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <Icon name="car" size={18} color={colors.accent} />
+              <View style={{ flex: 1 }}>
+                <Txt variant="label">
+                  {progress
+                    ? `Encore ${progress.remainingMin} min · ${formatDistance(progress.remainingKm)}`
+                    : `${travelLabel(shown)} · ${formatDistance(shown.distance_km)}`}
+                </Txt>
+                <Txt variant="caption" color={colors.textMuted}>
+                  Durée calculée sans trafic
+                </Txt>
+              </View>
+              <PressableScale
+                onPress={() => {
+                  if (live) return setLive(false);
+                  setHere(gps);
+                  setLive(true);
+                }}
+                accessibilityRole="button"
+                style={[s.tripBtn, live ? { backgroundColor: colors.surface3 } : null]}
+              >
+                <Txt variant="label" color={live ? colors.text : colors.onAccent}>
+                  {live ? "Arrêter" : "Démarrer"}
+                </Txt>
+              </PressableScale>
+            </View>
+            {progress ? (
+              <View style={s.track} accessibilityLabel={`Trajet fait à ${Math.round(progress.done * 100)} %`}>
+                <View style={[s.trackFill, { width: `${Math.round(progress.done * 100)}%` }]} />
+              </View>
+            ) : null}
           </View>
         ) : null}
         {moved ? (
@@ -276,13 +353,14 @@ const s = themed(() => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderStrong,
   },
+  tripBtn: { height: 36, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
+  track: { height: 6, borderRadius: 3, backgroundColor: colors.surface3, overflow: "hidden" },
+  trackFill: { height: 6, borderRadius: 3, backgroundColor: colors.accent },
   tripCard: {
     marginHorizontal: GUTTER,
-    flexDirection: "row",
-    alignItems: "center",
     gap: 10,
     paddingHorizontal: 14,
-    height: 44,
+    paddingVertical: 10,
     borderRadius: radius.md,
     backgroundColor: colors.panel,
     borderWidth: 1,

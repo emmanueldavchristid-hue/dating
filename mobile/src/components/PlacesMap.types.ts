@@ -13,4 +13,7 @@ export interface PlacesMapProps {
   onRegionChange?: (r: { lat: number; lng: number; km: number }) => void;
   /** Trajet par la route à tracer (calculé par le serveur), ou rien. */
   route?: { lat: number; lng: number }[] | null;
+  /** Suivi en direct : index du tracé déjà atteint (la partie faite est grisée) et position à suivre. */
+  routeDoneIndex?: number;
+  follow?: { lat: number; lng: number } | null;
 }
