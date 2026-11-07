@@ -1,10 +1,11 @@
+import { router } from "expo-router";
 import Constants from "expo-constants";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Notice } from "@/components/feedback";
 import { Icon, type IconName } from "@/components/Icon";
 import { ScreenHeader } from "@/components/Screen";
-import { Card, Txt } from "@/components/ui";
+import { Card, ListRow, Txt } from "@/components/ui";
 import { useMeta } from "@/context/MetaContext";
 import { API_URL, APP_NAME, APP_TAGLINE } from "@/lib/config";
 import { colors, GUTTER, radius, space, themed } from "@/theme/tokens";
@@ -57,13 +58,22 @@ export default function About() {
           </View>
         ))}
 
+        <Txt variant="h3">Informations légales</Txt>
+        <Card style={{ gap: 0, paddingVertical: 4 }}>
+          <ListRow icon="info" label="Conditions d'utilisation" onPress={() => router.push({ pathname: "/legal", params: { doc: "cgu" } })} />
+          <ListRow icon="lock" label="Politique de confidentialité" onPress={() => router.push({ pathname: "/legal", params: { doc: "confidentialite" } })} />
+        </Card>
+
         <Txt variant="h3">Mentions & attributions</Txt>
         <Card style={{ gap: 10 }}>
           <Txt variant="bodySm" color={colors.textMuted}>
             Données cartographiques © contributeurs OpenStreetMap (licence ODbL), lorsque des lieux en proviennent.
           </Txt>
           <Txt variant="bodySm" color={colors.textMuted}>
-            Fonds de carte de l&apos;application mobile : Apple Plans (iOS) ou Google Maps (Android).
+            Fonds de carte de l&apos;application mobile : Apple Plans (iOS) ou Google Maps (Android). Itinéraires calculés avec OSRM sur les données OpenStreetMap.
+          </Txt>
+          <Txt variant="bodySm" color={colors.textMuted}>
+            Certaines photos de lieux : Google (Google Places), avec le nom de leur auteur sur la fiche. Lieux et photos libres : Wikidata et Wikimedia Commons.
           </Txt>
           <Txt variant="bodySm" color={colors.textMuted}>
             Polices Bricolage Grotesque et Manrope — SIL Open Font License.

@@ -54,6 +54,17 @@ export default function Register() {
         {error ? <Notice icon="info">{error}</Notice> : null}
         <Button label="Créer mon compte" onPress={submit} loading={busy} />
         <Txt variant="caption" color={colors.textSubtle} style={{ textAlign: "center" }}>
+          En créant un compte, tu acceptes les{" "}
+          <Txt variant="caption" color={colors.accent} onPress={() => router.push({ pathname: "/legal", params: { doc: "cgu" } })} accessibilityRole="link">
+            conditions d&apos;utilisation
+          </Txt>{" "}
+          et la{" "}
+          <Txt variant="caption" color={colors.accent} onPress={() => router.push({ pathname: "/legal", params: { doc: "confidentialite" } })} accessibilityRole="link">
+            politique de confidentialité
+          </Txt>
+          .
+        </Txt>
+        <Txt variant="caption" color={colors.textSubtle} style={{ textAlign: "center" }}>
           Tes données restent exportables et supprimables à tout moment depuis « Moi ».
         </Txt>
         <PressableScale onPress={() => router.replace("/login")} accessibilityRole="link" accessibilityLabel="J'ai déjà un compte" style={{ alignSelf: "center", padding: 10 }}>

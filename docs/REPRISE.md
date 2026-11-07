@@ -62,7 +62,10 @@ Ordre de travail : semaine 1 corrections rapides → carte → vrai concierge IA
 - [x] Soirée : modèles en un toucher (date romantique, afterwork, anniversaire, dimanche à Bassam, famille),
       étapes dans un ordre logique, proches les unes des autres, heures suggérées (`GET /itineraries/templates`)
 - [ ] Pépites : 30 vraies pépites visitées avant le premium ; prix ; paiement Mobile Money
-- [ ] Nom définitif, icône, CGU et confidentialité, hébergement, builds stores
+- [x] CGU et politique de confidentialité (version de travail, fidèle au fonctionnement réel, à faire relire par
+      un juriste ; société, adresse, contact et hébergeur entre crochets) : écran « Informations légales »,
+      lien à l'inscription — `mobile/src/lib/legal.ts`
+- [ ] Nom définitif, icône, hébergement, builds stores
 
 ## Pour Claude : comment reprendre
 
