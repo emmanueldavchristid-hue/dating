@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, GUTTER, radius, space } from "@/theme/tokens";
+import { colors, GUTTER, radius, space, themed } from "@/theme/tokens";
 import { IconButton, Txt } from "./ui";
 
 /** Feuille modale du bas (filtres, collections, signalement…). */
@@ -57,7 +57,7 @@ export function Sheet({
           style={[
             s.panel,
             { maxHeight: height * 0.9, paddingBottom: Math.max(insets.bottom, space[4]) },
-            gold ? { borderColor: colors.goldBorder, backgroundColor: "#17140E" } : null,
+            gold ? { borderColor: colors.goldBorder, backgroundColor: colors.sheetGold } : null,
             panel,
           ]}
         >
@@ -89,7 +89,7 @@ export function Sheet({
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   panel: {
     backgroundColor: colors.surface1,
     borderTopLeftRadius: radius.xl,
@@ -122,4 +122,4 @@ const s = StyleSheet.create({
     flexDirection: "row",
     gap: space[3],
   },
-});
+}));

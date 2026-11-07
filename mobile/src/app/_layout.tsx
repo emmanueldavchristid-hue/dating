@@ -11,26 +11,36 @@ import {
   Manrope_800ExtraBold,
 } from "@expo-google-fonts/manrope";
 import { useFonts } from "expo-font";
-import { DarkTheme, SplashScreen, Stack, ThemeProvider } from "expo-router";
+import { DarkTheme, DefaultTheme, SplashScreen, Stack, ThemeProvider } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ToastProvider } from "@/components/feedback";
+import { AppearanceProvider, useAppearance } from "@/context/AppearanceContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { MetaProvider } from "@/context/MetaContext";
 import { SettingsProvider, useSettings } from "@/context/SettingsContext";
 import { colors } from "@/theme/tokens";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
-SystemUI.setBackgroundColorAsync(colors.bg).catch(() => {});
 
-const theme = {
-  ...DarkTheme,
-  colors: { ...DarkTheme.colors, background: colors.bg, card: colors.bg, primary: colors.accent, text: colors.text, border: colors.border },
-};
+/** Thème de navigation et barre d'état, recalculés à chaque thème (l'app est remontée au changement). */
+function Themed({ children }: { children: React.ReactNode }) {
+  const { mode } = useAppearance();
+  const base = mode === "dark" ? DarkTheme : DefaultTheme;
+  const theme = {
+    ...base,
+    colors: { ...base.colors, background: colors.bg, card: colors.bg, primary: colors.accent, text: colors.text, border: colors.border },
+  };
+  return (
+    <ThemeProvider value={theme}>
+      <StatusBar style={mode === "dark" ? "light" : "dark"} />
+      {children}
+    </ThemeProvider>
+  );
+}
 
 function RootStack() {
   const { ready: authReady } = useAuth();
@@ -81,10 +91,10 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <ThemeProvider value={theme}>
-          <StatusBar style="light" />
+        <AppearanceProvider>
+          <Themed>
           <AuthProvider>
             <MetaProvider>
               <SettingsProvider>
@@ -94,7 +104,8 @@ export default function RootLayout() {
               </SettingsProvider>
             </MetaProvider>
           </AuthProvider>
-        </ThemeProvider>
+          </Themed>
+        </AppearanceProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

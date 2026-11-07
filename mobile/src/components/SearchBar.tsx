@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { StyleSheet, TextInput, View, type TextInputProps } from "react-native";
-import { colors, fonts, radius } from "@/theme/tokens";
+import { colors, fonts, radius, themed } from "@/theme/tokens";
 import { Icon } from "./Icon";
 import { PressableScale } from "./ui";
 
@@ -28,7 +28,7 @@ export function SearchBar({ value, onClear, right, style, ...rest }: TextInputPr
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   bar: {
     height: 54,
     borderRadius: radius.lg,
@@ -43,4 +43,4 @@ const s = StyleSheet.create({
   },
   input: { flex: 1, color: colors.text, fontFamily: fonts.body, fontSize: 16, height: "100%" },
   clear: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.surfaceHover, alignItems: "center", justifyContent: "center", marginRight: 6 },
-});
+}));

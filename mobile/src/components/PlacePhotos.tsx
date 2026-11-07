@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { canManagePhotos, creditLabel, isCoverPhoto, MAX_CREDIT_LENGTH, PICKER_QUALITY, photoErrorMessage, realPhotos, uploadPlacePhoto, type PickedImage } from "@/lib/photos";
 import { api } from "@/lib/api";
 import type { Cover, PlacePhoto, User } from "@/lib/types";
-import { colors, fonts, GUTTER, radius, space } from "@/theme/tokens";
+import { colors, fonts, GUTTER, radius, space, themed } from "@/theme/tokens";
 import { Notice, useToast } from "./feedback";
 import { Icon, type IconName } from "./Icon";
 import { Sheet } from "./Sheet";
@@ -423,7 +423,7 @@ export function PhotoActionsSheet({
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   credit: {
     flexDirection: "row",
     alignItems: "center",
@@ -449,4 +449,4 @@ const s = StyleSheet.create({
   progressWrap: { position: "absolute", left: 12, right: 12, bottom: 12, height: 6, borderRadius: 3, backgroundColor: "rgba(14,15,19,0.6)", overflow: "hidden" },
   progressBar: { height: 6, borderRadius: 3, backgroundColor: colors.accent },
   switchRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: radius.lg, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-});
+}));

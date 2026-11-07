@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { api, errorMessage } from "@/lib/api";
 import type { CollectionSummary, ReportKind } from "@/lib/types";
-import { colors, radius } from "@/theme/tokens";
+import { colors, radius, themed } from "@/theme/tokens";
 import { Notice, useToast } from "./feedback";
 import { Icon } from "./Icon";
 import { Sheet } from "./Sheet";
@@ -174,8 +174,8 @@ export function ReviewSheet({ placeId, visible, onClose, onDone }: { placeId: st
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   item: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: radius.md, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   itemIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center" },
-});
+}));

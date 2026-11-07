@@ -1,7 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { formatDistance } from "@/lib/format";
 import type { PlaceCard } from "@/lib/types";
-import { colors, radius } from "@/theme/tokens";
+import { colors, radius, themed } from "@/theme/tokens";
 import { Icon } from "./Icon";
 import { PlaceRow } from "./PlaceCard";
 import { IconButton, Txt } from "./ui";
@@ -71,10 +71,10 @@ export function Timeline({
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   stepRow: { flexDirection: "row", gap: 12 },
   num: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center", marginTop: 34 },
   leg: { flexDirection: "row", alignItems: "center", gap: 10, paddingLeft: 14, height: 40 },
   legLine: { width: 2, height: 40, backgroundColor: colors.borderHover, borderRadius: 1, marginRight: 14 },
   tools: { flexDirection: "row", gap: 8, padding: 6, borderRadius: radius.md, backgroundColor: colors.surface1 },
-});
+}));

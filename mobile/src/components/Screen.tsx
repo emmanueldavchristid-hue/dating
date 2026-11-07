@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import type { ReactNode } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, GUTTER, space } from "@/theme/tokens";
+import { colors, GUTTER, space, themed } from "@/theme/tokens";
 import { IconButton, Txt } from "./ui";
 
 export function goBack(fallback: string = "/") {
@@ -89,9 +89,9 @@ export function TabHeader({ title, subtitle, right, overline }: { title: string;
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   header: { paddingHorizontal: GUTTER, paddingBottom: space[3], backgroundColor: colors.bg },
   bar: { flexDirection: "row", alignItems: "center", gap: space[3], minHeight: 44 },
   tabHeader: { paddingHorizontal: GUTTER, paddingBottom: space[4], flexDirection: "row", alignItems: "flex-end", gap: space[3] },
-});
+}));

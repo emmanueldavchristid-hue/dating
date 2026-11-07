@@ -8,17 +8,18 @@ import { Notice } from "@/components/feedback";
 import { Icon, type IconName } from "@/components/Icon";
 import { LocationPicker } from "@/components/LocationPicker";
 import { PrefsEditor } from "@/components/PrefsEditor";
+import { ThemePicker } from "@/components/ThemePicker";
 import { Button, hapticSuccess, PressableScale, Txt } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
 import { APP_NAME } from "@/lib/config";
-import { colors, GUTTER, radius, space } from "@/theme/tokens";
+import { colors, GUTTER, radius, space, themed } from "@/theme/tokens";
 
 const SLIDES: { overline: string; title: string; body: string; icon: IconName; orbit: IconName[]; gold?: boolean }[] = [
   {
     overline: "Bienvenue",
     title: "Où sort-on ce soir ?",
-    body: "Maquis, rooftops, plages, lounges, culture… Les bonnes adresses d'Abidjan, triées pour toi.",
+    body: "Maquis, bars, plages, bowling, culture… Les bonnes adresses d'Abidjan, près de toi.",
     icon: "compass",
     orbit: ["flame", "building", "waves", "music"],
   },
@@ -128,6 +129,14 @@ export default function Onboarding() {
             <Txt variant="body" color={colors.textMuted} style={{ fontSize: 16, lineHeight: 24 }}>
               {slide.body}
             </Txt>
+            {step === 0 ? (
+              <View style={{ gap: space[2], marginTop: space[2] }}>
+                <Txt variant="overline" color={colors.textSubtle}>
+                  APPARENCE
+                </Txt>
+                <ThemePicker />
+              </View>
+            ) : null}
           </Animated.View>
         </View>
       ) : step === SLIDES.length ? (
@@ -173,7 +182,7 @@ export default function Onboarding() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: GUTTER, height: 44 },
   dots: { flexDirection: "row", gap: 6 },
@@ -202,4 +211,4 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   footer: { flexDirection: "row", gap: space[3], paddingHorizontal: GUTTER, paddingTop: space[3] },
-});
+}));

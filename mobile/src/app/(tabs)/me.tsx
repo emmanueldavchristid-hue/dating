@@ -5,6 +5,7 @@ import { RefreshControl, ScrollView, Share, StyleSheet, View } from "react-nativ
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Notice, useToast } from "@/components/feedback";
 import { Sheet } from "@/components/Sheet";
+import { ThemePicker } from "@/components/ThemePicker";
 import { Button, Card, ListRow, Pill, Toggle, Txt } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { useMeta } from "@/context/MetaContext";
@@ -14,7 +15,7 @@ import { APP_NAME } from "@/lib/config";
 import { formatFcfa, initials, planLabel } from "@/lib/format";
 import type { Taste } from "@/lib/types";
 import { useAsync } from "@/lib/useAsync";
-import { colors, fonts, GUTTER, radius, space } from "@/theme/tokens";
+import { colors, fonts, GUTTER, radius, space, themed } from "@/theme/tokens";
 
 function TasteCard({ taste }: { taste: Taste }) {
   const { catName, ambName } = useMeta();
@@ -131,7 +132,7 @@ export default function Me() {
         }
       >
         {user ? (
-          <LinearGradient colors={["#22252F", "#15171D"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.profile}>
+          <LinearGradient colors={colors.gradNeutral} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.profile}>
             <View style={s.avatar}>
               <Txt variant="h2" color={colors.onAccent} style={{ fontFamily: fonts.displayHeavy }}>
                 {initials(user.display_name)}
@@ -151,7 +152,7 @@ export default function Me() {
             </View>
           </LinearGradient>
         ) : (
-          <LinearGradient colors={["#3A1F0E", "#15171D"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[s.profile, { flexDirection: "column", alignItems: "stretch" }]}>
+          <LinearGradient colors={colors.gradAccent} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[s.profile, { flexDirection: "column", alignItems: "stretch" }]}>
             <Txt variant="h1">Ton espace</Txt>
             <Txt variant="body" color={colors.textMuted}>
               Connecte-toi pour retrouver tes favoris, tes collections, tes soirées et le concierge.
@@ -184,6 +185,12 @@ export default function Me() {
           </Txt>
           <Card style={s.group}>
             <ListRow icon="settings" label="Mes préférences" hint="Catégories, ambiances, budget, ville" onPress={() => router.push("/preferences")} />
+            <View style={{ gap: 8, paddingVertical: 10 }}>
+              <Txt variant="label" color={colors.textMuted}>
+                Apparence
+              </Txt>
+              <ThemePicker />
+            </View>
             <ListRow
               icon="locate"
               label="Utiliser ma position"
@@ -247,11 +254,11 @@ export default function Me() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   profile: { flexDirection: "row", alignItems: "center", gap: 16, padding: space[4], borderRadius: radius.xl, borderWidth: 1, borderColor: colors.borderStrong },
   avatar: { width: 66, height: 66, borderRadius: 24, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
   groupTitle: { marginBottom: 8, marginLeft: 4 },
   group: { paddingVertical: 4, paddingHorizontal: 14 },
   track: { height: 8, borderRadius: 4, backgroundColor: colors.surface3, overflow: "hidden" },
   fill: { height: 8, borderRadius: 4, backgroundColor: colors.accent },
-});
+}));

@@ -16,7 +16,7 @@ import { api } from "@/lib/api";
 import { activeFilterChips, countActiveFilters, EMPTY_FILTERS, filtersToApiQuery, SORTS, type SearchFilters } from "@/lib/filters";
 import { pluralize } from "@/lib/format";
 import type { PlaceCard, SearchResponse } from "@/lib/types";
-import { colors, GUTTER, space } from "@/theme/tokens";
+import { colors, GUTTER, space, themed } from "@/theme/tokens";
 
 const PAGE_SIZE = 20;
 
@@ -244,7 +244,7 @@ function describeUnderstood(
   return out || null;
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   askRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -270,4 +270,4 @@ const s = StyleSheet.create({
     borderColor: colors.borderStrong,
   },
   filterOn: { backgroundColor: colors.accent, borderColor: colors.accent },
-});
+}));

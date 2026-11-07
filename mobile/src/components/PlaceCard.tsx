@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { distanceLabel, formatBudgetRange, formatDistance, matchLabel, openStatusLabel, travelLabel } from "@/lib/format";
 import type { OpenStatus, PlaceCard as Place } from "@/lib/types";
-import { colors, radius } from "@/theme/tokens";
+import { colors, radius, themed } from "@/theme/tokens";
 import { Cover } from "./Cover";
 import { categoryIcon, Icon } from "./Icon";
 import { Pill, PressableScale, Txt } from "./ui";
@@ -222,8 +222,8 @@ export function PlaceRow({
   );
 }
 
-const s = StyleSheet.create({
-  tileCover: { height: 176, borderRadius: 22, borderWidth: 1, borderColor: "rgba(255,255,255,0.06)" },
+const s = themed(() => StyleSheet.create({
+  tileCover: { height: 176, borderRadius: 22, borderWidth: 1, borderColor: colors.border },
   goldBorder: { borderColor: colors.goldBorder },
   coverTop: { position: "absolute", top: 12, left: 12, right: 12, flexDirection: "row", justifyContent: "space-between" },
   coverBottom: { position: "absolute", bottom: 12, left: 12, right: 12, flexDirection: "row", gap: 6, flexWrap: "wrap" },
@@ -243,5 +243,5 @@ const s = StyleSheet.create({
   },
   lockedRow: { backgroundColor: colors.goldBg, borderColor: colors.goldBorder },
   rowCover: { width: 92, height: 92, borderRadius: 16 },
-});
+}));
 

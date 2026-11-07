@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import MapView, { Marker, Polyline, type MapStyleElement } from "react-native-maps";
-import { colors } from "@/theme/tokens";
+import { colors, themed, themeMode } from "@/theme/tokens";
 import { categoryIcon, Icon } from "./Icon";
 import type { PlacesMapProps } from "./PlacesMap.types";
 
@@ -58,8 +58,8 @@ export function PlacesMap({ places, selectedId, onSelect, center, user, recenter
         // rayon ≈ demi-hauteur visible (1° de latitude ≈ 111 km)
         onRegionChange?.({ lat: r.latitude, lng: r.longitude, km: Math.max(1, (r.latitudeDelta * 111) / 2) });
       }}
-      customMapStyle={DARK}
-      userInterfaceStyle="dark"
+      customMapStyle={themeMode() === "dark" ? DARK : []}
+      userInterfaceStyle={themeMode()}
       showsUserLocation={!!user}
       showsMyLocationButton={false}
       showsPointsOfInterests={false}
@@ -101,9 +101,9 @@ export function PlacesMap({ places, selectedId, onSelect, center, user, recenter
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   wrap: { alignItems: "center" },
   pin: { width: 34, height: 34, borderRadius: 17, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   pinSel: { width: 44, height: 44, borderRadius: 22 },
   tail: { width: 0, height: 0, borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 7, borderLeftColor: "transparent", borderRightColor: "transparent", marginTop: -1 },
-});
+}));

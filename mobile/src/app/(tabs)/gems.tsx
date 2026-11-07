@@ -13,7 +13,7 @@ import { useSettings } from "@/context/SettingsContext";
 import { api } from "@/lib/api";
 import { planLabel } from "@/lib/format";
 import { useAsync } from "@/lib/useAsync";
-import { colors, GUTTER, space } from "@/theme/tokens";
+import { colors, GUTTER, space, themed } from "@/theme/tokens";
 
 export default function Gems() {
   const insets = useSafeAreaInsets();
@@ -34,7 +34,7 @@ export default function Gems() {
         refreshControl={<RefreshControl refreshing={gems.refreshing} onRefresh={gems.refresh} tintColor={colors.gold} colors={[colors.gold]} />}
         ListHeaderComponent={
           <View>
-            <LinearGradient colors={["rgba(233,196,106,0.16)", "rgba(233,196,106,0)"]} style={StyleSheet.absoluteFill} pointerEvents="none" />
+            <LinearGradient colors={[colors.glowGold, "rgba(233,196,106,0)"]} style={StyleSheet.absoluteFill} pointerEvents="none" />
             <View style={{ paddingTop: insets.top + space[4], paddingHorizontal: GUTTER, gap: space[3], paddingBottom: space[4] }}>
               <View style={s.badge}>
                 <Icon name="gem" size={26} color={colors.gold} />
@@ -87,7 +87,7 @@ export default function Gems() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   badge: {
     width: 56,
     height: 56,
@@ -98,4 +98,4 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-});
+}));

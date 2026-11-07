@@ -1,7 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { StyleSheet, View } from "react-native";
-import { colors, radius, space } from "@/theme/tokens";
+import { colors, radius, space, themed } from "@/theme/tokens";
 import { Icon } from "./Icon";
 import { Sheet } from "./Sheet";
 import { Button, Txt } from "./ui";
@@ -9,7 +9,7 @@ import { Button, Txt } from "./ui";
 /** Encart d'incitation premium (or). */
 export function UpsellCard({ title, body, cta = "Découvrir les offres" }: { title: string; body: string; cta?: string }) {
   return (
-    <LinearGradient colors={["#2B2416", "#15120B"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.card}>
+    <LinearGradient colors={colors.gradGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.card}>
       <View style={s.icon}>
         <Icon name="crown" size={22} color={colors.gold} />
       </View>
@@ -48,8 +48,8 @@ export function CheckoutUnavailableSheet({ visible, onClose, detail }: { visible
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   card: { borderRadius: radius.lg, borderWidth: 1, borderColor: colors.goldBorder, padding: space[4], gap: space[2] },
-  icon: { width: 44, height: 44, borderRadius: 14, backgroundColor: "rgba(233,196,106,0.12)", alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  method: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: radius.md, backgroundColor: "rgba(233,196,106,0.06)", borderWidth: 1, borderColor: colors.goldBorder },
-});
+  icon: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.goldTint, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  method: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: radius.md, backgroundColor: colors.goldTint, borderWidth: 1, borderColor: colors.goldBorder },
+}));

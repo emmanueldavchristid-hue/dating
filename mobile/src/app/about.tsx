@@ -7,7 +7,7 @@ import { ScreenHeader } from "@/components/Screen";
 import { Card, Txt } from "@/components/ui";
 import { useMeta } from "@/context/MetaContext";
 import { API_URL, APP_NAME, APP_TAGLINE } from "@/lib/config";
-import { colors, GUTTER, radius, space } from "@/theme/tokens";
+import { colors, GUTTER, radius, space, themed } from "@/theme/tokens";
 
 const PRINCIPLES: { icon: IconName; title: string; body: string }[] = [
   { icon: "pin", title: "Distances à vol d'oiseau", body: "Aucun temps de trajet n'est inventé : il n'apparaît que si un service d'itinéraire le calcule." },
@@ -80,8 +80,8 @@ export default function About() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   logo: { width: 72, height: 72, borderRadius: 24, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center", transform: [{ rotate: "-8deg" }], marginBottom: 6 },
   principle: { flexDirection: "row", gap: 12, padding: 14, borderRadius: radius.lg, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border },
   pIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center" },
-});
+}));

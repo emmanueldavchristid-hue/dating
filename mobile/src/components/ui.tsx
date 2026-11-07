@@ -15,7 +15,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
-import { colors, fonts, radius, space, type as typeScale, type TypeVariant } from "@/theme/tokens";
+import { colors, fonts, radius, space, type as typeScale, type TypeVariant, themed } from "@/theme/tokens";
 import { Icon, type IconName } from "./Icon";
 
 // ---------------------------------------------------------------------------
@@ -141,7 +141,7 @@ const BUTTON_VARIANTS: Record<ButtonVariant, { bg: string; fg: string; border: s
   primary: { bg: colors.accent, fg: colors.onAccent, border: colors.accent },
   secondary: { bg: colors.surface3, fg: colors.text, border: colors.borderStrong },
   ghost: { bg: "transparent", fg: colors.text, border: colors.borderStrong },
-  gold: { bg: colors.gold, fg: "#1E1608", border: colors.gold },
+  gold: { bg: colors.gold, fg: colors.onGold, border: colors.gold },
   danger: { bg: colors.dangerTint, fg: colors.danger, border: "rgba(255,107,107,0.35)" },
 };
 
@@ -265,7 +265,7 @@ export function Pill({
 
 const PILL_TONES = {
   neutral: { bg: colors.surface3, fg: colors.textMuted, border: colors.border },
-  accent: { bg: colors.accentTint, fg: colors.accentSoft, border: "rgba(255,138,61,0.3)" },
+  accent: { bg: colors.accentTint, fg: colors.accentSoft, border: colors.accentBorder },
   gold: { bg: colors.goldBg, fg: colors.gold, border: colors.goldBorder },
   success: { bg: colors.successTint, fg: colors.success, border: "rgba(127,217,168,0.28)" },
   info: { bg: colors.infoTint, fg: colors.infoSoft, border: "rgba(76,116,255,0.3)" },
@@ -323,7 +323,7 @@ export function Card({ children, style, tone = "default" }: { children: ReactNod
       style={[
         styles.card,
         tone === "gold" ? { backgroundColor: colors.goldBg, borderColor: colors.goldBorder } : null,
-        tone === "accent" ? { backgroundColor: colors.accentTint, borderColor: "rgba(255,138,61,0.3)" } : null,
+        tone === "accent" ? { backgroundColor: colors.accentTint, borderColor: colors.accentBorder } : null,
         style,
       ]}
     >
@@ -422,7 +422,7 @@ export function Toggle({ value, onChange, label, disabled }: { value: boolean; o
   );
 }
 
-export const styles = StyleSheet.create({
+export const styles = themed(() => StyleSheet.create({
   center: { alignItems: "center", justifyContent: "center" },
   btn: {
     flexDirection: "row",
@@ -489,4 +489,4 @@ export const styles = StyleSheet.create({
   },
   toggle: { width: 50, height: 30, borderRadius: 15, padding: 3, justifyContent: "center" },
   knob: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.text },
-});
+}));

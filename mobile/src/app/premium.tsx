@@ -14,7 +14,7 @@ import { api, ApiError, errorMessage } from "@/lib/api";
 import { formatFcfa, PLAN_LABELS } from "@/lib/format";
 import type { BillingPlan, Plan } from "@/lib/types";
 import { useAsync } from "@/lib/useAsync";
-import { colors, GUTTER, radius, space } from "@/theme/tokens";
+import { colors, GUTTER, radius, space, themed } from "@/theme/tokens";
 
 const RANK: Record<Plan, number> = { free: 0, plus: 1, insider: 2 };
 
@@ -57,7 +57,7 @@ export default function Premium() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <LinearGradient colors={["rgba(233,196,106,0.14)", "rgba(233,196,106,0)"]} style={s.glow} pointerEvents="none" />
+      <LinearGradient colors={[colors.glowGold, "rgba(233,196,106,0)"]} style={s.glow} pointerEvents="none" />
       <ScreenHeader title="Offres" close transparent />
       <ScrollView contentContainerStyle={{ paddingHorizontal: GUTTER, paddingBottom: insets.bottom + space[6], gap: space[4] }}>
         <View style={{ gap: 6 }}>
@@ -85,7 +85,7 @@ export default function Premium() {
           return (
             <Animated.View key={p.code} entering={FadeInDown.delay(i * 80).duration(380)}>
               <LinearGradient
-                colors={featured ? ["#2B2416", "#16130C"] : ["#1B1D25", "#15171D"]}
+                colors={featured ? colors.gradGold : colors.gradCard}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={[s.plan, featured ? { borderColor: colors.gold } : null, isCurrent ? { borderColor: colors.accent } : null]}
@@ -134,7 +134,7 @@ export default function Premium() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   glow: { position: "absolute", top: 0, left: 0, right: 0, height: 320 },
   plan: { borderRadius: radius.xl, borderWidth: 1, borderColor: colors.borderStrong, padding: space[4], gap: space[2] },
-});
+}));

@@ -1,5 +1,8 @@
-/** Design system — « concierge » sombre premium (miroir de web/src/styles/tokens.css). */
-export const colors = {
+/** Design system — « concierge » premium, en sombre (par défaut) ou en clair (miroir de web/src/styles/tokens.css).
+ *
+ * `colors` est la palette ACTIVE : `applyTheme()` la remplace et l'app est remontée, si bien que les styles
+ * (créés avec `themed()`) et les couleurs lues dans les composants suivent le thème choisi. */
+const DARK = {
   bg: "#0E0F13",
   bgElevated: "#121318",
   surface1: "#15171D",
@@ -20,10 +23,13 @@ export const colors = {
   accentSoft: "#FFB07A",
   accentTint: "rgba(255, 138, 61, 0.12)",
   accentTintStrong: "rgba(255, 138, 61, 0.2)",
+  accentBorder: "rgba(255, 138, 61, 0.3)",
 
   gold: "#E9C46A",
   goldBg: "#2B2416",
   goldBorder: "#4A3D20",
+  goldTint: "rgba(233, 196, 106, 0.12)",
+  onGold: "#1E1608",
 
   success: "#7FD9A8",
   successTint: "rgba(127, 217, 168, 0.12)",
@@ -36,7 +42,115 @@ export const colors = {
 
   overlay: "rgba(5, 6, 9, 0.66)",
   scrim: "rgba(14, 15, 19, 0.55)",
-} as const;
+  /** Panneaux posés sur la carte, barre d'onglets, en-têtes collants. */
+  panel: "rgba(21, 23, 29, 0.95)",
+  tabBar: "rgba(18, 19, 24, 0.98)",
+  headerBg: "rgba(14, 15, 19, 0.96)",
+  sheetGold: "#17140E",
+  gradAccent: ["#3A1F0E", "#15171D"] as [string, string],
+  gradGold: ["#2B2416", "#16130C"] as [string, string],
+  gradNeutral: ["#22252F", "#15171D"] as [string, string],
+  gradCard: ["#1B1D25", "#15171D"] as [string, string],
+  glowAccent: "rgba(255, 138, 61, 0.16)",
+  glowGold: "rgba(233, 196, 106, 0.16)",
+};
+
+const LIGHT: typeof DARK = {
+  bg: "#F6F4EF",
+  bgElevated: "#FFFFFF",
+  surface1: "#FFFFFF",
+  surface2: "#F2EFE8",
+  surface3: "#ECE8DF",
+  surfaceHover: "#E7E2D8",
+  border: "#E5E0D6",
+  borderStrong: "#D8D2C6",
+  borderHover: "#C6BFB1",
+
+  text: "#17181C",
+  textMuted: "#575A64",
+  textSubtle: "#71747E",
+
+  accent: "#F47A2A",
+  accentPress: "#DE6A1C",
+  onAccent: "#1A0F05",
+  accentSoft: "#B9530E",
+  accentTint: "rgba(244, 122, 42, 0.12)",
+  accentTintStrong: "rgba(244, 122, 42, 0.2)",
+  accentBorder: "rgba(244, 122, 42, 0.38)",
+
+  gold: "#B98510",
+  goldBg: "#FBF2DC",
+  goldBorder: "#E8D29C",
+  goldTint: "rgba(185, 133, 16, 0.12)",
+  onGold: "#FFFFFF",
+
+  success: "#1E8F58",
+  successTint: "rgba(30, 143, 88, 0.12)",
+  info: "#3458DB",
+  infoSoft: "#3458DB",
+  infoTint: "rgba(52, 88, 219, 0.10)",
+  danger: "#CF3B3B",
+  dangerTint: "rgba(207, 59, 59, 0.10)",
+  warning: "#A86A12",
+
+  overlay: "rgba(20, 20, 26, 0.45)",
+  scrim: "rgba(246, 244, 239, 0.6)",
+  panel: "rgba(255, 255, 255, 0.97)",
+  tabBar: "rgba(255, 255, 255, 0.98)",
+  headerBg: "rgba(246, 244, 239, 0.97)",
+  sheetGold: "#FFF8E6",
+  gradAccent: ["#FFE7D4", "#FFFFFF"],
+  gradGold: ["#FBEFD0", "#FFFFFF"],
+  gradNeutral: ["#FFFFFF", "#F2EFE8"],
+  gradCard: ["#FFFFFF", "#F6F4EF"],
+  glowAccent: "rgba(244, 122, 42, 0.14)",
+  glowGold: "rgba(185, 133, 16, 0.12)",
+};
+
+export type ThemeMode = "dark" | "light";
+export type Palette = typeof DARK;
+export const PALETTES: Record<ThemeMode, Palette> = { dark: DARK, light: LIGHT };
+
+/** Palette active (modifiée par applyTheme). */
+export const colors: Palette = { ...DARK };
+let currentMode: ThemeMode = "dark";
+let version = 0;
+
+export function themeMode(): ThemeMode {
+  return currentMode;
+}
+
+/** Change la palette active ; l'app doit ensuite être remontée (voir ThemeContext). */
+export function applyTheme(mode: ThemeMode): void {
+  if (mode === currentMode) return;
+  currentMode = mode;
+  Object.assign(colors, PALETTES[mode]);
+  shadow.accent.shadowColor = colors.accent;
+  shadow.md.shadowOpacity = mode === "dark" ? 0.45 : 0.12;
+  version++;
+}
+
+/**
+ * Feuille de styles qui suit le thème : `const s = themed(() => StyleSheet.create({ box: { backgroundColor: colors.bg } }))`.
+ * Les styles sont recalculés à la première lecture après un changement de thème.
+ */
+export function themed<T extends Record<string, object>>(make: () => T): T {
+  let cache: T | null = null;
+  let builtFor = -1;
+  const get = () => {
+    if (!cache || builtFor !== version) {
+      cache = make();
+      builtFor = version;
+    }
+    return cache;
+  };
+  return new Proxy({} as T, {
+    get: (_t, prop) => get()[prop as keyof T],
+    has: (_t, prop) => prop in get(),
+    ownKeys: () => Reflect.ownKeys(get()),
+    getOwnPropertyDescriptor: (_t, prop) => ({ ...Reflect.getOwnPropertyDescriptor(get(), prop), configurable: true }),
+  });
+}
 
 /** Échelle 8 pt (demi-pas 4). */
 export const space = { 1: 4, 2: 8, 3: 12, 4: 16, 5: 24, 6: 32, 7: 40, 8: 48, 9: 64 } as const;
@@ -70,7 +184,10 @@ export const type = {
 
 export type TypeVariant = keyof typeof type;
 
-export const shadow = {
+export const shadow: {
+  md: { shadowColor: string; shadowOpacity: number; shadowRadius: number; shadowOffset: { width: number; height: number }; elevation: number };
+  accent: { shadowColor: string; shadowOpacity: number; shadowRadius: number; shadowOffset: { width: number; height: number }; elevation: number };
+} = {
   md: {
     shadowColor: "#000",
     shadowOpacity: 0.45,
@@ -85,4 +202,4 @@ export const shadow = {
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
   },
-} as const;
+};

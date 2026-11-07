@@ -13,7 +13,7 @@ import { useMeta } from "@/context/MetaContext";
 import { useSettings } from "@/context/SettingsContext";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import type { ChatTurn, ConciergeResponse, PlaceCard } from "@/lib/types";
-import { colors, fonts, GUTTER, radius, space } from "@/theme/tokens";
+import { colors, fonts, GUTTER, radius, space, themed } from "@/theme/tokens";
 
 type Msg = {
   id: string;
@@ -96,7 +96,7 @@ export default function Concierge() {
     return (
       <View style={[s.screen, { paddingTop: insets.top + space[4] }]}>
         <ScrollView contentContainerStyle={{ paddingHorizontal: GUTTER, gap: space[4], paddingBottom: space[7] }}>
-          <LinearGradient colors={["#3A1F0E", "#15171D"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.loginCard}>
+          <LinearGradient colors={colors.gradAccent} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.loginCard}>
             <View style={s.botAvatarLg}>
               <Icon name="sparkles" size={28} color={colors.onAccent} />
             </View>
@@ -235,7 +235,7 @@ export default function Concierge() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: "row",
@@ -248,7 +248,7 @@ const s = StyleSheet.create({
   },
   botAvatar: { width: 42, height: 42, borderRadius: 15, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
   botAvatarLg: { width: 60, height: 60, borderRadius: 20, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center", marginBottom: 6 },
-  loginCard: { borderRadius: radius.xl, padding: space[5], gap: space[2], borderWidth: 1, borderColor: "rgba(255,138,61,0.25)" },
+  loginCard: { borderRadius: radius.xl, padding: space[5], gap: space[2], borderWidth: 1, borderColor: colors.accentBorder },
   example: { flexDirection: "row", gap: 10, alignItems: "center", padding: 14, borderRadius: radius.md, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border },
   suggestion: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: radius.md, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.borderStrong },
   bubble: { maxWidth: "86%", paddingHorizontal: 15, paddingVertical: 11, borderRadius: 20 },
@@ -281,4 +281,4 @@ const s = StyleSheet.create({
     paddingBottom: 12,
   },
   send: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
-});
+}));

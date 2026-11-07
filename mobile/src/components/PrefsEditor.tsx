@@ -2,7 +2,7 @@ import { StyleSheet, View } from "react-native";
 import { useMeta } from "@/context/MetaContext";
 import { BUDGET_PRESETS, toggleIn } from "@/lib/filters";
 import type { Preferences } from "@/lib/types";
-import { colors, radius, space } from "@/theme/tokens";
+import { colors, radius, space, themed } from "@/theme/tokens";
 import { categoryIcon, Icon } from "./Icon";
 import { Chip, PressableScale, Txt } from "./ui";
 
@@ -80,7 +80,7 @@ export function PrefsEditor({ value, onChange }: { value: Preferences; onChange:
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   cat: {
@@ -98,4 +98,4 @@ const s = StyleSheet.create({
   },
   catOn: { backgroundColor: colors.accentTint, borderColor: colors.accent },
   check: { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
-});
+}));

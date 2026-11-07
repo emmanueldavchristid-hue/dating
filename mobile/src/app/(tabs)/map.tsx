@@ -15,7 +15,7 @@ import { DEFAULT_CENTER } from "@/lib/config";
 import { EMPTY_FILTERS, filtersToApiQuery } from "@/lib/filters";
 import { formatDistance, pluralize, travelLabel } from "@/lib/format";
 import { useAsync } from "@/lib/useAsync";
-import { colors, GUTTER, radius, space } from "@/theme/tokens";
+import { colors, GUTTER, radius, space, themed } from "@/theme/tokens";
 
 export default function MapTab() {
   const insets = useSafeAreaInsets();
@@ -190,7 +190,7 @@ export default function MapTab() {
               setRecenter((n) => n + 1);
               if (!gps) void enableGps();
             }}
-            bg="rgba(21,23,29,0.95)"
+            bg={colors.panel}
           />
         </View>
         {chips}
@@ -261,7 +261,7 @@ export default function MapTab() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   top: { position: "absolute", top: 0, left: 0, right: 0, gap: space[3] },
   topRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: GUTTER },
   titlePill: {
@@ -272,7 +272,7 @@ const s = StyleSheet.create({
     height: 44,
     paddingHorizontal: 14,
     borderRadius: radius.pill,
-    backgroundColor: "rgba(21,23,29,0.95)",
+    backgroundColor: colors.panel,
     borderWidth: 1,
     borderColor: colors.borderStrong,
   },
@@ -284,7 +284,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     height: 44,
     borderRadius: radius.md,
-    backgroundColor: "rgba(21,23,29,0.96)",
+    backgroundColor: colors.panel,
     borderWidth: 1,
     borderColor: colors.borderStrong,
   },
@@ -306,7 +306,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: radius.md,
-    backgroundColor: "rgba(43,36,22,0.95)",
+    backgroundColor: colors.goldBg,
     borderWidth: 1,
     borderColor: colors.goldBorder,
   },
@@ -314,4 +314,4 @@ const s = StyleSheet.create({
   floatCard: { marginHorizontal: GUTTER },
   webNotice: { flexDirection: "row", gap: 14, alignItems: "center", padding: 16, borderRadius: radius.lg, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.borderStrong },
   webIcon: { width: 46, height: 46, borderRadius: 16, backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center" },
-});
+}));

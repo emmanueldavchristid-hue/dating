@@ -25,7 +25,7 @@ import { BUDGET_PRESETS, toggleIn } from "@/lib/filters";
 import { formatDate } from "@/lib/format";
 import { moveItem, relegs, totalBudget } from "@/lib/itinerary";
 import { useAsync } from "@/lib/useAsync";
-import { colors, GUTTER, radius, space } from "@/theme/tokens";
+import { colors, GUTTER, radius, space, themed } from "@/theme/tokens";
 
 export default function Soiree() {
   const insets = useSafeAreaInsets();
@@ -434,7 +434,7 @@ export default function Soiree() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   steps: { flexDirection: "row", gap: 10 },
   stepBtn: {
@@ -494,4 +494,4 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-});
+}));

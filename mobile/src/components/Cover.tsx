@@ -2,7 +2,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useState, type ReactNode } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { colors } from "@/theme/tokens";
+import { colors, themed } from "@/theme/tokens";
 import { Txt } from "./ui";
 import { Icon, type IconName } from "./Icon";
 
@@ -101,8 +101,8 @@ export function Cover({
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   credit: { position: "absolute", left: 6, bottom: 4, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, backgroundColor: "rgba(14,15,19,0.55)" },
   wrap: { overflow: "hidden", backgroundColor: colors.surface2 },
   glyph: { position: "absolute" },
-});
+}));

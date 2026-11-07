@@ -1,6 +1,6 @@
 import { StyleSheet, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
-import { colors, radius } from "@/theme/tokens";
+import { colors, radius, themed, themeMode } from "@/theme/tokens";
 import { categoryIcon, Icon } from "./Icon";
 
 export const MINI_MAP_SUPPORTED = true;
@@ -18,7 +18,7 @@ export function PlaceMiniMap({ lat, lng, category }: { lat: number; lng: number;
         rotateEnabled={false}
         pitchEnabled={false}
         toolbarEnabled={false}
-        userInterfaceStyle="dark"
+        userInterfaceStyle={themeMode()}
         showsPointsOfInterests={false}
         accessibilityLabel="Emplacement du lieu sur la carte"
       >
@@ -32,7 +32,7 @@ export function PlaceMiniMap({ lat, lng, category }: { lat: number; lng: number;
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   box: { height: 150, borderRadius: radius.lg, overflow: "hidden", borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface1 },
   pin: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: colors.bg },
-});
+}));

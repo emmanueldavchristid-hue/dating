@@ -4,7 +4,7 @@ import Animated, { useAnimatedStyle, withTiming } from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, type IconName } from "@/components/Icon";
 import { hapticLight, PressableScale, Txt } from "@/components/ui";
-import { colors, fonts } from "@/theme/tokens";
+import { colors, fonts, themed } from "@/theme/tokens";
 
 const TABS: Record<string, { label: string; icon: IconName }> = {
   index: { label: "Découvrir", icon: "compass" },
@@ -33,7 +33,7 @@ function TabItem({ focused, name, onPress }: { focused: boolean; name: string; o
       testID={`tab-${name}`}
     >
       <View style={s.iconWrap}>
-        <Animated.View style={[s.pill, { backgroundColor: gold ? "rgba(233,196,106,0.14)" : colors.accentTint }, pill]} />
+        <Animated.View style={[s.pill, { backgroundColor: gold ? colors.goldTint : colors.accentTint }, pill]} />
         <Icon name={t.icon} size={22} color={focused ? activeColor : colors.textMuted} strokeWidth={focused ? 2.1 : 1.8} />
       </View>
       <Txt
@@ -83,10 +83,10 @@ export default function TabsLayout() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   bar: {
     flexDirection: "row",
-    backgroundColor: "rgba(18,19,24,0.98)",
+    backgroundColor: colors.tabBar,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.borderStrong,
     paddingTop: 8,
@@ -95,4 +95,4 @@ const s = StyleSheet.create({
   item: { flex: 1, alignItems: "center", gap: 4, minHeight: 50, justifyContent: "center" },
   iconWrap: { width: 56, height: 30, alignItems: "center", justifyContent: "center" },
   pill: { ...StyleSheet.absoluteFill, borderRadius: 15 },
-});
+}));

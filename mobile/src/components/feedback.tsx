@@ -12,7 +12,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ApiError, errorMessage } from "@/lib/api";
-import { colors, radius, space } from "@/theme/tokens";
+import { colors, radius, space, themed } from "@/theme/tokens";
 import { Icon, type IconName } from "./Icon";
 import { Button, Txt } from "./ui";
 
@@ -194,7 +194,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   empty: { alignItems: "center", gap: space[3], paddingVertical: space[7], paddingHorizontal: space[5] },
   emptyIcon: {
     width: 64,
@@ -202,7 +202,7 @@ const s = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: colors.accentTint,
     borderWidth: 1,
-    borderColor: "rgba(255,138,61,0.25)",
+    borderColor: colors.accentBorder,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: space[1],
@@ -234,4 +234,4 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     elevation: 10,
   },
-});
+}));

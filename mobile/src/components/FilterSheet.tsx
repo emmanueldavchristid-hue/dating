@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { useMeta } from "@/context/MetaContext";
 import { BUDGET_PRESETS, DISTANCE_PRESETS, EMPTY_FILTERS, RATING_PRESETS, SORTS, toggleIn, type SearchFilters } from "@/lib/filters";
-import { colors, space } from "@/theme/tokens";
+import { colors, space, themed } from "@/theme/tokens";
 import { categoryIcon } from "./Icon";
 import { Sheet } from "./Sheet";
 import { Button, Chip, Toggle, Txt } from "./ui";
@@ -143,7 +143,7 @@ export function FilterSheet({
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   switchRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 56, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-});
+}));

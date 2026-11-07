@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useSettings } from "@/context/SettingsContext";
 import { useMeta } from "@/context/MetaContext";
-import { colors, radius, space } from "@/theme/tokens";
+import { colors, radius, space, themed } from "@/theme/tokens";
 import { Notice } from "./feedback";
 import { Icon } from "./Icon";
 import { Chip, PressableScale, Txt } from "./ui";
@@ -91,7 +91,7 @@ export function LocationPicker({ onDone, showGps = true }: { onDone?: () => void
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   gps: {
     flexDirection: "row",
@@ -104,4 +104,4 @@ const s = StyleSheet.create({
     borderColor: colors.borderStrong,
   },
   gpsIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center" },
-});
+}));

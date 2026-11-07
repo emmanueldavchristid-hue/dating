@@ -17,7 +17,7 @@ import { useSettings } from "@/context/SettingsContext";
 import { api } from "@/lib/api";
 import { initials } from "@/lib/format";
 import { useAsync } from "@/lib/useAsync";
-import { colors, fonts, GUTTER, radius, space } from "@/theme/tokens";
+import { colors, fonts, GUTTER, radius, space, themed } from "@/theme/tokens";
 
 /** « Tout voir » : ouvre une recherche équivalente à la section. */
 const SECTION_SEARCH: Record<string, Record<string, string>> = {
@@ -83,7 +83,7 @@ export default function Discover() {
         showsVerticalScrollIndicator={false}
       >
         {/* Lueur d'ambiance */}
-        <LinearGradient colors={["rgba(255,138,61,0.16)", "rgba(255,138,61,0)"]} style={s.glow} pointerEvents="none" />
+        <LinearGradient colors={[colors.glowAccent, "rgba(255,138,61,0)"]} style={s.glow} pointerEvents="none" />
 
         <View style={s.head}>
           <PressableScale onPress={() => setLocOpen(true)} accessibilityRole="button" accessibilityLabel={`Position : ${originLabel}. Changer`} style={s.locChip}>
@@ -176,7 +176,7 @@ export default function Discover() {
 
         {/* Ma soirée */}
         <PressableScale onPress={() => router.push("/soiree")} accessibilityRole="button" accessibilityLabel="Composer ma soirée" style={{ marginHorizontal: GUTTER, marginTop: space[5] }}>
-          <LinearGradient colors={["#3A1F0E", "#1B1D25"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.soiree}>
+          <LinearGradient colors={colors.gradAccent} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.soiree}>
             <View style={s.soireeIcon}>
               <Icon name="route" size={24} color={colors.onAccent} />
             </View>
@@ -239,7 +239,7 @@ export default function Discover() {
                 />
                 {i === 0 && gemList.length ? (
                   <PressableScale onPress={() => router.push("/gems")} accessibilityRole="button" accessibilityLabel="Voir les pépites" style={{ marginHorizontal: GUTTER, marginTop: space[5] }}>
-                    <LinearGradient colors={["#2B2416", "#16130C"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.gems}>
+                    <LinearGradient colors={colors.gradGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.gems}>
                       <View style={s.gemIcon}>
                         <Icon name="gem" size={22} color={colors.gold} />
                       </View>
@@ -278,7 +278,7 @@ export default function Discover() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   glow: { position: "absolute", top: -120, left: -60, right: -60, height: 420, borderRadius: 300 },
   head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: GUTTER },
   locChip: {
@@ -302,7 +302,7 @@ const s = StyleSheet.create({
     padding: 16,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: "rgba(255,138,61,0.28)",
+    borderColor: colors.accentBorder,
   },
   soireeIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
   envies: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
@@ -320,5 +320,5 @@ const s = StyleSheet.create({
   },
   envieIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center" },
   gems: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.goldBorder },
-  gemIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: "rgba(233,196,106,0.12)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.goldBorder },
-});
+  gemIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: colors.goldTint, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.goldBorder },
+}));

@@ -11,7 +11,7 @@ import { Button, Field, IconButton, PressableScale, Txt } from "@/components/ui"
 import { useAuth } from "@/context/AuthContext";
 import { api, errorMessage } from "@/lib/api";
 import { useAsync } from "@/lib/useAsync";
-import { colors, GUTTER, radius, space } from "@/theme/tokens";
+import { colors, GUTTER, radius, space, themed } from "@/theme/tokens";
 
 export default function Collections() {
   const insets = useSafeAreaInsets();
@@ -94,7 +94,7 @@ export default function Collections() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   item: { flexDirection: "row", alignItems: "center", gap: 14, padding: 14, borderRadius: radius.lg, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border },
   icon: { width: 52, height: 52, borderRadius: 18, backgroundColor: colors.accentTint, alignItems: "center", justifyContent: "center" },
-});
+}));

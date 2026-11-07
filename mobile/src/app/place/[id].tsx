@@ -35,7 +35,7 @@ import {
 import { callPhone, goThere, sharePlace, whatsappUrl } from "@/lib/links";
 import { canManagePhotos, isCoverPhoto, realPhotos } from "@/lib/photos";
 import type { Amenities, PlaceCard, PlaceDetail, PlacePhoto } from "@/lib/types";
-import { colors, fonts, GUTTER, radius, space } from "@/theme/tokens";
+import { colors, fonts, GUTTER, radius, space, themed } from "@/theme/tokens";
 
 const HERO = 360;
 
@@ -235,7 +235,7 @@ export default function PlaceScreen() {
           <Skeleton height={90} r={16} />
         </View>
         <View style={{ position: "absolute", top: insets.top + 8, left: GUTTER }}>
-          <IconButton icon="chevronLeft" label="Retour" onPress={() => goBack()} bg="rgba(14,15,19,0.6)" />
+          <IconButton icon="chevronLeft" label="Retour" onPress={() => goBack()} bg="rgba(14,15,19,0.6)" color="#F4F1EA" />
         </View>
       </View>
     );
@@ -538,20 +538,20 @@ export default function PlaceScreen() {
 
       {/* Barre supérieure */}
       <View style={[s.topBar, { paddingTop: insets.top + 6 }]} pointerEvents="box-none">
-        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(14,15,19,0.96)", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }, barStyle]} />
-        <IconButton icon="chevronLeft" label="Retour" onPress={() => goBack()} bg="rgba(14,15,19,0.55)" border="rgba(255,255,255,0.12)" />
+        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.headerBg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }, barStyle]} />
+        <IconButton icon="chevronLeft" label="Retour" onPress={() => goBack()} bg="rgba(14,15,19,0.55)" border="rgba(255,255,255,0.12)" color="#F4F1EA" />
         <Animated.View style={[{ flex: 1, paddingHorizontal: 8 }, barStyle]}>
           <Txt variant="title" numberOfLines={1} style={{ textAlign: "center" }}>
             {p.name}
           </Txt>
         </Animated.View>
         <View style={{ flexDirection: "row", gap: 8 }}>
-          <IconButton icon="share" label="Partager" onPress={share} bg="rgba(14,15,19,0.55)" border="rgba(255,255,255,0.12)" />
+          <IconButton icon="share" label="Partager" onPress={share} bg="rgba(14,15,19,0.55)" border="rgba(255,255,255,0.12)" color="#F4F1EA" />
           <IconButton
             icon="heart"
             label={fav ? "Retirer des favoris" : "Ajouter aux favoris"}
             onPress={toggleFav}
-            color={fav ? colors.accent : colors.text}
+            color={fav ? colors.accent : "#F4F1EA"}
             fill={fav ? colors.accent : "none"}
             bg="rgba(14,15,19,0.55)"
             border="rgba(255,255,255,0.12)"
@@ -614,7 +614,7 @@ function Row({ label, value, color }: { label: string; value: string; color?: st
   );
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   whereRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 10 },
   screen: { flex: 1, backgroundColor: colors.bg },
   hero: { position: "absolute", top: 0, left: 0, right: 0, height: HERO },
@@ -665,8 +665,8 @@ const s = StyleSheet.create({
     gap: 10,
     paddingHorizontal: GUTTER,
     paddingTop: 12,
-    backgroundColor: "rgba(14,15,19,0.97)",
+    backgroundColor: colors.headerBg,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.borderStrong,
   },
-});
+}));
