@@ -49,8 +49,11 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
     mail_from: str = "Sortie <no-reply@sortie.app>"
-    google_places_api_key: str = ""  # optionnel : photos via l'API officielle Google Places (jamais stockées)
-    google_photos_daily_cap: int = 1000  # appels Google par jour au maximum (évite toute dépense surprise)
+    # Photos Google Places : option DÉSACTIVÉE par défaut (voir docs/GOOGLE-PHOTOS.md avant d'activer)
+    google_photos_enabled: bool = False
+    google_places_api_key: str = ""
+    # Images Google facturées au-delà de 1 000 par mois : 30 par jour (≈ 900 par mois) reste dans la tranche gratuite.
+    google_photos_daily_cap: int = 30
 
     # Vie privée & abus
     search_history_retention_days: int = 30

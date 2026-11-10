@@ -1,7 +1,9 @@
 import uuid
 from datetime import UTC, datetime
+from typing import Literal
 
 from fastapi import APIRouter, File, Form, Query, Response, UploadFile
+from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 
 from app.adapters import storage
@@ -10,6 +12,7 @@ from app.errors import ApiError, not_found
 from app.models import AuditLog, City, CurationItem, District, Media, Place, Report, User
 from app.schemas import AdminPlaceIn, AdminPlacePatch, AdminUserPatch, CurationDecision, StatusPatch
 from app.services.audit import audit
+from app.services.photos import SOURCE_LABELS, credit_for, mark_reviewed, refresh_cover
 from app.services.places import set_taxonomy, slugify
 from app.services.rag import index_places
 from app.services.search import cards_for_places
@@ -291,7 +294,44 @@ def audit_log(db: DB, _: AdminUser, page: int = Query(1, ge=1)):
     )
 
 
-# ---------- Photos (curateurs et admins, depuis le terrain) ----------
+# ---------- Photos (curateurs et admins) ----------
+# Ordre d'affichage et crédits : services/photos (réelle autorisée → Wikimedia validée → illustration).
+
+PhotoSource = Literal["owner", "team", "licensed"]
+
+
+def _photo_row(m: Media, place: Place) -> dict:
+    return {
+        "id": str(m.id),
+        "url": storage.public_url(m.storage_key) or m.source_url,
+        "source_kind": m.source_kind,
+        "source_label": SOURCE_LABELS.get(m.source_kind or "", "Visuel de démonstration"),
+        "author": m.author,
+        "license": m.license,
+        "license_url": m.license_url,
+        "source_page": m.source_page,
+        "rights_note": m.rights_note,
+        "status": m.moderation_status,
+        "credit": credit_for(m, place.name) if m.source_kind else None,
+        "is_cover": bool(
+            (m.storage_key and m.storage_key == place.cover_key) or (m.source_url and m.source_url == place.cover_url)
+        ),
+        "position": m.position,
+        "created_at": m.created_at,
+    }
+
+
+@router.get("/places/{pid}/photos")
+def list_photos(pid: str, db: DB, _: StaffUser):
+    """Toutes les photos du lieu, y compris celles à valider, avec leur provenance et leurs droits."""
+    place = db.get(Place, _id(pid))
+    if not place:
+        raise not_found("Lieu")
+    media = db.scalars(select(Media).where(Media.place_id == place.id).order_by(Media.position, Media.created_at))
+    return {
+        "cover_kind": place.cover_kind or "illustration",
+        "items": [_photo_row(m, place) for m in media if m.storage_key or m.source_url],
+    }
 
 
 @router.post("/places/{pid}/photos", status_code=201)
@@ -300,44 +340,103 @@ async def upload_photo(
     db: DB,
     user: StaffUser,
     file: UploadFile = File(...),
-    credit: str | None = Form(default=None, max_length=160),
+    source_kind: PhotoSource = Form(default="team"),
+    author: str = Form(..., min_length=1, max_length=160),
+    license: str | None = Form(default=None, max_length=80),
+    license_url: str | None = Form(default=None, max_length=300),
+    source_page: str | None = Form(default=None, max_length=500),
+    rights_note: str | None = Form(default=None, max_length=300),
+    rights_confirmed: bool = Form(default=False),
     make_cover: bool = Form(default=False),
 ):
+    """Photo réelle : fournie par le lieu (autorisation), prise par l'équipe, ou sous licence. Elle passe devant
+    toute photo Wikimedia et toute illustration."""
     place = db.get(Place, _id(pid))
     if not place:
         raise not_found("Lieu")
+    if not rights_confirmed:
+        raise ApiError(422, "rights_required", "Confirme que tu as le droit d'utiliser cette photo")
+    if source_kind in ("owner", "licensed") and not (rights_note or "").strip():
+        raise ApiError(422, "rights_required", "Indique l'autorisation obtenue (qui, comment, quand)")
     data, width, height = storage.process_image(await file.read(storage.MAX_BYTES + 1))
     key = storage.save(f"places/{place.id}", data)
-    count = db.scalar(select(func.count()).select_from(Media).where(Media.place_id == place.id)) or 0
+    position = (
+        -1
+        if make_cover
+        else (db.scalar(select(func.count()).select_from(Media).where(Media.place_id == place.id)) or 0)
+    )
+    default_license = {"owner": "Utilisation autorisée par le lieu", "team": "Tous droits réservés (équipe)"}
     media = Media(
         place_id=place.id,
         storage_key=key,
         alt=f"Photo de {place.name}",
-        credit=(credit or f"Photo : {user.display_name}")[:160],
-        license="Tous droits réservés (équipe)",
+        source_kind=source_kind,
+        author=author.strip(),
+        license=(license or default_license.get(source_kind) or "").strip() or None,
+        license_url=license_url,
+        source_page=source_page,
+        rights_note=(rights_note or "").strip() or None,
         width=width,
         height=height,
-        position=count,
+        position=position,
+        moderation_status="approved",
+        reviewed_at=datetime.now(UTC),
     )
+    media.credit = credit_for(media, place.name)[:160]
     db.add(media)
-    if make_cover or (place.cover_key is None and place.cover_url is None):
-        place.cover_key = key
     db.flush()
-    audit(db, user, "photo.added", "place", pid, media_id=str(media.id))
+    refresh_cover(db, place)
+    audit(db, user, "photo.added", "place", pid, media_id=str(media.id), source=source_kind)
     db.commit()
-    return {"id": str(media.id), "url": storage.public_url(key), "is_cover": place.cover_key == key}
+    return _photo_row(media, place)
+
+
+class PhotoPatch(BaseModel):
+    status: Literal["approved", "rejected", "pending"] | None = None
+    source_kind: Literal["owner", "team", "licensed", "wikimedia"] | None = None
+    author: str | None = Field(default=None, max_length=160)
+    license: str | None = Field(default=None, max_length=80)
+    license_url: str | None = Field(default=None, max_length=300)
+    source_page: str | None = Field(default=None, max_length=500)
+    rights_note: str | None = Field(default=None, max_length=300)
+
+
+@router.patch("/photos/{mid}")
+def update_photo(mid: str, body: PhotoPatch, db: DB, user: StaffUser):
+    """Valider ou refuser une photo (Wikimedia notamment) et corriger sa provenance ou ses droits."""
+    media = db.get(Media, _id(mid))
+    if not media:
+        raise not_found("Photo")
+    place = db.get(Place, media.place_id)
+    data = body.model_dump(exclude_unset=True)
+    status = data.pop("status", None)
+    for k, v in data.items():
+        setattr(media, k, v.strip() if isinstance(v, str) else v)
+    if status:
+        if status == "approved" and media.source_kind == "wikimedia" and not (media.author and media.license):
+            raise ApiError(422, "rights_required", "Une photo Wikimedia doit avoir son auteur et sa licence")
+        mark_reviewed(media, status)
+    if media.source_kind:
+        media.credit = credit_for(media, place.name)[:160]
+    refresh_cover(db, place)
+    audit(db, user, "photo.updated", "place", str(place.id), media_id=mid, status=status, fields=sorted(data))
+    db.commit()
+    return _photo_row(media, place)
 
 
 @router.patch("/photos/{mid}/cover")
 def set_cover(mid: str, db: DB, user: StaffUser):
+    """Met la photo en premier ; l'ordre réelle → Wikimedia reste prioritaire (une photo réelle passe devant)."""
     media = db.get(Media, _id(mid))
     if not media or not (media.storage_key or media.source_url):
         raise not_found("Photo")
     place = db.get(Place, media.place_id)
-    place.cover_key, place.cover_url = (media.storage_key, None) if media.storage_key else (None, media.source_url)
+    first = db.scalar(select(func.min(Media.position)).where(Media.place_id == place.id)) or 0
+    media.position = first - 1
+    refresh_cover(db, place)
     audit(db, user, "photo.cover", "place", str(place.id), media_id=mid)
     db.commit()
-    return {"id": mid, "is_cover": True}
+    return _photo_row(media, place)
 
 
 @router.delete("/photos/{mid}", status_code=204)
@@ -346,12 +445,10 @@ def delete_photo(mid: str, db: DB, user: StaffUser):
     if not media:
         raise not_found("Photo")
     place = db.get(Place, media.place_id)
-    if media.storage_key and place.cover_key == media.storage_key:
-        place.cover_key = None
-    if media.source_url and place.cover_url == media.source_url:
-        place.cover_url = None
     storage.delete(media.storage_key)
     db.delete(media)
+    db.flush()
+    refresh_cover(db, place)
     audit(db, user, "photo.deleted", "place", str(place.id), media_id=mid)
     db.commit()
     return Response(status_code=204)

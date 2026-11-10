@@ -17,7 +17,7 @@ export function EventTile({ e, width = 264 }: { e: Ev; width?: number }) {
       accessibilityLabel={`${e.kind_label} : ${e.title}, ${shortWhen(e.starts_at)}, à ${e.place.name}`}
       style={[s.tile, { width }]}
     >
-      <Cover url={e.place.cover.url} credit={e.place.cover.credit} gradient={e.place.cover.gradient} alt={e.place.cover.alt} glyph={categoryIcon(e.place.categories[0])} style={s.cover}>
+      <Cover url={e.place.cover.url} credit={e.place.cover.credit} kind={e.place.cover.kind} gradient={e.place.cover.gradient} alt={e.place.cover.alt} glyph={categoryIcon(e.place.categories[0])} style={s.cover}>
         <View style={s.when}>
           <Icon name="calendar" size={13} color={colors.onAccent} />
           <Txt variant="label" color={colors.onAccent} style={{ fontSize: 12 }}>

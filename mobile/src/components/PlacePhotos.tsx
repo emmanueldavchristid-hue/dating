@@ -3,14 +3,27 @@ import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import { Linking, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { useAuth } from "@/context/AuthContext";
-import { canManagePhotos, creditLabel, isCoverPhoto, MAX_CREDIT_LENGTH, PICKER_QUALITY, photoErrorMessage, realPhotos, uploadPlacePhoto, type PickedImage } from "@/lib/photos";
+import {
+  canManagePhotos,
+  creditLabel,
+  isCoverPhoto,
+  MAX_CREDIT_LENGTH,
+  missingRights,
+  PHOTO_SOURCES,
+  PICKER_QUALITY,
+  photoErrorMessage,
+  realPhotos,
+  uploadPlacePhoto,
+  type PhotoSource,
+  type PickedImage,
+} from "@/lib/photos";
 import { api } from "@/lib/api";
 import type { Cover, PlacePhoto, User } from "@/lib/types";
 import { colors, fonts, GUTTER, radius, space, themed } from "@/theme/tokens";
 import { Notice, useToast } from "./feedback";
 import { Icon, type IconName } from "./Icon";
 import { Sheet } from "./Sheet";
-import { Button, Field, hapticLight, hapticSuccess, Pill, PressableScale, Toggle, Txt } from "./ui";
+import { Button, Chip, Field, hapticLight, hapticSuccess, Pill, PressableScale, Toggle, Txt } from "./ui";
 
 // ---------------------------------------------------------------------------
 // Crédit discret (héros, galerie)
@@ -172,7 +185,10 @@ export function AddPhotoSheet({
   const toast = useToast();
   const [asset, setAsset] = useState<PickedImage | null>(null);
   const [makeCover, setMakeCover] = useState(!hasCover);
-  const [credit, setCredit] = useState("");
+  const [source, setSource] = useState<PhotoSource>("team");
+  const [author, setAuthor] = useState("");
+  const [rightsNote, setRightsNote] = useState("");
+  const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [settingsHint, setSettingsHint] = useState(false);
@@ -185,7 +201,10 @@ export function AddPhotoSheet({
       // Nouvelle ouverture : on repart de zéro (état dérivé, sans effet).
       setAsset(null);
       setMakeCover(!hasCover);
-      setCredit("");
+      setSource("team");
+      setAuthor(user?.display_name ?? "");
+      setRightsNote("");
+      setRightsConfirmed(false);
       setProgress(null);
       setError(null);
       setSettingsHint(false);
@@ -234,10 +253,15 @@ export function AddPhotoSheet({
 
   const send = async () => {
     if (!asset || uploading) return;
+    const missing = missingRights({ source, author, rightsNote, rightsConfirmed });
+    if (missing) {
+      setError(missing);
+      return;
+    }
     setError(null);
     setProgress(0);
     try {
-      const res = await uploadPlacePhoto(placeId, asset, { credit, makeCover }, (r) => setProgress(r));
+      const res = await uploadPlacePhoto(placeId, asset, { source, author, rightsNote, rightsConfirmed, makeCover }, (r) => setProgress(r));
       hapticSuccess();
       toast(res.is_cover ? "Photo ajoutée en couverture" : "Photo ajoutée à la fiche", "camera");
       onUploaded(res.is_cover);
@@ -305,15 +329,48 @@ export function AddPhotoSheet({
             </View>
             <Toggle value={makeCover} onChange={setMakeCover} label="Utiliser comme photo principale" disabled={uploading} />
           </View>
+          <View style={{ gap: space[2] }}>
+            <Txt variant="label">D&apos;où vient cette photo ?</Txt>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {PHOTO_SOURCES.map((o) => (
+                <Chip key={o.value} label={o.label} selected={source === o.value} onPress={() => setSource(o.value)} />
+              ))}
+            </View>
+            <Txt variant="caption" color={colors.textSubtle}>
+              {PHOTO_SOURCES.find((o) => o.value === source)?.hint} Pas de photo copiée sur Google, Instagram ou TikTok sans accord écrit.
+            </Txt>
+          </View>
           <Field
-            label="Crédit (facultatif)"
-            placeholder={user?.display_name ? `Photo : ${user.display_name}` : "Photo : ton nom"}
-            value={credit}
-            onChangeText={setCredit}
+            label="Auteur de la photo"
+            placeholder="Nom du photographe ou du lieu"
+            value={author}
+            onChangeText={setAuthor}
             maxLength={MAX_CREDIT_LENGTH}
             editable={!uploading}
-            hint="Affiché discrètement sous la photo."
+            hint="Affiché en crédit sous la photo."
           />
+          {source !== "team" ? (
+            <Field
+              label="Autorisation obtenue"
+              placeholder="Ex. : accord écrit du gérant par WhatsApp le 10/11"
+              value={rightsNote}
+              onChangeText={setRightsNote}
+              maxLength={300}
+              editable={!uploading}
+              hint="Gardé pour l'équipe, non affiché."
+            />
+          ) : null}
+          <View style={s.switchRow}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Txt variant="title" style={{ fontFamily: fonts.bodySemi, fontSize: 15 }}>
+                J&apos;ai le droit d&apos;utiliser cette photo
+              </Txt>
+              <Txt variant="caption" color={colors.textSubtle}>
+                Obligatoire. Elle remplacera l&apos;illustration ou la photo Wikimedia de la fiche.
+              </Txt>
+            </View>
+            <Toggle value={rightsConfirmed} onChange={setRightsConfirmed} label="J'ai le droit d'utiliser cette photo" disabled={uploading} />
+          </View>
         </>
       )}
     </Sheet>

@@ -200,8 +200,19 @@ def test_google_places_links_only_matching_names_and_caps_daily_calls():
     assert g.find_place_id("Strike Bowl", 5.3, -4.0, "Abidjan") == "G1"
     assert g.find_place_id("Le Wafou", 5.3, -4.0, "Abidjan") is None
     photos = g.photos("G1")
-    assert photos[0].credit == "Photo : Awa · Google"
-    assert g.photo_uri(photos[0].name) == "https://lh3.googleusercontent.com/x"
-    assert g.photos("G1") == photos  # en cache, pas de nouvel appel
-    g._uris.clear()
+    assert photos[0].credit == "Photo : Awa · Google Maps" and photos[0].author == "Awa"
+    assert g.photo_uri(photos[0].name) == "https://lh3.googleusercontent.com/x"  # 1er appel facturable
+    assert g.photo_uri(photos[0].name) == "https://lh3.googleusercontent.com/x"  # 2e (aucun cache : règle Google)
     assert g.photo_uri(photos[0].name) is None  # plafond quotidien atteint (2 appels)
+
+
+def test_google_option_is_off_by_default(monkeypatch):
+    from app.adapters.google_places import get_google
+    from app.config import get_settings
+
+    s = get_settings()
+    monkeypatch.setattr(s, "google_places_api_key", "cle-de-test")
+    monkeypatch.setattr(s, "google_photos_enabled", False)
+    assert get_google() is None, "une clé seule n'active rien"
+    monkeypatch.setattr(s, "google_photos_enabled", True)
+    assert get_google() is not None

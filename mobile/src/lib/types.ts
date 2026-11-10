@@ -14,9 +14,13 @@ export interface Cover {
   url: string | null;
   gradient: [string, string];
   alt: string;
-  /** « Google » quand la photo vient de Google Places (crédit obligatoire). */
+  /** Crédit court : auteur, licence, « Google Maps », ou « Illustration ». */
   credit?: string | null;
+  /** photo = réelle autorisée ; wikimedia = Commons validée ; google = option Google ; illustration = visuel de l'app. */
+  kind?: CoverKind;
 }
+
+export type CoverKind = "photo" | "wikimedia" | "google" | "illustration";
 
 export interface Travel {
   mode: "driving" | "walking";
@@ -79,6 +83,12 @@ export interface PlacePhoto {
   gradient: [string, string];
   alt: string;
   credit: string | null;
+  kind?: "photo" | "wikimedia" | "google";
+  author?: string | null;
+  license?: string | null;
+  license_url?: string | null;
+  /** Page d'origine (Commons, Google Maps…) : lien obligatoire pour les crédits. */
+  source_page?: string | null;
 }
 
 export interface PlaceDetail extends PlaceCard {

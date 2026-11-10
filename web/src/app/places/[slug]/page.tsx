@@ -161,7 +161,7 @@ export default function PlacePage() {
   const today = (new Date().getDay() + 6) % 7; // 0 = lundi
   const photos = realPhotos(place.photos);
   const coverPhoto = photos.find((ph) => isCoverPhoto(ph, place.cover)) ?? null;
-  const coverCredit = place.cover.url ? creditLabel(coverPhoto?.credit) : null;
+  const coverCredit = place.cover.url ? creditLabel(coverPhoto?.credit ?? place.cover.credit) : null;
   const staff = canManagePhotos(user);
   const hoursByDay = WEEKDAYS.map((_, i) => place.hours.filter((h) => h.weekday === i).sort((a, b) => a.open.localeCompare(b.open)));
 
@@ -174,6 +174,10 @@ export default function PlacePage() {
         {coverCredit ? (
           <p className={styles.heroCredit} data-testid="hero-credit">
             {coverCredit}
+          </p>
+        ) : place.cover.kind === "illustration" ? (
+          <p className={styles.heroCredit} data-testid="hero-illustration">
+            Illustration · pas une photo du lieu
           </p>
         ) : null}
         <div className={styles.heroBar}>
@@ -316,7 +320,15 @@ export default function PlacePage() {
                     <li key={ph.id ?? `${ph.url}-${i}`} className={styles.galleryItem}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={ph.url!} alt={ph.alt} loading="lazy" className={styles.galleryImg} />
-                      {creditLabel(ph.credit) ? <span className={styles.galleryCredit}>{creditLabel(ph.credit)}</span> : null}
+                      {creditLabel(ph.credit) ? (
+                        ph.source_page ? (
+                          <a href={ph.source_page} target="_blank" rel="noreferrer noopener" className={styles.galleryCredit}>
+                            {creditLabel(ph.credit)}
+                          </a>
+                        ) : (
+                          <span className={styles.galleryCredit}>{creditLabel(ph.credit)}</span>
+                        )
+                      ) : null}
                     </li>
                   ))}
                 </ul>

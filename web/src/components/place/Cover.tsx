@@ -37,7 +37,7 @@ export function Cover({ cover, category, categoryIcon, size = "card", locked = f
     <div
       className={cls}
       role="img"
-      aria-label={cover.alt || "Visuel généré"}
+      aria-label={cover.kind === "illustration" ? `${cover.alt || "Lieu"} (illustration, pas une photo du lieu)` : cover.alt || "Visuel généré"}
       style={{ ["--c1" as string]: c1, ["--c2" as string]: c2 }}
     >
       <span className={styles.glow} aria-hidden="true" />
@@ -45,6 +45,11 @@ export function Cover({ cover, category, categoryIcon, size = "card", locked = f
         <CategoryIcon slug={category} icon={categoryIcon} size={size === "hero" ? 220 : size === "thumb" ? 56 : 120} strokeWidth={1.1} />
       </span>
       <span className={styles.grain} aria-hidden="true" />
+      {cover.kind === "illustration" && !locked && size === "card" ? (
+        <span className={styles.illustration} data-testid="illustration-badge">
+          Illustration
+        </span>
+      ) : null}
     </div>
   );
 }

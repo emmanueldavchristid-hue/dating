@@ -66,3 +66,17 @@
   color: rgba(233, 196, 106, 0.22);
   filter: blur(1.5px);
 }
+
+.illustration {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 2;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: rgba(244, 241, 234, 0.92);
+  background: rgba(14, 15, 19, 0.55);
+  border: 1px solid rgba(244, 241, 234, 0.25);
+}

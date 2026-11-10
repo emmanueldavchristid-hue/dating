@@ -29,6 +29,8 @@ export function Cover({
   shade = true,
   centered,
   credit,
+  kind,
+  hideBadge,
 }: {
   url: string | null | undefined;
   gradient: unknown;
@@ -41,8 +43,12 @@ export function Cover({
   shade?: boolean;
   /** Glyphe centré (petites vignettes) plutôt que débordant en bas à droite. */
   centered?: boolean;
-  /** Crédit court affiché sur l'image (ex. « Google » pour une photo Google Places). */
+  /** Crédit court affiché sur l'image (auteur · licence, « Google Maps »…). */
   credit?: string | null;
+  /** « illustration » : visuel de l'app, signalé comme tel (jamais présenté comme une photo du lieu). */
+  kind?: string | null;
+  /** Masque le badge « Illustration » (vignettes trop petites). */
+  hideBadge?: boolean;
 }) {
   const [a, b] = locked ? (["#3A2F17", "#14110A"] as [string, string]) : safeGradient(gradient);
   // Image injoignable (réseau, lien mort) : on retombe sur la couverture générée plutôt qu'un aplat vide.
@@ -97,12 +103,20 @@ export function Cover({
           </Txt>
         </View>
       ) : null}
+      {!showImage && !locked && kind === "illustration" && !hideBadge ? (
+        <View style={s.badge} pointerEvents="none" testID="illustration-badge" accessibilityLabel="Illustration, pas une photo du lieu">
+          <Txt variant="caption" color="rgba(244,241,234,0.9)" style={{ fontSize: 10, letterSpacing: 0.3 }}>
+            Illustration
+          </Txt>
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const s = themed(() => StyleSheet.create({
   credit: { position: "absolute", left: 6, bottom: 4, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, backgroundColor: "rgba(14,15,19,0.55)" },
+  badge: { position: "absolute", right: 8, bottom: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: "rgba(14,15,19,0.55)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(244,241,234,0.25)" },
   wrap: { overflow: "hidden", backgroundColor: colors.surface2 },
   glyph: { position: "absolute" },
 }));

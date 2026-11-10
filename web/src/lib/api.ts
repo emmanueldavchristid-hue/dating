@@ -34,6 +34,9 @@ import type {
   Role,
   SearchResponse,
   UploadedPhoto,
+  AdminPhoto,
+  AdminPhotoList,
+  AdminPhotoPatch,
   Subscription,
   SuggestRequest,
   SuggestResponse,
@@ -362,6 +365,9 @@ export const api = {
       }),
     audit: (page: number) => request<Paginated<AuditEntry>>("/admin/audit", { query: { page } }),
     /** Photos : curateurs et administrateurs. */
+    photos: (placeId: string) => request<AdminPhotoList>(`/admin/places/${encodeURIComponent(placeId)}/photos`),
+    updatePhoto: (mediaId: string, body: AdminPhotoPatch) =>
+      request<AdminPhoto>(`/admin/photos/${encodeURIComponent(mediaId)}`, { method: "PATCH", body }),
     uploadPhoto: (placeId: string, form: FormData) =>
       request<UploadedPhoto>(`/admin/places/${encodeURIComponent(placeId)}/photos`, { method: "POST", body: form }),
     setCover: (mediaId: string) =>

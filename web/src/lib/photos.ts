@@ -27,23 +27,64 @@ export function validatePhotoFile(file: Pick<File, "size" | "type">): string | n
   return null;
 }
 
+/** Provenance d'une photo réelle (seules sources acceptées à l'envoi). */
+export type PhotoSource = "team" | "owner" | "licensed";
+
+export const PHOTO_SOURCES: { value: PhotoSource; label: string; hint: string }[] = [
+  { value: "team", label: "Prise par l'équipe", hint: "Photo prise sur place par vous ou l'équipe." },
+  { value: "owner", label: "Fournie par le lieu", hint: "Le gérant a envoyé la photo et donné son accord." },
+  { value: "licensed", label: "Autre, avec autorisation ou licence", hint: "Photographe, agence, licence libre : accord ou licence à préciser." },
+];
+
+export interface PhotoOptions {
+  source?: PhotoSource;
+  author?: string | null;
+  license?: string | null;
+  licenseUrl?: string | null;
+  sourcePage?: string | null;
+  rightsNote?: string | null;
+  rightsConfirmed?: boolean;
+  makeCover?: boolean;
+  name?: string;
+}
+
+/** Ce qui manque avant l'envoi (mêmes règles que le serveur), ou null. */
+export function missingRights({ source = "team", author, rightsNote, rightsConfirmed }: PhotoOptions): string | null {
+  if (!author?.trim()) return "Indiquez l'auteur de la photo.";
+  if (source !== "team" && !rightsNote?.trim()) return "Précisez l'autorisation obtenue (qui, comment, quand).";
+  if (!rightsConfirmed) return "Confirmez que vous avez le droit d'utiliser cette photo.";
+  return null;
+}
+
 /** Corps multipart de `POST /admin/places/{id}/photos`. */
-export function buildPhotoForm(file: Blob, { credit, makeCover = false, name }: { credit?: string | null; makeCover?: boolean; name?: string } = {}): FormData {
+export function buildPhotoForm(file: Blob, opts: PhotoOptions = {}): FormData {
+  const { source = "team", author, license, licenseUrl, sourcePage, rightsNote, rightsConfirmed = false, makeCover = false, name } = opts;
   const form = new FormData();
   const fileName = name ?? (file instanceof File ? file.name : "photo.jpg");
   form.append("file", file, fileName);
-  const c = credit?.trim().slice(0, MAX_CREDIT_LENGTH);
-  if (c) form.append("credit", c);
+  form.append("source_kind", source);
+  const put = (key: string, v: string | null | undefined, max: number) => {
+    const t = v?.trim().slice(0, max);
+    if (t) form.append(key, t);
+  };
+  put("author", author, MAX_CREDIT_LENGTH);
+  put("license", license, 80);
+  put("license_url", licenseUrl, 300);
+  put("source_page", sourcePage, 500);
+  put("rights_note", rightsNote, 300);
+  form.append("rights_confirmed", rightsConfirmed ? "true" : "false");
   form.append("make_cover", makeCover ? "true" : "false");
   return form;
 }
 
 /** Vérifie puis envoie la photo. */
-export async function uploadPlacePhoto(placeId: string, file: File, opts: { credit?: string | null; makeCover?: boolean } = {}): Promise<UploadedPhoto> {
+export async function uploadPlacePhoto(placeId: string, file: File, opts: PhotoOptions = {}): Promise<UploadedPhoto> {
   const invalid = validatePhotoFile(file);
   if (invalid) {
     throw invalid === PHOTO_ERRORS.file_too_large ? new ApiError(413, "file_too_large", invalid) : new ApiError(400, "invalid_image", invalid);
   }
+  const missing = missingRights(opts);
+  if (missing) throw new ApiError(422, "rights_required", missing);
   return api.admin.uploadPhoto(placeId, buildPhotoForm(file, opts));
 }
 
@@ -51,6 +92,7 @@ export async function uploadPlacePhoto(placeId: string, file: File, opts: { cred
 export function photoErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.code === "invalid_image") return PHOTO_ERRORS.invalid_image;
+    if (err.code === "rights_required") return err.message;
     if (err.code === "file_too_large" || err.status === 413) return PHOTO_ERRORS.file_too_large;
     if (err.kind === "network") return PHOTO_ERRORS.network;
     if (err.kind === "auth") return PHOTO_ERRORS.auth;

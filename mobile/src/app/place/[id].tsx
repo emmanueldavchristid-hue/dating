@@ -275,7 +275,9 @@ export default function PlaceScreen() {
       <Animated.View style={[s.hero, heroStyle]}>
         <Cover
           url={hero?.url ?? p.cover.url}
-          credit={hero?.credit?.includes("Google") ? "Google" : hero ? null : p.cover.credit}
+          credit={hero ? null : p.cover.credit}
+          kind={hero ? null : p.cover.kind}
+          hideBadge
           gradient={p.cover.gradient}
           alt={hero?.alt ?? p.cover.alt}
           glyph={categoryIcon(p.categories[0])}
@@ -292,6 +294,7 @@ export default function PlaceScreen() {
         <Animated.View entering={FadeInDown.duration(420)} style={s.body}>
           <View style={s.pills}>
             {p.is_demo ? <Pill label="Démo · lieu fictif" tone="demo" icon="info" /> : null}
+            {!hero?.url && p.cover.kind === "illustration" ? <Pill label="Illustration · pas une photo du lieu" tone="glass" icon="image" /> : null}
             {p.tier === "premium" ? <Pill label="Pépite Insider" tone="gold" icon="gem" /> : null}
             {match ? <Pill label={match} tone="accent" icon="sparkles" /> : null}
           </View>
@@ -517,7 +520,12 @@ export default function PlaceScreen() {
               {p.phone ? <Row label="Téléphone" value={p.phone} /> : null}
               {p.website ? <Row label="Site web" value={p.website.replace(/^https?:\/\//, "")} /> : null}
               {credits.map((ph, i) => (
-                <Row key={i} label="Photo" value={ph.credit?.startsWith("Photo") ? ph.credit.replace(/^Photo : /, "") : `© ${ph.credit}`} />
+                <Row
+                  key={i}
+                  label={ph.kind === "wikimedia" ? "Photo (Wikimedia)" : ph.kind === "google" ? "Photo (Google Maps)" : "Photo"}
+                  value={ph.credit?.startsWith("Photo") ? ph.credit.replace(/^Photo : /, "") : `© ${ph.credit}`}
+                  onPress={ph.source_page || ph.license_url ? () => void Linking.openURL((ph.source_page || ph.license_url)!) : undefined}
+                />
               ))}
               {!p.verified_at ? (
                 <Txt variant="caption" color={colors.textSubtle}>
@@ -613,16 +621,22 @@ export default function PlaceScreen() {
   );
 }
 
-function Row({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <View style={s.relRow}>
+function Row({ label, value, color, onPress }: { label: string; value: string; color?: string; onPress?: () => void }) {
+  const body = (
+    <>
       <Txt variant="caption" color={colors.textSubtle} style={{ width: 128 }}>
         {label}
       </Txt>
-      <Txt variant="label" color={color ?? colors.text} style={{ flex: 1 }}>
+      <Txt variant="label" color={onPress ? colors.accentSoft : color ?? colors.text} style={{ flex: 1, textDecorationLine: onPress ? "underline" : "none" }}>
         {value}
       </Txt>
-    </View>
+    </>
+  );
+  if (!onPress) return <View style={s.relRow}>{body}</View>;
+  return (
+    <PressableScale onPress={onPress} accessibilityRole="link" accessibilityLabel={`${label} : ${value}, ouvrir la source`} style={s.relRow}>
+      {body}
+    </PressableScale>
   );
 }
 

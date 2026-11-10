@@ -3,7 +3,14 @@ from sqlalchemy import select
 
 from app.db import SessionLocal
 from app.importers.wikidata import Polite, fetch_entities, import_entities, search_ids
-from app.models import City, Place
+from app.models import City, Media, Place
+
+
+def _proposed(db, place) -> str:
+    """Photo Wikimedia proposée : jamais affichée ni en couverture avant validation par l'équipe."""
+    media = db.scalars(select(Media).where(Media.place_id == place.id, Media.source_kind == "wikimedia")).all()
+    assert len(media) == 1 and media[0].moderation_status == "pending" and place.cover_url is None
+    return media[0].source_url
 
 
 def _handler(req: httpx.Request) -> httpx.Response:
@@ -53,7 +60,9 @@ def test_wikidata_import_keeps_only_outing_types():
         assert import_entities(db, city, items, images, publish=True) == (1, 0)
         assert import_entities(db, city, items, images, publish=True) == (0, 1)
         p = db.scalar(select(Place).where(Place.external_ref == "Q9001"))
-        assert p.status == "published" and p.cover_url.endswith("m.jpg") and p.short_description == "Musée à Abidjan"
+        assert (
+            p.status == "published" and _proposed(db, p).endswith("m.jpg") and p.short_description == "Musée à Abidjan"
+        )
         assert p.embedding is not None and p.is_demo is False
 
 
@@ -107,7 +116,7 @@ def test_offline_file_format_matches_importer():
     with SessionLocal() as db:
         city = db.scalar(select(City).where(City.slug == "abidjan"))
         assert import_entities(db, city, items, images, publish=True) == (1, 0)
-        assert db.scalar(select(Place).where(Place.external_ref == "Q9100")).cover_url.endswith("p.jpg")
+        assert _proposed(db, db.scalar(select(Place).where(Place.external_ref == "Q9100"))).endswith("p.jpg")
 
 
 def test_wikidata_merges_into_existing_osm_place():
@@ -151,5 +160,5 @@ def test_wikidata_merges_into_existing_osm_place():
         osm_import(db, city, parse_elements(osm), publish=True)
         assert import_entities(db, city, parse_entities(entities), images, publish=True) == (0, 1)
         places = db.scalars(select(Place).where(Place.name.ilike("palais de la culture%"))).all()
-        assert len(places) == 1 and places[0].cover_url.endswith("palais.jpg")
+        assert len(places) == 1 and _proposed(db, places[0]).endswith("palais.jpg")
         assert places[0].short_description == "Salle de spectacle à Abidjan"

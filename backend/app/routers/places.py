@@ -30,6 +30,7 @@ from app.schemas import (
 )
 from app.services.agenda import KINDS
 from app.services.entitlements import can_see_premium, require_premium
+from app.services.photos import credit_for, ordered
 from app.services.places import refresh_rating
 from app.services.rag import index_places
 from app.services.search import (
@@ -305,17 +306,21 @@ def detail(
 
 
 def _photos(db, place) -> list[PhotoOut]:
-    """Nos photos d'abord ; à défaut, celles de Google Places (créditées, jamais copiées)."""
+    """Photos réelles autorisées, puis Wikimedia validées ; à défaut (option désactivée par défaut) Google."""
     own = [
         PhotoOut(
             id=str(m.id),
             url=public_url(m.storage_key) or m.source_url,
             gradient=m.gradient or place.cover_gradient,
-            alt=m.alt,
-            credit=m.credit,
+            alt=m.alt or f"Photo de {place.name}",
+            credit=credit_for(m, place.name),
+            kind="wikimedia" if m.source_kind == "wikimedia" else "photo",
+            author=m.author,
+            license=m.license,
+            license_url=m.license_url,
+            source_page=m.source_page,
         )
-        for m in place.media
-        if m.moderation_status == "approved"
+        for m in ordered(list(place.media))
     ]
     google = get_google()
     if own or google is None or place.tier == "premium":
@@ -329,6 +334,9 @@ def _photos(db, place) -> list[PhotoOut]:
             gradient=place.cover_gradient or ["#1E3A4C", "#0E0F13"],
             alt=f"Photo de {place.name}",
             credit=ph.credit,
+            kind="google",
+            author=ph.author,
+            source_page=ph.source_page,
         )
         for i, ph in enumerate(google.photos(gid))
     ]

@@ -125,7 +125,9 @@ def test_wikimedia_enrich_keeps_only_free_licenses():
         assert enrich(db, client) == 1
         p = db.scalar(select(Place).where(Place.external_ref == "node/1"))
         m = db.scalar(select(Media).where(Media.place_id == p.id, Media.source_url.is_not(None)))
-        assert p.cover_url.endswith("x-1280.jpg") and m.credit.startswith("Jane Doe · CC BY-SA 4.0")
+        assert p.cover_url is None and p.cover_kind is None, "à valider avant affichage"
+        assert m.moderation_status == "pending" and m.source_kind == "wikimedia" and m.author == "Jane Doe"
+        assert m.license == "CC BY-SA 4.0" and m.credit == "Photo : Jane Doe · CC BY-SA 4.0 · Wikimedia Commons"
         assert enrich(db, client) == 0  # idempotent
 
 

@@ -90,19 +90,50 @@ export async function toUploadFile(img: PickedImage, platform: string = Platform
   return res.blob();
 }
 
+/** Provenance d'une photo réelle (seules sources acceptées à l'envoi). */
+export type PhotoSource = "team" | "owner" | "licensed";
+
+export const PHOTO_SOURCES: { value: PhotoSource; label: string; hint: string }[] = [
+  { value: "team", label: "Prise par l'équipe", hint: "Photo prise sur place par toi ou l'équipe." },
+  { value: "owner", label: "Fournie par le lieu", hint: "Le gérant t'a envoyé la photo et a donné son accord." },
+  { value: "licensed", label: "Autre, avec autorisation", hint: "Photographe ou licence : accord écrit obligatoire." },
+];
+
 export interface PhotoOptions {
-  credit?: string | null;
+  source?: PhotoSource;
+  /** Auteur de la photo (obligatoire côté serveur). */
+  author?: string | null;
+  /** Autorisation obtenue : obligatoire pour « owner » et « licensed ». */
+  rightsNote?: string | null;
+  /** Case « j'ai le droit d'utiliser cette photo ». */
+  rightsConfirmed?: boolean;
   makeCover?: boolean;
 }
 
+/** Ce qui manque avant l'envoi (mêmes règles que le serveur), ou null. */
+export function missingRights({ source = "team", author, rightsNote, rightsConfirmed }: PhotoOptions): string | null {
+  if (!author?.trim()) return "Indique l'auteur de la photo.";
+  if (source !== "team" && !rightsNote?.trim()) return "Précise l'autorisation obtenue (qui, comment, quand).";
+  if (!rightsConfirmed) return "Confirme que tu as le droit d'utiliser cette photo.";
+  return null;
+}
+
 /** Corps multipart attendu par `POST /admin/places/{id}/photos`. */
-export function buildPhotoForm(file: NativeFile | Blob, name: string, { credit, makeCover = false }: PhotoOptions = {}): FormData {
+export function buildPhotoForm(
+  file: NativeFile | Blob,
+  name: string,
+  { source = "team", author, rightsNote, rightsConfirmed = false, makeCover = false }: PhotoOptions = {},
+): FormData {
   const form = new FormData();
   if (typeof Blob !== "undefined" && file instanceof Blob) form.append("file", file, name);
   // React Native accepte un objet {uri, name, type} comme partie fichier.
   else form.append("file", file as unknown as Blob);
-  const c = credit?.trim().slice(0, MAX_CREDIT_LENGTH);
-  if (c) form.append("credit", c);
+  form.append("source_kind", source);
+  const a = author?.trim().slice(0, MAX_CREDIT_LENGTH);
+  if (a) form.append("author", a);
+  const n = rightsNote?.trim().slice(0, 300);
+  if (n) form.append("rights_note", n);
+  form.append("rights_confirmed", rightsConfirmed ? "true" : "false");
   form.append("make_cover", makeCover ? "true" : "false");
   return form;
 }
@@ -128,12 +159,14 @@ export const PHOTO_ERRORS = {
   forbidden: "Seuls les curateurs et administrateurs peuvent gérer les photos.",
   auth: "Ta session a expiré : reconnecte-toi pour envoyer la photo.",
   not_found: "Cette photo ou ce lieu n'existe plus.",
+  rights_required: "Indique l'auteur et l'autorisation, puis confirme que tu as le droit d'utiliser cette photo.",
 } as const;
 
 /** Message clair pour chaque échec d'envoi ou de gestion de photo. */
 export function photoErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.code === "invalid_image") return PHOTO_ERRORS.invalid_image;
+    if (err.code === "rights_required") return err.message || PHOTO_ERRORS.rights_required;
     if (err.code === "file_too_large" || err.status === 413) return PHOTO_ERRORS.file_too_large;
     if (err.kind === "network") return PHOTO_ERRORS.network;
     if (err.kind === "auth") return PHOTO_ERRORS.auth;

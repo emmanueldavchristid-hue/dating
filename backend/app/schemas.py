@@ -18,7 +18,9 @@ class Cover(BaseModel):
     url: str | None
     gradient: list[str]
     alt: str
-    credit: str | None = None  # ex. « Google » pour une photo Google Places
+    credit: str | None = None  # crédit court (auteur, licence, « Google Maps »)
+    # photo = réelle autorisée ; wikimedia = Commons validée ; google = option Google ; illustration = visuel de l'app
+    kind: Literal["photo", "wikimedia", "google", "illustration"] = "illustration"
 
 
 class TravelOut(BaseModel):
@@ -87,6 +89,11 @@ class PhotoOut(BaseModel):
     gradient: list[str]
     alt: str
     credit: str | None
+    kind: Literal["photo", "wikimedia", "google"] = "photo"
+    author: str | None = None
+    license: str | None = None
+    license_url: str | None = None
+    source_page: str | None = None  # page d'origine (Commons, Google Maps…)
 
 
 class ReviewOut(BaseModel):

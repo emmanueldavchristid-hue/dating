@@ -1,8 +1,10 @@
 import { render, screen } from "@testing-library/react-native";
+import { Cover as CoverView } from "@/components/Cover";
 import { PhotoCredit, PlaceGallery } from "@/components/PlacePhotos";
 import { ApiError, setToken } from "@/lib/api";
 import {
   buildPhotoForm,
+  missingRights,
   canManagePhotos,
   checkPhotoSize,
   creditLabel,
@@ -57,19 +59,37 @@ describe("préparation du fichier", () => {
     });
   });
 
-  it("multipart : fichier, crédit nettoyé, make_cover", () => {
-    const form = buildPhotoForm({ uri: "file:///p.jpg", name: "p.jpg", type: "image/jpeg" }, "p.jpg", { credit: "  Awa K.  ", makeCover: true });
+  it("multipart : fichier, provenance, auteur nettoyé, droits, make_cover", () => {
+    const form = buildPhotoForm({ uri: "file:///p.jpg", name: "p.jpg", type: "image/jpeg" }, "p.jpg", {
+      source: "owner",
+      author: "  Awa K.  ",
+      rightsNote: " accord écrit ",
+      rightsConfirmed: true,
+      makeCover: true,
+    });
     expect(field(form, "file")).toMatchObject({ uri: "file:///p.jpg", name: "p.jpg", type: "image/jpeg" });
-    expect(field(form, "credit")?.string).toBe("Awa K.");
+    expect(field(form, "source_kind")?.string).toBe("owner");
+    expect(field(form, "author")?.string).toBe("Awa K.");
+    expect(field(form, "rights_note")?.string).toBe("accord écrit");
+    expect(field(form, "rights_confirmed")?.string).toBe("true");
     expect(field(form, "make_cover")?.string).toBe("true");
   });
 
-  it("crédit vide omis, make_cover=false par défaut, crédit tronqué à 160", () => {
-    const f1 = buildPhotoForm({ uri: "file:///p.jpg", name: "p.jpg", type: "image/jpeg" }, "p.jpg", { credit: "   " });
-    expect(field(f1, "credit")).toBeUndefined();
+  it("par défaut : équipe, droits non confirmés, auteur tronqué à 160", () => {
+    const f1 = buildPhotoForm({ uri: "file:///p.jpg", name: "p.jpg", type: "image/jpeg" }, "p.jpg", { author: "   " });
+    expect(field(f1, "author")).toBeUndefined();
+    expect(field(f1, "source_kind")?.string).toBe("team");
+    expect(field(f1, "rights_confirmed")?.string).toBe("false");
     expect(field(f1, "make_cover")?.string).toBe("false");
-    const f2 = buildPhotoForm({ uri: "file:///p.jpg", name: "p.jpg", type: "image/jpeg" }, "p.jpg", { credit: "x".repeat(300) });
-    expect(field(f2, "credit")?.string).toHaveLength(160);
+    const f2 = buildPhotoForm({ uri: "file:///p.jpg", name: "p.jpg", type: "image/jpeg" }, "p.jpg", { author: "x".repeat(300) });
+    expect(field(f2, "author")?.string).toHaveLength(160);
+  });
+
+  it("droits : auteur, autorisation du lieu et confirmation obligatoires", () => {
+    expect(missingRights({ author: "", rightsConfirmed: true })).toMatch(/auteur/);
+    expect(missingRights({ source: "owner", author: "Gérant", rightsConfirmed: true })).toMatch(/autorisation/);
+    expect(missingRights({ source: "team", author: "Moi" })).toMatch(/Confirme/);
+    expect(missingRights({ source: "owner", author: "Gérant", rightsNote: "WhatsApp 10/11", rightsConfirmed: true })).toBeNull();
   });
 
   it("refuse avant l'envoi une photo de plus de 8 Mo", () => {
@@ -222,5 +242,14 @@ describe("progression d'envoi (XMLHttpRequest)", () => {
     const e = await uploadPlacePhoto("p1", { uri: "file:///p.jpg" }, {}, () => undefined, "android").catch((x: unknown) => x);
     expect(e).toBeInstanceOf(ApiError);
     expect(photoErrorMessage(e)).toBe(PHOTO_ERRORS.invalid_image);
+  });
+});
+
+describe("illustration signalée", () => {
+  it("badge « Illustration » quand le lieu n'a pas de vraie photo, jamais sur une photo", async () => {
+    await render(<CoverView url={null} gradient={["#000", "#111"]} alt="Lieu" glyph="utensils" kind="illustration" />);
+    expect(screen.getByTestId("illustration-badge")).toBeTruthy();
+    await render(<CoverView url="https://upload.wikimedia.org/a.jpg" gradient={["#000", "#111"]} alt="Lieu" glyph="utensils" kind="wikimedia" />);
+    expect(screen.queryByTestId("illustration-badge")).toBeNull();
   });
 });

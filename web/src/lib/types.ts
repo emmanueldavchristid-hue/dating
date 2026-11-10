@@ -14,6 +14,10 @@ export interface Cover {
   url: string | null;
   gradient: [string, string];
   alt: string;
+  /** Crédit court : auteur · licence, « Google Maps », ou « Illustration ». */
+  credit?: string | null;
+  /** photo = réelle autorisée ; wikimedia = Commons validée ; google = option ; illustration = visuel de l'app. */
+  kind?: "photo" | "wikimedia" | "google" | "illustration";
 }
 
 export interface Travel {
@@ -75,14 +79,47 @@ export interface PlacePhoto {
   gradient: [string, string];
   alt: string;
   credit: string | null;
+  kind?: "photo" | "wikimedia" | "google";
+  author?: string | null;
+  license?: string | null;
+  license_url?: string | null;
+  /** Page d'origine (Commons, Google Maps…). */
+  source_page?: string | null;
 }
 
-/** Réponse de `POST /admin/places/{id}/photos`. */
-export interface UploadedPhoto {
+export type PhotoSourceKind = "owner" | "team" | "licensed" | "wikimedia";
+export type PhotoStatus = "approved" | "pending" | "rejected";
+
+/** Photo vue par l'équipe (`GET /admin/places/{id}/photos`), y compris celles à valider. */
+export interface AdminPhoto {
   id: string;
-  url: string;
+  url: string | null;
+  source_kind: PhotoSourceKind | null;
+  source_label: string;
+  author: string | null;
+  license: string | null;
+  license_url: string | null;
+  source_page: string | null;
+  rights_note: string | null;
+  status: PhotoStatus;
+  credit: string | null;
   is_cover: boolean;
+  position: number;
+  created_at: string;
 }
+
+export interface AdminPhotoList {
+  cover_kind: "photo" | "wikimedia" | "illustration";
+  items: AdminPhoto[];
+}
+
+export type AdminPhotoPatch = Partial<Pick<AdminPhoto, "author" | "license" | "license_url" | "source_page" | "rights_note">> & {
+  status?: PhotoStatus;
+  source_kind?: PhotoSourceKind;
+};
+
+/** Réponse de `POST /admin/places/{id}/photos` (= une AdminPhoto). */
+export type UploadedPhoto = AdminPhoto;
 
 export interface PlaceDetail extends PlaceCard {
   description: string;

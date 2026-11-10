@@ -113,7 +113,7 @@ export function PlaceTile({ p, catName, width = 264, onPress }: { p: Place; catN
       style={{ width }}
       testID="place-tile"
     >
-      <Cover url={p.cover.url} credit={p.cover.credit} gradient={p.cover.gradient} alt={p.cover.alt} glyph={categoryIcon(p.categories[0])} glyphSize={130} style={s.tileCover}>
+      <Cover url={p.cover.url} credit={p.cover.credit} kind={p.cover.kind} gradient={p.cover.gradient} alt={p.cover.alt} glyph={categoryIcon(p.categories[0])} glyphSize={130} style={s.tileCover}>
         <View style={s.coverTop}>
           {p.is_demo ? <Pill label="Démo" tone="demo" /> : <View />}
           {match ? <Pill label={match} tone="accent" icon="sparkles" style={s.matchPill} /> : null}
@@ -193,7 +193,7 @@ export function PlaceRow({
   }
   return (
     <PressableScale onPress={onPress ?? (() => openPlace(p))} accessibilityRole="button" accessibilityLabel={a11ySummary(p, catName)} style={s.row} testID="place-row">
-      <Cover url={p.cover.url} credit={p.cover.credit} gradient={p.cover.gradient} alt={p.cover.alt} glyph={categoryIcon(p.categories[0])} glyphSize={72} style={s.rowCover} shade={false}>
+      <Cover url={p.cover.url} credit={p.cover.credit} kind={p.cover.kind} gradient={p.cover.gradient} alt={p.cover.alt} glyph={categoryIcon(p.categories[0])} glyphSize={72} style={s.rowCover} shade={false}>
         {p.is_demo ? <Pill label="Démo" tone="demo" style={{ position: "absolute", top: 6, left: 6, paddingHorizontal: 6, paddingVertical: 2 }} /> : null}
       </Cover>
       <View style={{ flex: 1, gap: 3 }}>

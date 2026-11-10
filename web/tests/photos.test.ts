@@ -4,6 +4,7 @@ import {
   MAX_PHOTO_BYTES,
   PHOTO_ERRORS,
   buildPhotoForm,
+  missingRights,
   canManagePhotos,
   creditLabel,
   isCoverPhoto,
@@ -20,23 +21,37 @@ function mockFetch(status: number, body: unknown) {
   return fn;
 }
 
+const RIGHTS = { author: "Équipe Sortie", rightsConfirmed: true } as const;
+
 const jpeg = (size = 1024, name = "terrasse.jpg", type = "image/jpeg") => new File([new Uint8Array(size)], name, { type });
 
 describe("formulaire multipart", () => {
-  it("fichier, crédit nettoyé et make_cover", () => {
-    const form = buildPhotoForm(jpeg(), { credit: "  Awa K.  ", makeCover: true });
+  it("fichier, provenance, auteur nettoyé, droits et make_cover", () => {
+    const form = buildPhotoForm(jpeg(), { source: "owner", author: "  Awa K.  ", rightsNote: "accord écrit", rightsConfirmed: true, makeCover: true });
     const file = form.get("file") as File;
     expect(file).toBeInstanceOf(File);
     expect(file.name).toBe("terrasse.jpg");
-    expect(form.get("credit")).toBe("Awa K.");
+    expect(form.get("source_kind")).toBe("owner");
+    expect(form.get("author")).toBe("Awa K.");
+    expect(form.get("rights_note")).toBe("accord écrit");
+    expect(form.get("rights_confirmed")).toBe("true");
     expect(form.get("make_cover")).toBe("true");
   });
 
-  it("crédit vide omis, make_cover=false par défaut, crédit tronqué à 160", () => {
-    const f1 = buildPhotoForm(jpeg(), { credit: "   " });
-    expect(f1.has("credit")).toBe(false);
+  it("par défaut : équipe, droits non confirmés ; champs vides omis, auteur tronqué à 160", () => {
+    const f1 = buildPhotoForm(jpeg(), { author: "   " });
+    expect(f1.has("author")).toBe(false);
+    expect(f1.get("source_kind")).toBe("team");
+    expect(f1.get("rights_confirmed")).toBe("false");
     expect(f1.get("make_cover")).toBe("false");
-    expect((buildPhotoForm(jpeg(), { credit: "x".repeat(400) }).get("credit") as string).length).toBe(160);
+    expect((buildPhotoForm(jpeg(), { author: "x".repeat(400) }).get("author") as string).length).toBe(160);
+  });
+
+  it("droits obligatoires avant l'envoi", () => {
+    expect(missingRights({ rightsConfirmed: true })).toMatch(/auteur/);
+    expect(missingRights({ source: "owner", author: "Gérant", rightsConfirmed: true })).toMatch(/autorisation/);
+    expect(missingRights({ author: "Moi" })).toMatch(/Confirmez/);
+    expect(missingRights({ source: "licensed", author: "X", rightsNote: "CC BY", rightsConfirmed: true })).toBeNull();
   });
 
   it("validation locale : taille et type", () => {
@@ -56,7 +71,7 @@ describe("envoi", () => {
   it("POST multipart avec le jeton, sans Content-Type JSON", async () => {
     setToken("jwt-curateur");
     const fetchMock = mockFetch(201, { id: "m1", url: "http://api/media/a.jpg", is_cover: true });
-    const res = await uploadPlacePhoto("place-1", jpeg(), { makeCover: true, credit: "Photo : Awa" });
+    const res = await uploadPlacePhoto("place-1", jpeg(), { ...RIGHTS, makeCover: true });
     expect(res).toEqual({ id: "m1", url: "http://api/media/a.jpg", is_cover: true });
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(String(url)).toMatch(/\/admin\/places\/place-1\/photos$/);
@@ -65,7 +80,8 @@ describe("envoi", () => {
     expect(init.headers["Content-Type"]).toBeUndefined();
     expect(init.body).toBeInstanceOf(FormData);
     expect((init.body as FormData).get("make_cover")).toBe("true");
-    expect((init.body as FormData).get("credit")).toBe("Photo : Awa");
+    expect((init.body as FormData).get("author")).toBe("Équipe Sortie");
+    expect((init.body as FormData).get("rights_confirmed")).toBe("true");
   });
 
   it("fichier trop lourd ou non pris en charge : aucune requête", async () => {
@@ -77,11 +93,11 @@ describe("envoi", () => {
 
   it("erreurs serveur traduites", async () => {
     mockFetch(400, { detail: "Image illisible", code: "invalid_image" });
-    expect(photoErrorMessage(await uploadPlacePhoto("p", jpeg()).catch((e: unknown) => e))).toBe(PHOTO_ERRORS.invalid_image);
+    expect(photoErrorMessage(await uploadPlacePhoto("p", jpeg(), RIGHTS).catch((e: unknown) => e))).toBe(PHOTO_ERRORS.invalid_image);
     mockFetch(413, { detail: "Trop lourd", code: "file_too_large" });
-    expect(photoErrorMessage(await uploadPlacePhoto("p", jpeg()).catch((e: unknown) => e))).toBe(PHOTO_ERRORS.file_too_large);
+    expect(photoErrorMessage(await uploadPlacePhoto("p", jpeg(), RIGHTS).catch((e: unknown) => e))).toBe(PHOTO_ERRORS.file_too_large);
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
-    expect(photoErrorMessage(await uploadPlacePhoto("p", jpeg()).catch((e: unknown) => e))).toBe(PHOTO_ERRORS.network);
+    expect(photoErrorMessage(await uploadPlacePhoto("p", jpeg(), RIGHTS).catch((e: unknown) => e))).toBe(PHOTO_ERRORS.network);
     expect(photoErrorMessage(new ApiError(403, "forbidden", "Accès refusé"))).toBe(PHOTO_ERRORS.forbidden);
   });
 

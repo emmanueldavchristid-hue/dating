@@ -14,7 +14,8 @@ import httpx
 from sqlalchemy import select
 
 from app.db import SessionLocal
-from app.models import Media, Place, PlaceExternalId
+from app.models import Place, PlaceExternalId
+from app.services.photos import wikimedia_candidate
 
 WIKIDATA_API = "https://www.wikidata.org/w/api.php"
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
@@ -100,6 +101,8 @@ def images_from_pages(pages: dict, norm: dict | None = None) -> dict[str, dict]:
         out[title] = {
             "url": stable_url(info.get("thumburl") or info["url"]),
             "license": lic[:80],
+            "license_url": ((meta.get("LicenseUrl") or {}).get("value") or "")[:300] or None,
+            "source_page": info.get("descriptionurl"),
             "artist": (_strip_html((meta.get("Artist") or {}).get("value")) or "Auteur inconnu")[:120],
             "width": info.get("thumbwidth") or info.get("width"),
             "height": info.get("thumbheight") or info.get("height"),
@@ -108,10 +111,11 @@ def images_from_pages(pages: dict, norm: dict | None = None) -> dict[str, dict]:
 
 
 def enrich(db, client: httpx.Client, limit: int = 500) -> int:
+    """Propose des photos Wikimedia (statut « à valider ») pour les lieux sans photo."""
     rows = db.execute(
         select(Place, PlaceExternalId.external_id)
         .join(PlaceExternalId, PlaceExternalId.place_id == Place.id)
-        .where(PlaceExternalId.provider == "wikidata", Place.cover_url.is_(None), Place.cover_key.is_(None))
+        .where(PlaceExternalId.provider == "wikidata", Place.cover_kind.is_(None))
         .limit(limit)
     ).all()
     if not rows:
@@ -123,20 +127,9 @@ def enrich(db, client: httpx.Client, limit: int = 500) -> int:
         info = infos.get(files.get(qid, "").replace("_", " ")) or infos.get(files.get(qid, ""))
         if not info:
             continue
-        credit = f"{info['artist']} · {info['license']} · Wikimedia Commons"
-        db.add(
-            Media(
-                place_id=place.id,
-                source_url=info["url"],
-                alt=f"Photo de {place.name}",
-                credit=credit[:160],
-                license=info["license"],
-                width=info["width"],
-                height=info["height"],
-                position=0,
-            )
-        )
-        place.cover_url = info["url"]
+        if any(m.source_url == info["url"] for m in place.media):
+            continue
+        db.add(wikimedia_candidate(place, info))
         added += 1
     db.commit()
     return added

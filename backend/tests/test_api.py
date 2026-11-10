@@ -327,7 +327,7 @@ def test_google_photos_fill_places_without_photos(client, monkeypatch):
         api_key = "k"
 
         def photos(self, gid):
-            return [GooglePhoto("places/G/photos/1", "Photo : Awa · Google")]
+            return [GooglePhoto("places/G/photos/1", "Photo : Awa · Google Maps", "Awa", "https://maps.google.com/x")]
 
         def photo_uri(self, name, max_width=1200):
             return "https://lh3.googleusercontent.com/photo"
@@ -345,10 +345,15 @@ def test_google_photos_fill_places_without_photos(client, monkeypatch):
         pid, slug = place.id, place.slug
     monkeypatch.setattr(gp, "get_google", lambda: FakeGoogle())
     monkeypatch.setattr(places_router, "get_google", lambda: FakeGoogle())
+    d = client.get(f"{API}/places/{slug}").json()
     try:
-        d = client.get(f"{API}/places/{slug}").json()
-        assert d["cover"]["credit"] == "Google" and d["cover"]["url"].endswith(f"/places/{pid}/google-photos/0")
-        assert d["photos"][0]["credit"] == "Photo : Awa · Google"
+        assert (
+            d["cover"]["credit"] == "Google Maps"
+            and d["cover"]["kind"] == "google"
+            and d["cover"]["url"].endswith(f"/places/{pid}/google-photos/0")
+        )
+        assert d["photos"][0]["credit"] == "Photo : Awa · Google Maps"
+        assert d["photos"][0]["source_page"] == "https://maps.google.com/x"
         r = client.get(f"{API}/places/{pid}/google-photos/0", follow_redirects=False)
         assert r.status_code == 302 and r.headers["location"] == "https://lh3.googleusercontent.com/photo"
         assert client.get(f"{API}/places/{pid}/google-photos/5", follow_redirects=False).status_code == 404

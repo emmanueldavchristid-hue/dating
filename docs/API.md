@@ -25,7 +25,9 @@ interface PlaceCard {
   price_level: number | null;      // 1..4
   budget_min_fcfa: number | null; budget_max_fcfa: number | null;
   rating_avg: number | null; rating_count: number;
-  cover: { url: string | null; gradient: [string, string]; alt: string };
+  cover: { url: string | null; gradient: [string, string]; alt: string;
+           credit: string | null;  // « Photo : auteur · licence · Wikimedia Commons », « Google Maps », « Illustration »
+           kind: "photo" | "wikimedia" | "google" | "illustration" };  // voir « Photos : ordre et droits »
   location: { lat: number; lng: number } | null;  // null si verrouillé
   distance_km: number | null;      // vol d'oiseau depuis l'origine
   travel: { mode: "driving" | "walking"; minutes: number; source: string } | null;
@@ -42,7 +44,9 @@ interface PlaceDetail extends PlaceCard {
   hours: { weekday: number; open: string; close: string }[];   // 0 = lundi ; [] = inconnu
   amenities: { parking: boolean|null; wheelchair: boolean|null; wifi: boolean|null;
                card_payment: boolean|null; mobile_money: boolean|null; outdoor: boolean|null };
-  photos: { url: string | null; gradient: [string, string]; alt: string; credit: string | null }[];
+  photos: { id: string | null; url: string | null; gradient: [string, string]; alt: string; credit: string | null;
+            kind: "photo" | "wikimedia" | "google"; author: string | null; license: string | null;
+            license_url: string | null; source_page: string | null }[];   // photos affichables uniquement, dans l'ordre
   reviews_summary: string | null;
   reviews: { id: string; author: string; rating: number; text: string; created_at: string }[];
   source: { kind: "demo" | "osm" | "partner" | "curated"; attribution: string | null };
@@ -112,6 +116,28 @@ interface User {
 - `GET /billing/plans` → `{code,name,price_fcfa:number|null,features:string[],quotas:{concierge_per_day,itinerary_max_steps}}[]`
 - `GET /me/subscription` → `{plan, status, current_period_end|null}`
 - `POST /billing/checkout` `{plan}` → 501 `not_configured` tant qu'aucun agrégateur n'est branché.
+
+## Photos : ordre et droits
+Ordre d'affichage (calculé par le serveur, `services/photos.py`) :
+1. **photo réelle autorisée** : `owner` (fournie par le lieu, avec son accord), `team` (prise par l'équipe),
+   `licensed` (photographe / licence, accord à préciser) ;
+2. **photo Wikimedia Commons validée** par l'équipe (auteur + licence obligatoires ; les photos trouvées par les
+   imports arrivent « à valider » et ne s'affichent pas avant) ;
+3. **option Google** (désactivée par défaut, `GOOGLE_PHOTOS_ENABLED`, voir docs/GOOGLE-PHOTOS.md) ;
+4. sinon **illustration** de l'app : `cover.kind = "illustration"`, `credit = "Illustration"`, toujours signalée.
+
+Endpoints (curateurs et admins) :
+- `GET /admin/places/{id}/photos` → `{cover_kind, items: AdminPhoto[]}` (toutes, y compris à valider / refusées)
+- `POST /admin/places/{id}/photos` multipart : `file`, `source_kind` (owner|team|licensed), `author` (obligatoire),
+  `license?`, `license_url?`, `source_page?`, `rights_note` (obligatoire pour owner/licensed), `rights_confirmed=true`
+  (obligatoire), `make_cover?` → `AdminPhoto` (201) ; erreurs `rights_required` (422), `invalid_image` (400), 413
+- `PATCH /admin/photos/{id}` `{status?: approved|rejected|pending, source_kind?, author?, license?, license_url?,
+  source_page?, rights_note?}` (valider une photo Wikimedia exige auteur et licence)
+- `PATCH /admin/photos/{id}/cover` (met la photo en tête de son rang ; une photo réelle reste devant Wikimedia)
+- `DELETE /admin/photos/{id}` (204)
+
+`AdminPhoto = {id, url, source_kind, source_label, author, license, license_url, source_page, rights_note,
+status, credit, is_cover, position, created_at}`. Chaque action est journalisée (audit).
 
 ## Administration (role admin ; curator : curation seulement)
 - `GET /admin/stats` · `GET /admin/places?q&page` · `POST /admin/places` · `PATCH /admin/places/{id}`

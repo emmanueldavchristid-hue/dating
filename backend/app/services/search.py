@@ -305,6 +305,27 @@ def place_location(db: Session, places: list[Place]) -> dict[uuid.UUID, tuple[fl
     return {r[0]: (r[1], r[2]) for r in rows}
 
 
+def cover_of(place: Place, google_id: str | None = None) -> Cover:
+    """Couverture : photo réelle autorisée → Wikimedia validée → (Google, si activé) → illustration signalée."""
+    gradient = place.cover_gradient or ["#1E3A4C", "#0E0F13"]
+    url = public_url(place.cover_key) or place.cover_url
+    if url and place.cover_kind in ("photo", "wikimedia"):
+        return Cover(
+            url=url, gradient=gradient, alt=f"Photo de {place.name}", credit=place.cover_credit, kind=place.cover_kind
+        )
+    if google_id and place.tier == "free":
+        return Cover(
+            url=google_photo_url(place.id, google_id),
+            gradient=gradient,
+            alt=f"Photo de {place.name}",
+            credit="Google Maps",
+            kind="google",
+        )
+    return Cover(
+        url=None, gradient=gradient, alt=f"Illustration pour {place.name}", credit="Illustration", kind="illustration"
+    )
+
+
 def google_ids(db: Session, places: list[Place]) -> dict[uuid.UUID, str]:
     """place_id Google des lieux (seulement si une clé Google est configurée)."""
     from app.adapters.google_places import get_google
@@ -340,7 +361,7 @@ def to_cards(
     if with_travel and origin is not None:
         unlocked = [locs[p.id] for p in places]
         travel = get_routing().durations((origin.lat, origin.lng), unlocked)
-    google = google_ids(db, [p for p in places if not (p.cover_key or p.cover_url)])
+    google = google_ids(db, [p for p in places if not p.cover_kind])
     cards = []
     for item, place, tr in zip(items, places, travel, strict=True):
         st, closes = open_status(slots[place.id], now)
@@ -360,12 +381,7 @@ def to_cards(
             budget_max_fcfa=place.budget_max_fcfa,
             rating_avg=round(place.rating_avg, 1) if place.rating_avg is not None else None,
             rating_count=place.rating_count,
-            cover=Cover(
-                url=public_url(place.cover_key) or place.cover_url or google_photo_url(place.id, google.get(place.id)),
-                gradient=place.cover_gradient or ["#1E3A4C", "#0E0F13"],
-                alt=f"Ambiance de {place.name}",
-                credit="Google" if not (place.cover_key or place.cover_url) and google.get(place.id) else None,
-            ),
+            cover=cover_of(place, google.get(place.id)),
             location=LatLng(lat=lat, lng=lng),
             distance_km=round(item["dist_m"] / 1000, 1) if item.get("dist_m") is not None else None,
             travel=TravelOut(mode=tr.mode, minutes=tr.minutes, source=tr.source) if tr else None,

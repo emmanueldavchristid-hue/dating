@@ -1,16 +1,17 @@
-"""Photos des lieux via l'API officielle Google Places (New).
+"""Photos des lieux via l'API officielle Google Places (New) — OPTION DÉSACTIVÉE PAR DÉFAUT.
 
-Règles (conditions Google Maps Platform) :
-- seul l'identifiant Google du lieu (place_id) est conservé durablement (table place_external_ids) ;
-- les photos ne sont jamais copiées : l'app les demande au moment de l'affichage, via notre serveur,
-  qui garde la clé secrète et redirige vers l'adresse temporaire fournie par Google ;
-- l'auteur de chaque photo est crédité, avec la mention Google.
-Les noms de photos sont gardés au plus une heure en mémoire (performance) et un plafond quotidien évite
-toute dépense surprise (GOOGLE_PHOTOS_DAILY_CAP)."""
+Elle ne s'active que si GOOGLE_PHOTOS_ENABLED=true ET qu'une clé est configurée côté serveur
+(voir docs/GOOGLE-PHOTOS.md : coûts, limites, règles, à lire avant toute activation).
+
+Règles Google respectées :
+- seul l'identifiant Google du lieu (place_id) est conservé durablement (autorisé par Google) ;
+- aucune photo, aucun nom de photo ni aucune adresse d'image n'est mis en cache ou stocké : chaque affichage
+  redemande à Google (la liste des photos est gratuite, l'image elle-même est facturée) ;
+- l'auteur de chaque photo est crédité, avec un lien vers la photo sur Google Maps, et la mention « Google Maps » ;
+- un plafond quotidien d'appels (GOOGLE_PHOTOS_DAILY_CAP) empêche toute dépense surprise."""
 
 import logging
 import re
-import time
 import unicodedata
 from dataclasses import dataclass
 from datetime import date
@@ -22,13 +23,14 @@ from app.config import get_settings
 
 log = logging.getLogger(__name__)
 BASE = "https://places.googleapis.com/v1"
-CACHE_TTL_S = 3600
 
 
 @dataclass(frozen=True)
 class GooglePhoto:
-    name: str  # identifiant de la photo chez Google (temporaire)
-    credit: str  # « Photo : <auteur> · Google »
+    name: str  # identifiant de la photo chez Google (temporaire, jamais stocké)
+    credit: str  # « Photo : <auteur> · Google Maps »
+    author: str | None = None
+    source_page: str | None = None  # la photo sur Google Maps (lien obligatoire)
 
 
 def _norm(s: str) -> str:
@@ -52,8 +54,6 @@ class GooglePlaces:
     def __init__(self, api_key: str, daily_cap: int, client: httpx.Client | None = None) -> None:
         self.api_key, self.daily_cap = api_key, daily_cap
         self.client = client or httpx.Client(timeout=10.0)
-        self._cache: dict[str, tuple[float, list[GooglePhoto]]] = {}
-        self._uris: dict[tuple[str, int], tuple[float, str]] = {}
         self._day, self._count = date.today(), 0
         self._lock = Lock()
 
@@ -92,11 +92,7 @@ class GooglePlaces:
         return None
 
     def photos(self, place_id: str) -> list[GooglePhoto]:
-        hit = self._cache.get(place_id)
-        if hit and time.monotonic() - hit[0] < CACHE_TTL_S:
-            return hit[1]
-        if not self._budget():
-            return []
+        """Liste des photos (champ « photos » : facturé comme Place Details Essentials IDs Only, gratuit)."""
         try:
             r = self.client.get(
                 f"{BASE}/places/{place_id}",
@@ -105,21 +101,18 @@ class GooglePlaces:
             r.raise_for_status()
             out = []
             for ph in r.json().get("photos", [])[:6]:
-                authors = ", ".join(
-                    a.get("displayName", "") for a in ph.get("authorAttributions", []) if a.get("displayName")
-                )
-                out.append(GooglePhoto(ph["name"], f"Photo : {authors} · Google" if authors else "Photo · Google"))
+                attrs = ph.get("authorAttributions", [])
+                authors = ", ".join(a.get("displayName", "") for a in attrs if a.get("displayName"))
+                link = ph.get("googleMapsUri") or (attrs[0].get("uri") if attrs else None)
+                credit = f"Photo : {authors} · Google Maps" if authors else "Photo · Google Maps"
+                out.append(GooglePhoto(ph["name"], credit, authors or None, link))
         except (httpx.HTTPError, KeyError, ValueError) as e:
             log.warning("Google Places indisponible : %s", type(e).__name__)
             return []
-        self._cache[place_id] = (time.monotonic(), out)
         return out
 
     def photo_uri(self, photo_name: str, max_width: int = 1200) -> str | None:
-        """Adresse temporaire de l'image chez Google (la clé reste sur le serveur)."""
-        hit = self._uris.get((photo_name, max_width))
-        if hit and time.monotonic() - hit[0] < CACHE_TTL_S - 600:
-            return hit[1]
+        """Adresse temporaire de l'image (SKU Place Details Photos, facturé) ; la clé reste sur le serveur."""
         if not self._budget():
             return None
         try:
@@ -129,23 +122,20 @@ class GooglePlaces:
                 headers={"X-Goog-Api-Key": self.api_key},
             )
             r.raise_for_status()
-            uri = r.json().get("photoUri")
+            return r.json().get("photoUri")
         except (httpx.HTTPError, ValueError) as e:
             log.warning("Google Places indisponible : %s", type(e).__name__)
             return None
-        if uri:
-            self._uris[(photo_name, max_width)] = (time.monotonic(), uri)
-        return uri
 
 
 _instance: GooglePlaces | None = None
 
 
 def get_google() -> GooglePlaces | None:
-    """None si aucune clé n'est configurée : l'app garde ses dégradés et ses propres photos."""
+    """None tant que l'option n'est pas explicitement activée (GOOGLE_PHOTOS_ENABLED) avec une clé."""
     global _instance
     s = get_settings()
-    if not s.google_places_api_key:
+    if not (s.google_photos_enabled and s.google_places_api_key):
         return None
     if _instance is None or _instance.api_key != s.google_places_api_key:
         _instance = GooglePlaces(s.google_places_api_key, s.google_photos_daily_cap)

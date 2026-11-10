@@ -7,7 +7,7 @@ première tâche non cochée, sans redemander le contexte.
 Ce fichier est mis à jour à chaque étape terminée et poussée sur GitHub : il est toujours à jour même si
 la conversation est coupée (réseau, déplacement, PC éteint).
 
-## Où en est-on (5 novembre 2026, fin de matinée)
+## Où en est-on (10 novembre 2026)
 
 Le document « Sortie — Liste complète des améliorations » (validé par Jason le 5/11) sert de feuille de route.
 Ordre de travail : semaine 1 corrections rapides → carte → vrai concierge IA → (en parallèle) curation terrain
@@ -40,12 +40,19 @@ Ordre de travail : semaine 1 corrections rapides → carte → vrai concierge IA
       les noms de modèles disponibles (`/models`) et ajuster `GROQ_MODEL` / `GEMINI_MODEL` / `NVIDIA_MODEL`
 - [x] Trajet tracé dans l'app (OSRM auto-hébergé sur le PC, préparé une fois par le script depuis l'extrait
       OpenStreetMap ; `GET /routes`) et durée calculée « sans trafic » — à vérifier sur le PC au prochain lancement
-- [x] Photos Google Places (code prêt et testé avec réponses simulées) : place_id seul conservé, photos jamais
-      copiées (redirection via le serveur), crédit « Google », plafond quotidien. Il manque la clé de Jason
-      (`GOOGLE_PLACES_API_KEY` dans `Documents\sortie-data\cles-ia.env`) et le domaine `places.googleapis.com`.
-      Le script relie les lieux à Google une fois (`python -m app.tasks link-google`).
+- [x] Photos : ordre décidé par Jason le 10/11 — 1) photo réelle autorisée (lieu / équipe / licence),
+      2) photo Wikimedia validée avec auteur et licence, 3) illustration signalée « Illustration ».
+      Admin web (fenêtre Photos) : provenance, auteur, licence, page source, autorisation, case « j'ai le droit »
+      obligatoire, valider / refuser les photos Wikimedia (les 9 existantes sont « à valider »), remplacer
+      l'illustration par une vraie photo. Mobile : badge « Illustration », crédits cliquables, envoi avec droits.
+      Migration 0006.
+- [x] Google Places : option **désactivée par défaut** (`GOOGLE_PHOTOS_ENABLED=false`), aucune mise en cache,
+      crédit « · Google Maps » + lien, plafond 30 images/jour. Décision du 10/11 : pas de Google, pas de carte
+      bancaire. Coûts, limites et règles : `docs/GOOGLE-PHOTOS.md` (à expliquer avant toute activation).
+- [ ] Photos réelles : récupérer les photos autorisées des lieux (gérants, photos prises sur place) et valider
+      ou refuser les photos Wikimedia proposées, depuis l'admin.
 - [x] Ajout rapide de lieu dans l'admin (pépites vues sur TikTok) : coller le lien Google Maps → position,
-      quartier déduit, téléphone/WhatsApp, Instagram/TikTok du lieu, relié à Google pour les photos — PAS de bouton « Proposer un lieu » côté
+      quartier déduit, téléphone/WhatsApp, Instagram/TikTok du lieu — PAS de bouton « Proposer un lieu » côté
       utilisateurs (décision de Jason du 6/11)
 - [ ] (ancien) Photos et nouveaux lieux : Jason repère pépites et nouveaux endroits sur TikTok/Instagram. Proposition
       (en attente de son accord) : coller un lien TikTok/Instagram dans l'admin → lieu créé + vidéo officielle

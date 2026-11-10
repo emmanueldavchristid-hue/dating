@@ -191,6 +191,9 @@ class Place(Base):
         String(500)
     )  # image externe sous licence (ex. Wikimedia), crédit dans media
     cover_gradient: Mapped[list[str]] = mapped_column(ARRAY(String(9)), default=lambda: ["#1E3A4C", "#0E0F13"])
+    # couverture calculée par services/photos.refresh_cover : photo | wikimedia ; vide = illustration
+    cover_kind: Mapped[str | None] = mapped_column(String(16))
+    cover_credit: Mapped[str | None] = mapped_column(String(200))
     # Équipements : null = inconnu (jamais supposé)
     has_parking: Mapped[bool | None] = mapped_column(Boolean)
     wheelchair: Mapped[bool | None] = mapped_column(Boolean)
@@ -267,6 +270,14 @@ class Media(Base):
     height: Mapped[int | None] = mapped_column(Integer)
     position: Mapped[int] = mapped_column(SmallInteger, default=0)
     moderation_status: Mapped[str] = mapped_column(String(12), default="approved")
+    # Provenance et droits (voir services/photos) : owner = fournie par le lieu avec son autorisation,
+    # team = prise par l'équipe, licensed = autre photo sous licence/autorisation écrite, wikimedia, google
+    source_kind: Mapped[str | None] = mapped_column(String(16))
+    author: Mapped[str | None] = mapped_column(String(160))
+    license_url: Mapped[str | None] = mapped_column(String(300))
+    source_page: Mapped[str | None] = mapped_column(String(500))  # page d'origine (Commons, publication du lieu…)
+    rights_note: Mapped[str | None] = mapped_column(String(300))  # ex. « autorisation WhatsApp du gérant, 10/11 »
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = created()
 
 

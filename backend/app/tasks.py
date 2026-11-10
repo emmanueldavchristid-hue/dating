@@ -5,7 +5,7 @@ python -m app.tasks flag-for-review   # curation : lieux à re-vérifier (ancien
 python -m app.tasks flag-gem-candidates          # curation : propose des pépites potentielles (validées par un humain)
 python -m app.tasks index-embeddings [--rebuild]   # RAG : indexe les lieux publiés (fiches + avis)
 python -m app.tasks refine-categories  # données : catégories précises lisibles dans le nom (cinéma, musée…)
-python -m app.tasks link-google        # photos : relie les lieux à Google Places (clé requise, une fois)
+python -m app.tasks link-google        # OPTION Google (désactivée par défaut) : voir docs/GOOGLE-PHOTOS.md
 python -m app.tasks dedupe             # données : archive les doublons (même nom à moins de 150 m)
 python -m app.tasks reset-popularity   # données : remet à zéro les vues gonflées par les tests automatiques
 """
@@ -194,7 +194,7 @@ def link_google(db, limit: int = 4500) -> int:
 
     google = get_google()
     if google is None:
-        print("GOOGLE_PLACES_API_KEY absente : rien à faire.")
+        print("Option Google désactivée (GOOGLE_PHOTOS_ENABLED=false ou clé absente) : rien à faire.")
         return 0
     linked = select(PlaceExternalId.place_id).where(PlaceExternalId.provider == "google")
     geom = cast(Place.location, Geometry)

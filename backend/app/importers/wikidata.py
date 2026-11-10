@@ -17,7 +17,8 @@ from sqlalchemy import cast, func, select
 from app.db import SessionLocal
 from app.importers import osm
 from app.importers.wikimedia import file_info, images_from_pages
-from app.models import City, DataSource, Media, Place, PlaceExternalId
+from app.models import City, DataSource, Place, PlaceExternalId
+from app.services.photos import wikimedia_candidate
 from app.services.places import set_taxonomy, slugify
 
 API = "https://www.wikidata.org/w/api.php"
@@ -160,20 +161,10 @@ def osm_generic_descriptions() -> set[str]:
 
 
 def attach_photo(db, place: Place, info: dict | None) -> None:
-    if not info or place.cover_url:
+    """Ajoute la photo Wikimedia comme proposition à valider (jamais affichée ni en couverture d'office)."""
+    if not info or any(m.source_url == info["url"] for m in place.media):
         return
-    db.add(
-        Media(
-            place_id=place.id,
-            source_url=info["url"],
-            alt=f"Photo de {place.name}",
-            license=info["license"],
-            credit=f"{info['artist']} · {info['license']} · Wikimedia Commons"[:160],
-            width=info["width"],
-            height=info["height"],
-        )
-    )
-    place.cover_url = info["url"]
+    db.add(wikimedia_candidate(place, info))
 
 
 def import_entities(db, city: City, items: list[dict], images: dict[str, dict], publish: bool) -> tuple[int, int]:
