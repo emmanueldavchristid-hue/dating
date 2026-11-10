@@ -1,0 +1,73 @@
+"""Configuration centralisée, lue depuis l'environnement (.env)."""
+
+from functools import lru_cache
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    app_name: str = "Sortie"  # nom de code, remplaçable
+    environment: str = "development"
+    database_url: str = "postgresql+psycopg://sortie:sortie@localhost:5432/sortie"
+
+    jwt_secret: str = Field(default="dev-only-change-me-please-32-bytes-min")
+    jwt_ttl_minutes: int = 60 * 24 * 7
+    cors_origins: str = "http://localhost:3000,http://localhost:8081"
+
+    timezone: str = "Africa/Abidjan"
+    default_city: str = "abidjan"
+
+    # Adaptateurs (vides = désactivés, l'app fonctionne sans)
+    routing_provider: str = "none"  # none | osrm
+    osrm_url: str = ""  # ex. https://router.project-osrm.org (respecter ses conditions d'usage)
+    llm_provider: str = "none"  # ancien réglage (un seul fournisseur) ; préférer llm_providers
+    llm_providers: str = ""  # ordre de repli, ex. « groq,gemini » (groq | gemini | openrouter | nvidia | anthropic)
+    anthropic_api_key: str = ""
+    llm_model: str = "claude-haiku-5-5"
+    groq_api_key: str = ""
+    groq_model: str = ""  # vide = modèle par défaut (adapters/llm.py)
+    gemini_api_key: str = ""
+    gemini_model: str = ""
+    openrouter_api_key: str = ""
+    openrouter_model: str = ""
+    nvidia_api_key: str = ""
+    nvidia_model: str = ""
+    payments_provider: str = "none"  # none | (agrégateur Mobile Money à intégrer)
+    map_provider: str = "osm"
+    media_base_url: str = ""  # URL publique du bucket S3 / CDN (sinon : PUBLIC_BASE_URL/media)
+    media_dir: str = "media"  # stockage local des photos envoyées
+    public_base_url: str = "http://localhost:8000"  # adresse publique de l'API (ex. IP du PC sur le Wi-Fi)
+    embeddings_provider: str = "hashing"  # hashing (hors ligne) | fastembed (modèle multilingue)
+    # E-mails (mot de passe oublié) : none = aucun envoi (le code est seulement écrit dans les journaux en
+    # développement) | smtp = serveur SMTP (Brevo, Mailjet, Gmail…)
+    mail_provider: str = "none"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    mail_from: str = "Sortie <no-reply@sortie.app>"
+    # Photos Google Places : option DÉSACTIVÉE par défaut (voir docs/GOOGLE-PHOTOS.md avant d'activer)
+    google_photos_enabled: bool = False
+    google_places_api_key: str = ""
+    # Images Google facturées au-delà de 1 000 par mois : 30 par jour (≈ 900 par mois) reste dans la tranche gratuite.
+    google_photos_daily_cap: int = 30
+
+    # Vie privée & abus
+    search_history_retention_days: int = 30
+    rate_limit_per_minute: int = 120
+    auth_rate_limit_per_minute: int = 10
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment == "production"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    s = Settings()
+    if s.is_production and s.jwt_secret.startswith("dev-only"):
+        raise RuntimeError("JWT_SECRET doit être défini en production")
+    return s
